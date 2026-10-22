@@ -1,0 +1,6 @@
+# Ignore local SQLite databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+!.gitignore

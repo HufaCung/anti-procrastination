@@ -5,6 +5,7 @@
 import type { User } from './types';
 import { KEYS, deleteUserData, migrate, readJSON, usersRepo, writeJSON } from './storage';
 import { uid } from '../logic/ids';
+import { api, setAuthToken } from './api';
 
 export interface AuthSession {
   userId: string;
@@ -107,6 +108,17 @@ export async function signUp(input: { name: string; email: string; password: str
   };
   usersRepo.save(user);
   setSession(user.id, true);
+  try {
+    await api.signUp({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      password: input.password,
+      passwordHash: user.passwordHash,
+    });
+  } catch {
+    /* fallback to local */
+  }
   return { ok: true, user };
 }
 
@@ -115,7 +127,38 @@ export async function logIn(input: { email: string; password: string; remember: 
   if (!EMAIL_RE.test(input.email.trim())) errors.email = AUTH_ERRORS.email;
   if (input.password.length < 8) errors.password = AUTH_ERRORS.password;
   if (Object.keys(errors).length) return { ok: false, errors };
-  const user = usersRepo.byEmail(input.email);
+  let user = usersRepo.byEmail(input.email);
+  if (!user || user.passwordHash !== (await hashFor(user.id, input.password))) {
+    // Try remote login in case account was created on another device/session
+    try {
+      const res = await api.logIn({
+        email: input.email,
+        password: input.password,
+        passwordHash: '',
+        remember: input.remember,
+      });
+      if (res?.user) {
+        const passwordHash = await hashFor(res.user.id, input.password);
+        user = { ...res.user, passwordHash };
+        usersRepo.save(user);
+      }
+    } catch {
+      /* ignore */
+    }
+  } else {
+    // Local match succeeded, also log in to backend to get JWT token
+    try {
+      await api.logIn({
+        email: input.email,
+        password: input.password,
+        passwordHash: user.passwordHash,
+        remember: input.remember,
+      });
+    } catch {
+      /* ignore */
+    }
+  }
+
   if (!user || user.passwordHash !== (await hashFor(user.id, input.password))) {
     return { ok: false, errors: { form: AUTH_ERRORS.invalid } };
   }
@@ -127,6 +170,7 @@ export function logOut(): void {
   try {
     localStorage.removeItem(KEYS.session);
     sessionStorage.removeItem(KEYS.session);
+    setAuthToken(null);
   } catch {
     /* ignore */
   }
@@ -173,5 +217,6 @@ export async function updateProfile(
 export function deleteAccount(userId: string): void {
   deleteUserData(userId);
   usersRepo.remove(userId);
+  api.deleteAccount().catch(() => {});
   logOut();
 }

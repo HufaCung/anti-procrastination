@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 import type { AppData, FocusSession, Priority, Project, Settings, Task, TaskStatus, Theme, User } from '../data/types';
 import * as auth from '../data/auth';
 import { THEME_KEY, loadUserData, saveUserData, usersRepo } from '../data/storage';
+import { api } from '../data/api';
 import { PROJECT_COLORS } from '../data/colors';
 import { uid } from '../logic/ids';
 import { addDays, dayKey, startOfDay } from '../logic/dates';
@@ -170,10 +171,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user);
   userRef.current = user;
 
-  // Persist on every change.
+  // Persist on every change to localStorage and backend SQLite.
   useEffect(() => {
-    if (user && data) saveUserData(user.id, data);
+    if (user && data) {
+      saveUserData(user.id, data);
+      api.syncAppData(data).catch(() => {});
+    }
   }, [user, data]);
+
+  // Fetch fresh data from backend SQLite when user logs in with an empty local store
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    api.fetchAppData().then((remoteData) => {
+      if (cancelled || !remoteData) return;
+      const local = dataRef.current;
+      const isEmpty = !local || (local.projects.length === 0 && local.tasks.length === 0);
+      if (isEmpty && (remoteData.projects.length > 0 || remoteData.tasks.length > 0)) {
+        dispatch({ type: 'load', data: remoteData });
+        saveUserData(user.id, remoteData);
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
 
   // Keep theme in sync with the user's settings on login.
   useEffect(() => {
