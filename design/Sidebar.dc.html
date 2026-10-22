@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sidebar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nt{--bg:#FBFBFA;--surface:#FFFFFF;--subtle:#F7F7F5;--subtle2:#FCFCFB;--border:#E9E9E7;--border-strong:#E1E1DE;--control:#C9C9C5;--divider:#F0F0EE;--track:#EDEDEB;--text:#1F1F1E;--text2:#4A4A47;--muted:#6B6B68;--faint:#8A8A86;--accent:#5E5CE6;--accent-hover:#8E8CF0;--accent-text:#3E3CC0;--accent-soft:#EEEEFD;--accent-tint:#E4E3FB;--inverse:#1F1F1E;--inverse-text:#FFFFFF;--pill:#F1F1EF;--ok-bg:#E7F6EC;--ok-text:#1E6B3A;--ok-strong:#1E8A4C;--ok-border:#B7E4C7;--warn-bg:#FEF0C7;--warn-text:#93370D;--danger-bg:#FEF3F2;--danger-border:#FDD3CF;--danger-soft:#FEE4E2;--danger-text:#B42318;--danger-strong:#7A1A12;--danger-body:#8F2A20;--h0:#F1F1EF;--h1:#DCDBFA;--h2:#B9B8F4;--h3:#8E8CF0;--h4:#4F4DD6;--shadow:0 1px 2px rgba(0,0,0,0.06);color-scheme:light;transition:background-color 200ms ease,color 200ms ease}
+.nt[data-theme="dark"]{--bg:#111113;--surface:#19191C;--subtle:#151518;--subtle2:#1C1C20;--border:#2A2A30;--border-strong:#34343B;--control:#4A4A52;--divider:#24242A;--track:#2A2A30;--text:#EDEDEC;--text2:#C4C4C8;--muted:#A1A1A6;--faint:#8E8E93;--accent:#5E5CE6;--accent-hover:#7C7AF0;--accent-text:#B9B8F4;--accent-soft:#26254A;--accent-tint:#2E2D5C;--inverse:#EDEDEC;--inverse-text:#131316;--pill:#26262C;--ok-bg:#10301F;--ok-text:#6EE7B7;--ok-strong:#34D399;--ok-border:#1F5A3E;--warn-bg:#3A2A0E;--warn-text:#FDB022;--danger-bg:#2A1514;--danger-border:#5A2420;--danger-soft:#3A1715;--danger-text:#F97066;--danger-strong:#FCA5A0;--danger-body:#F4B4AE;--h0:#24242A;--h1:#2E2D5C;--h2:#4341A0;--h3:#6563E0;--h4:#9C9AF5;--shadow:0 1px 2px rgba(0,0,0,0.5);color-scheme:dark}
+.nt a{color:var(--accent-text)}
+</style>
+</helmet>
+<nav class="nt" data-theme="{{theme}}" aria-label="Main" style="width: 100%; min-height: 900px; box-sizing: border-box; padding: 14px 12px; display: flex; flex-direction: column; gap: 18px; background: var(--subtle); border-right: 1px solid var(--border); font-family: Inter, system-ui, sans-serif; color: var(--text); font-size: 14px">
+  <div style="display: flex; align-items: center; gap: 10px; padding: 6px 8px">
+    <div style="width: 26px; height: 26px; border-radius: 7px; background: var(--inverse); color: var(--inverse-text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px">N</div>
+    <div style="display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0">
+      <span style="font-weight: 600; font-size: 14px">Notion Toolkit</span>
+      <span style="font-size: 12px; color: var(--muted)">Hoang's workspace</span>
+    </div>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--muted)"><path d="m7 15 5 5 5-5"></path><path d="m7 9 5-5 5 5"></path></svg>
+  </div>
+
+  <div style="display: flex; gap: 8px">
+    <label style="flex: 1; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-size: 13px; box-sizing: border-box">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
+      <input type="search" placeholder="Search" aria-label="Search" style="border: 0; outline: 0; background: transparent; font: inherit; color: var(--text); width: 100%; min-width: 0">
+      <span style="font-size: 11px; border: 1px solid var(--border); border-radius: 4px; padding: 1px 5px; color: var(--muted)">⌘K</span>
+    </label>
+    <button aria-label="New task" style="width: 36px; height: 36px; border-radius: 8px; border: 0; background: var(--accent); color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+    </button>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 2px">
+    <a href="Dashboard.dc.html" style="{{navDashboard}}">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"></rect><rect x="14" y="3" width="7" height="5" rx="1.5"></rect><rect x="14" y="12" width="7" height="9" rx="1.5"></rect><rect x="3" y="16" width="7" height="5" rx="1.5"></rect></svg>
+      <span style="flex: 1">Dashboard</span>
+    </a>
+    <a href="Project.dc.html" style="{{navProjects}}">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+      <span style="flex: 1">Projects</span>
+      <span style="font-size: 12px; color: var(--muted)">5</span>
+    </a>
+    <a href="Calendar.dc.html" style="{{navCalendar}}">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M16 3v4M8 3v4M3 10h18"></path></svg>
+      <span style="flex: 1">Calendar</span>
+    </a>
+    <a href="Focus.dc.html" style="{{navFocus}}">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="13" r="8"></circle><path d="M12 9v4l2.5 2.5M9 2h6"></path></svg>
+      <span style="flex: 1">Focus Mode</span>
+    </a>
+    <a href="Analytics.dc.html" style="{{navAnalytics}}">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+      <span style="flex: 1">Progress</span>
+    </a>
+  </div>
+
+  <div style="display: flex; flex-direction: column; gap: 2px">
+    <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 10px 6px; font-size: 12px; font-weight: 600; color: var(--muted); letter-spacing: 0.02em">
+      <span>PROJECTS</span>
+      <span>Due</span>
+    </div>
+    <sc-for list="{{projects}}" as="p" hint-placeholder-count="5">
+      <a href="Project.dc.html" style="display: flex; align-items: center; gap: 10px; min-height: 34px; padding: 0 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13.5px">
+        <span style="{{p.dot}}"></span>
+        <span style="flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{p.name}}</span>
+        <span style="{{p.dueStyle}}">{{p.due}}</span>
+      </a>
+    </sc-for>
+  </div>
+
+  <div style="flex: 1"></div>
+
+  <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 8px">
+    <div style="display: flex; justify-content: space-between; font-size: 12.5px">
+      <span style="font-weight: 600">Today's focus</span>
+      <span style="color: var(--muted)">1h 35m / 3h</span>
+    </div>
+    <div style="height: 6px; border-radius: 99px; background: var(--track); overflow: hidden">
+      <div style="width: 53%; height: 100%; background: var(--accent); border-radius: 99px"></div>
+    </div>
+    <span style="font-size: 12px; color: var(--muted)">12-day streak · 7 tasks done</span>
+  </div>
+
+  <div role="group" aria-label="Theme" style="display: flex; gap: 4px; padding: 3px; border-radius: 9px; background: var(--pill)">
+    <button onClick="{{setLight}}" aria-pressed="{{lightOn}}" style="{{lightStyle}}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+      Light
+    </button>
+    <button onClick="{{setDark}}" aria-pressed="{{darkOn}}" style="{{darkStyle}}">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+      Dark
+    </button>
+  </div>
+
+  <div style="display: flex; align-items: center; gap: 4px; padding-top: 10px; border-top: 1px solid var(--border)">
+    <a href="Profile.dc.html" aria-label="Profile and settings" style="{{profileStyle}}">
+      <div style="width: 30px; height: 30px; border-radius: 50%; background: var(--accent-tint); color: var(--accent-text); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 12.5px; flex: none">H</div>
+      <div style="display: flex; flex-direction: column; gap: 1px; min-width: 0">
+        <span style="font-size: 13px; font-weight: 600; color: var(--text)">Hoang</span>
+        <span style="font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis">Profile &amp; settings</span>
+      </div>
+    </a>
+    <a href="Login.dc.html" aria-label="Log out" title="Log out" style="width: 36px; height: 36px; flex: none; border-radius: 8px; color: var(--muted); display: flex; align-items: center; justify-content: center; text-decoration: none">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"></path></svg>
+    </a>
+  </div>
+</nav>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"active":{"editor":"enum","options":["dashboard","projects","calendar","focus","analytics","profile"],"default":"dashboard"},"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"onToggleTheme":{"editor":null},"$preview":{"width":248,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { own: props.theme || 'light' };
+  }
+  renderVals() {
+    var self = this;
+    var external = typeof this.props.onToggleTheme === 'function';
+    var theme = external ? (this.props.theme || 'light') : this.state.own;
+    var setTo = function (t) {
+      if (t === theme) return;
+      if (external) self.props.onToggleTheme(t);
+      else self.setState({ own: t });
+    };
+    var active = this.props.active ?? 'dashboard';
+    var base = 'display: flex; align-items: center; gap: 10px; min-height: 36px; padding: 0 10px; border-radius: 7px; text-decoration: none; font-size: 14px; ';
+    var on = base + 'background: var(--surface); color: var(--text); font-weight: 600; box-shadow: 0 0 0 1px var(--border), var(--shadow);';
+    var off = base + 'color: var(--text2); font-weight: 500;';
+    var seg = function (sel) {
+      return 'flex: 1; height: 32px; border-radius: 7px; border: 0; font: inherit; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; ' +
+        (sel ? 'background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow);' : 'background: transparent; color: var(--muted); font-weight: 500;');
+    };
+    function dot(c) { return 'width: 8px; height: 8px; border-radius: 3px; flex: none; background: ' + c + ';'; }
+    var warn = 'font-size: 12px; font-weight: 600; color: var(--danger-text);';
+    var norm = 'font-size: 12px; color: var(--muted);';
+    return {
+      theme: theme,
+      lightOn: theme === 'light' ? 'true' : 'false',
+      darkOn: theme === 'dark' ? 'true' : 'false',
+      lightStyle: seg(theme === 'light'),
+      darkStyle: seg(theme === 'dark'),
+      setLight: function () { setTo('light'); },
+      setDark: function () { setTo('dark'); },
+      navDashboard: active === 'dashboard' ? on : off,
+      navProjects: active === 'projects' ? on : off,
+      navCalendar: active === 'calendar' ? on : off,
+      navFocus: active === 'focus' ? on : off,
+      navAnalytics: active === 'analytics' ? on : off,
+      profileStyle: 'flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 6px 8px; border-radius: 8px; text-decoration: none; ' + (active === 'profile' ? 'background: var(--surface); box-shadow: 0 0 0 1px var(--border), var(--shadow);' : ''),
+      projects: [
+        { name: 'Scholarship essay', due: 'Overdue', dot: dot('#D92D20'), dueStyle: warn },
+        { name: 'Obby Lesson Pack', due: 'Oct 27', dot: dot('#5E5CE6'), dueStyle: norm },
+        { name: 'Thesis · Chapter 3', due: 'Oct 30', dot: dot('#E07B00'), dueStyle: norm },
+        { name: 'Q4 Launch Site', due: 'Nov 6', dot: dot('#0E9384'), dueStyle: norm },
+        { name: 'Portfolio redesign', due: 'Nov 20', dot: dot('#8A8A86'), dueStyle: norm }
+      ]
+    };
+  }
+}
+</script>
+</body>
+</html>

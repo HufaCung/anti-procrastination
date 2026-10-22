@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Log in</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nt{--bg:#FBFBFA;--surface:#FFFFFF;--subtle:#F7F7F5;--subtle2:#FCFCFB;--border:#E9E9E7;--border-strong:#E1E1DE;--control:#C9C9C5;--divider:#F0F0EE;--track:#EDEDEB;--text:#1F1F1E;--text2:#4A4A47;--muted:#6B6B68;--faint:#8A8A86;--accent:#5E5CE6;--accent-hover:#8E8CF0;--accent-text:#3E3CC0;--accent-soft:#EEEEFD;--accent-tint:#E4E3FB;--inverse:#1F1F1E;--inverse-text:#FFFFFF;--pill:#F1F1EF;--ok-bg:#E7F6EC;--ok-text:#1E6B3A;--ok-strong:#1E8A4C;--ok-border:#B7E4C7;--warn-bg:#FEF0C7;--warn-text:#93370D;--danger-bg:#FEF3F2;--danger-border:#FDD3CF;--danger-soft:#FEE4E2;--danger-text:#B42318;--danger-strong:#7A1A12;--danger-body:#8F2A20;--h0:#F1F1EF;--h1:#DCDBFA;--h2:#B9B8F4;--h3:#8E8CF0;--h4:#4F4DD6;--shadow:0 1px 2px rgba(0,0,0,0.06);color-scheme:light;transition:background-color 200ms ease,color 200ms ease}
+.nt[data-theme="dark"]{--bg:#111113;--surface:#19191C;--subtle:#151518;--subtle2:#1C1C20;--border:#2A2A30;--border-strong:#34343B;--control:#4A4A52;--divider:#24242A;--track:#2A2A30;--text:#EDEDEC;--text2:#C4C4C8;--muted:#A1A1A6;--faint:#8E8E93;--accent:#5E5CE6;--accent-hover:#7C7AF0;--accent-text:#B9B8F4;--accent-soft:#26254A;--accent-tint:#2E2D5C;--inverse:#EDEDEC;--inverse-text:#131316;--pill:#26262C;--ok-bg:#10301F;--ok-text:#6EE7B7;--ok-strong:#34D399;--ok-border:#1F5A3E;--warn-bg:#3A2A0E;--warn-text:#FDB022;--danger-bg:#2A1514;--danger-border:#5A2420;--danger-soft:#3A1715;--danger-text:#F97066;--danger-strong:#FCA5A0;--danger-body:#F4B4AE;--h0:#24242A;--h1:#2E2D5C;--h2:#4341A0;--h3:#6563E0;--h4:#9C9AF5;--shadow:0 1px 2px rgba(0,0,0,0.5);color-scheme:dark}
+.nt a{color:var(--accent-text)}
+.nt input:focus-visible,.nt button:focus-visible,.nt a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</helmet>
+<div class="nt" data-theme="{{theme}}" style="min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; font-size: 14px">
+
+  <main style="flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; padding: 24px clamp(16px, 4vw, 48px); box-sizing: border-box">
+    <header style="display: flex; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <div style="width: 28px; height: 28px; border-radius: 8px; background: var(--inverse); color: var(--inverse-text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">N</div>
+        <span style="font-weight: 600; font-size: 15px">Notion Toolkit</span>
+      </div>
+      <button onClick="{{toggleTheme}}" aria-label="{{themeLabel}}" title="{{themeLabel}}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <sc-if value="{{isDark}}" hint-placeholder-val="{{ false }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        </sc-if>
+        <sc-if value="{{isLight}}" hint-placeholder-val="{{ true }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+        </sc-if>
+      </button>
+    </header>
+
+    <div style="flex: 1; display: flex; align-items: center; justify-content: center; padding: 40px 0">
+      <div style="width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 24px">
+        <div style="display: flex; flex-direction: column; gap: 6px">
+          <h1 style="margin: 0; font-size: 28px; font-weight: 650; letter-spacing: -0.02em">Welcome back</h1>
+          <p style="margin: 0; color: var(--muted); line-height: 1.5">Log in to pick up where you left off.</p>
+        </div>
+
+        <form onSubmit="{{submit}}" novalidate style="display: flex; flex-direction: column; gap: 16px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="li-email" style="font-size: 13px; font-weight: 500">Email</label>
+            <input id="li-email" type="email" autocomplete="email" value="{{email}}" onChange="{{setEmail}}" placeholder="you@example.com" style="{{emailStyle}}">
+            <sc-if value="{{emailErr}}" hint-placeholder-val="{{ false }}">
+              <span role="alert" style="font-size: 12.5px; color: var(--danger-text)">{{emailErr}}</span>
+            </sc-if>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <div style="display: flex; justify-content: space-between; align-items: baseline">
+              <label for="li-pw" style="font-size: 13px; font-weight: 500">Password</label>
+              <a href="ForgotPassword.dc.html" style="font-size: 13px; font-weight: 500; text-decoration: none">Forgot password?</a>
+            </div>
+            <div style="{{pwWrapStyle}}">
+              <input id="li-pw" type="{{pwType}}" autocomplete="current-password" value="{{pw}}" onChange="{{setPw}}" placeholder="At least 8 characters" style="flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: inherit; color: var(--text); padding: 0 12px; height: 42px">
+              <button type="button" onClick="{{toggleShow}}" aria-label="{{showLabel}}" style="width: 44px; height: 42px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              </button>
+            </div>
+            <sc-if value="{{pwErr}}" hint-placeholder-val="{{ false }}">
+              <span role="alert" style="font-size: 12.5px; color: var(--danger-text)">{{pwErr}}</span>
+            </sc-if>
+          </div>
+
+          <label style="display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text2); cursor: pointer; min-height: 24px">
+            <input type="checkbox" checked="{{remember}}" onChange="{{toggleRemember}}" style="width: 16px; height: 16px; margin: 0; accent-color: #5E5CE6">
+            Keep me logged in for 30 days
+          </label>
+
+          <sc-if value="{{notDone}}" hint-placeholder-val="{{ true }}">
+            <button type="submit" style="{{btnStyle}}">{{btnLabel}}</button>
+          </sc-if>
+          <sc-if value="{{isDone}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; flex-direction: column; gap: 10px">
+              <div role="status" style="padding: 10px 12px; border-radius: 8px; background: var(--ok-bg); color: var(--ok-text); font-size: 13px; font-weight: 500">Logged in. Your workspace is ready.</div>
+              <a href="Dashboard.dc.html" style="height: 44px; border-radius: 9px; background: var(--accent); color: #FFFFFF; font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none">Open dashboard →</a>
+            </div>
+          </sc-if>
+        </form>
+
+        <div style="display: flex; align-items: center; gap: 12px; color: var(--faint); font-size: 12px">
+          <span style="flex: 1; height: 1px; background: var(--border)"></span>
+          NEW HERE?
+          <span style="flex: 1; height: 1px; background: var(--border)"></span>
+        </div>
+
+        <a href="SignUp.dc.html" style="height: 44px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font-weight: 600; display: flex; align-items: center; justify-content: center; text-decoration: none; box-sizing: border-box">Create an account</a>
+      </div>
+    </div>
+
+    <footer style="font-size: 12px; color: var(--muted)">© 2026 Notion Toolkit · <a href="#" style="color: var(--muted)">Privacy</a> · <a href="#" style="color: var(--muted)">Terms</a></footer>
+  </main>
+
+  <aside aria-hidden="true" style="flex: 1 1 480px; min-width: 0; background: var(--subtle); border-left: 1px solid var(--border); display: flex; align-items: center; justify-content: center; padding: 48px clamp(16px, 4vw, 56px); box-sizing: border-box">
+    <div style="width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 20px">
+      <p style="margin: 0; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.35">Big deadlines, broken into 15-minute steps you can actually start.</p>
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow)">
+        <div style="display: flex; justify-content: space-between; font-size: 13px"><span style="font-weight: 600">Thesis · Chapter 3</span><span style="color: var(--warn-text); font-weight: 600">8 days left</span></div>
+        <div style="height: 6px; border-radius: 99px; background: var(--track); overflow: hidden"><div style="width: 34%; height: 100%; background: #E07B00"></div></div>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 16px; height: 16px; border-radius: 5px; background: var(--accent); flex: none"></span><span style="color: var(--faint); text-decoration: line-through">Justify sample size</span><span style="margin-left: auto; color: var(--muted)">15m</span></div>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--control); flex: none; box-sizing: border-box"></span><span>Describe recruitment channels</span><span style="margin-left: auto; color: var(--muted)">10m</span></div>
+        <div style="display: flex; align-items: center; gap: 10px; font-size: 13px"><span style="width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--control); flex: none; box-sizing: border-box"></span><span>Add demographics table shell</span><span style="margin-left: auto; color: var(--muted)">10m</span></div>
+      </div>
+      <div style="display: flex; gap: 12px">
+        <div style="flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: var(--muted)">Focus today</span><span style="font-size: 20px; font-weight: 650">1h 35m</span></div>
+        <div style="flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><span style="font-size: 12px; color: var(--muted)">Streak</span><span style="font-size: 20px; font-weight: 650">12 days</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var th = props.theme || 'light';
+    try { th = localStorage.getItem('nt-theme') || th; } catch (e) {}
+    this.state = { theme: th, email: '', pw: '', show: false, remember: true, errors: {}, status: 'idle' };
+  }
+  componentDidMount() {
+    var self = this;
+    this.onStore = function (e) { if (e.key === 'nt-theme' && e.newValue) self.setState({ theme: e.newValue }); };
+    try { window.addEventListener('storage', this.onStore); } catch (e) {}
+  }
+  componentWillUnmount() { try { window.removeEventListener('storage', this.onStore); } catch (e) {} }
+  componentDidUpdate(prev) { if (prev.theme !== this.props.theme && this.props.theme) this.setState({ theme: this.props.theme }); }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var dark = s.theme === 'dark';
+    var field = function (err) { return 'height: 44px; padding: 0 12px; border-radius: 9px; font: inherit; color: var(--text); background: var(--surface); box-sizing: border-box; outline: 0; border: 1px solid ' + (err ? 'var(--danger-text)' : 'var(--border-strong)') + ';'; };
+    var clearErr = function (k) { var e = Object.assign({}, self.state.errors); delete e[k]; return e; };
+    return {
+      theme: s.theme, isDark: dark, isLight: !dark,
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      toggleTheme: function () { var t = self.state.theme === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('nt-theme', t); } catch (e) {} self.setState({ theme: t }); },
+      email: s.email, pw: s.pw, remember: s.remember,
+      setEmail: function (e) { self.setState({ email: e.target.value, errors: clearErr('email') }); },
+      setPw: function (e) { self.setState({ pw: e.target.value, errors: clearErr('pw') }); },
+      toggleRemember: function () { self.setState({ remember: !self.state.remember }); },
+      pwType: s.show ? 'text' : 'password',
+      showLabel: s.show ? 'Hide password' : 'Show password',
+      toggleShow: function () { self.setState({ show: !self.state.show }); },
+      emailErr: s.errors.email || '',
+      pwErr: s.errors.pw || '',
+      emailStyle: field(s.errors.email),
+      pwWrapStyle: 'display: flex; align-items: center; border-radius: 9px; background: var(--surface); border: 1px solid ' + (s.errors.pw ? 'var(--danger-text)' : 'var(--border-strong)') + ';',
+      notDone: s.status !== 'done',
+      isDone: s.status === 'done',
+      btnLabel: s.status === 'loading' ? 'Logging in…' : 'Log in',
+      btnStyle: 'height: 44px; border-radius: 9px; border: 0; font: inherit; font-weight: 600; font-size: 14.5px; color: #FFFFFF; cursor: pointer; background: ' + (s.status === 'loading' ? 'var(--accent-hover)' : 'var(--accent)') + ';',
+      submit: function (e) {
+        e.preventDefault();
+        if (self.state.status === 'loading') return;
+        var errs = {};
+        if (!/^\S+@\S+\.\S+$/.test(self.state.email.trim())) errs.email = 'Enter a valid email address.';
+        if (self.state.pw.length < 8) errs.pw = 'Password must be at least 8 characters.';
+        if (Object.keys(errs).length) { self.setState({ errors: errs }); return; }
+        self.setState({ status: 'loading', errors: {} });
+        setTimeout(function () { self.setState({ status: 'done' }); }, 700);
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

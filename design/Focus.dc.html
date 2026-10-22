@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Focus Mode</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nt{--bg:#FBFBFA;--surface:#FFFFFF;--subtle:#F7F7F5;--subtle2:#FCFCFB;--border:#E9E9E7;--border-strong:#E1E1DE;--control:#C9C9C5;--divider:#F0F0EE;--track:#EDEDEB;--text:#1F1F1E;--text2:#4A4A47;--muted:#6B6B68;--faint:#8A8A86;--accent:#5E5CE6;--accent-hover:#8E8CF0;--accent-text:#3E3CC0;--accent-soft:#EEEEFD;--accent-tint:#E4E3FB;--inverse:#1F1F1E;--inverse-text:#FFFFFF;--pill:#F1F1EF;--ok-bg:#E7F6EC;--ok-text:#1E6B3A;--ok-strong:#1E8A4C;--ok-border:#B7E4C7;--warn-bg:#FEF0C7;--warn-text:#93370D;--danger-bg:#FEF3F2;--danger-border:#FDD3CF;--danger-soft:#FEE4E2;--danger-text:#B42318;--danger-strong:#7A1A12;--danger-body:#8F2A20;--h0:#F1F1EF;--h1:#DCDBFA;--h2:#B9B8F4;--h3:#8E8CF0;--h4:#4F4DD6;--shadow:0 1px 2px rgba(0,0,0,0.06);color-scheme:light;transition:background-color 200ms ease,color 200ms ease}
+.nt[data-theme="dark"]{--bg:#111113;--surface:#19191C;--subtle:#151518;--subtle2:#1C1C20;--border:#2A2A30;--border-strong:#34343B;--control:#4A4A52;--divider:#24242A;--track:#2A2A30;--text:#EDEDEC;--text2:#C4C4C8;--muted:#A1A1A6;--faint:#8E8E93;--accent:#5E5CE6;--accent-hover:#7C7AF0;--accent-text:#B9B8F4;--accent-soft:#26254A;--accent-tint:#2E2D5C;--inverse:#EDEDEC;--inverse-text:#131316;--pill:#26262C;--ok-bg:#10301F;--ok-text:#6EE7B7;--ok-strong:#34D399;--ok-border:#1F5A3E;--warn-bg:#3A2A0E;--warn-text:#FDB022;--danger-bg:#2A1514;--danger-border:#5A2420;--danger-soft:#3A1715;--danger-text:#F97066;--danger-strong:#FCA5A0;--danger-body:#F4B4AE;--h0:#24242A;--h1:#2E2D5C;--h2:#4341A0;--h3:#6563E0;--h4:#9C9AF5;--shadow:0 1px 2px rgba(0,0,0,0.5);color-scheme:dark}
+.nt a{color:var(--accent-text)}
+</style>
+</helmet>
+<div class="nt" data-theme="{{theme}}" style="min-height: 100vh; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; font-size: 14px; display: flex; flex-direction: column">
+  <header style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 18px clamp(16px, 3vw, 40px)">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <span style="width: 8px; height: 8px; border-radius: 50%; background: var(--ok-strong)"></span>
+      <span style="font-weight: 600">Focus Mode</span>
+      <span style="color: var(--muted)">· notifications paused</span>
+    </div>
+    <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--muted); font-size: 13px">
+      <span>Today {{todayFocus}} · {{sessions}} sessions</span>
+      <button onClick="{{toggleTheme}}" aria-label="{{themeLabel}}" title="{{themeLabel}}" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer">
+        <sc-if value="{{isDark}}" hint-placeholder-val="{{ false }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>
+        </sc-if>
+        <sc-if value="{{isLight}}" hint-placeholder-val="{{ true }}">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"></path></svg>
+        </sc-if>
+      </button>
+      <a href="Dashboard.dc.html" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); text-decoration: none; display: flex; align-items: center; gap: 8px; box-sizing: border-box; font-weight: 500">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        Exit
+      </a>
+    </div>
+  </header>
+
+  <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 32px; padding: 12px clamp(16px, 3vw, 40px) 40px; align-items: center; justify-content: center; max-width: 1200px; width: 100%; box-sizing: border-box; margin: 0 auto">
+
+    <section aria-label="Timer" style="flex: 999 1 460px; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 26px">
+      <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; max-width: 520px">
+        <span style="font-size: 13px; color: var(--muted)">{{current.project}} · task {{position}} of {{queueLen}}</span>
+        <h1 style="margin: 0; font-size: 28px; font-weight: 650; letter-spacing: -0.02em; line-height: 1.25">{{current.title}}</h1>
+      </div>
+
+      <div style="position: relative; width: 300px; height: 300px; max-width: 80vw; max-height: 80vw">
+        <svg viewBox="0 0 300 300" width="100%" height="100%" role="img" aria-label="{{ringLabel}}" style="transform: rotate(-90deg)">
+          <circle cx="150" cy="150" r="130" fill="none" stroke="var(--track)" stroke-width="10"></circle>
+          <circle cx="150" cy="150" r="130" fill="none" stroke="{{ringColor}}" stroke-width="10" stroke-linecap="round" stroke-dasharray="816.8" stroke-dashoffset="{{offset}}" style="transition: stroke-dashoffset 900ms linear"></circle>
+        </svg>
+        <div style="position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px">
+          <span aria-live="polite" style="font-size: 64px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums">{{clock}}</span>
+          <span style="font-size: 13px; color: var(--muted)">{{stateLabel}}</span>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 6px; padding: 4px; border-radius: 10px; background: var(--pill); border: 1px solid var(--border)" role="group" aria-label="Session length">
+        <sc-for list="{{presets}}" as="p" hint-placeholder-count="3">
+          <button onClick="{{p.pick}}" style="{{p.style}}">{{p.label}}</button>
+        </sc-for>
+      </div>
+
+      <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: center">
+        <button onClick="{{reset}}" aria-label="Reset timer" style="width: 48px; height: 48px; border-radius: 50%; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path></svg>
+        </button>
+        <button onClick="{{toggle}}" style="height: 48px; min-width: 148px; padding: 0 22px; border-radius: 99px; border: 0; background: var(--inverse); color: var(--inverse-text); font: inherit; font-size: 15px; font-weight: 650; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px">{{toggleLabel}}</button>
+        <button onClick="{{addFive}}" style="height: 48px; padding: 0 16px; border-radius: 99px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 500; cursor: pointer">+5 min</button>
+        <button onClick="{{complete}}" style="height: 48px; padding: 0 16px; border-radius: 99px; border: 1px solid var(--ok-border); background: var(--ok-bg); color: var(--ok-text); font: inherit; font-weight: 600; cursor: pointer">Mark done</button>
+      </div>
+    </section>
+
+    <aside style="flex: 1 1 300px; min-width: 0; max-width: 380px; display: flex; flex-direction: column; gap: 14px">
+      <section aria-labelledby="q-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden">
+        <div style="display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--divider)">
+          <h2 id="q-h" style="margin: 0; font-size: 14px; font-weight: 600">Up next</h2>
+          <span style="font-size: 12.5px; color: var(--muted)">{{leftMins}} min left</span>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 6px 0">
+          <sc-for list="{{queue}}" as="q" hint-placeholder-count="5">
+            <li style="{{q.rowStyle}}">
+              <span style="{{q.dot}}" aria-hidden="true"></span>
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="{{q.titleStyle}}">{{q.title}}</span>
+                <span style="font-size: 12px; color: var(--muted)">{{q.project}}</span>
+              </div>
+              <span style="font-size: 12px; color: var(--muted)">{{q.est}}m</span>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+      <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 8px">
+        <span style="font-size: 13px; font-weight: 600">Parking lot</span>
+        <label style="display: flex; align-items: center; height: 38px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--subtle)">
+          <input placeholder="Jot a distraction, deal with it later" aria-label="Parking lot note" style="border: 0; outline: 0; background: transparent; color: var(--text); font: inherit; font-size: 13px; width: 100%">
+        </label>
+      </section>
+    </aside>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var th = props.theme || 'light';
+    try { th = localStorage.getItem('nt-theme') || th; } catch (e) {}
+    this.state = {
+      theme: th,
+      idx: 0, length: 15 * 60, left: 15 * 60 - 263, running: false,
+      focused: 95, sessions: 7,
+      queue: [
+        { title: 'Proofread essay and trim to 650 words', project: 'Scholarship essay', est: 15, done: false },
+        { title: 'Submit essay on portal', project: 'Scholarship essay', est: 10, done: false },
+        { title: 'Summarise 2 papers for methods table', project: 'Thesis · Chapter 3', est: 15, done: false },
+        { title: 'Write kill-brick script worksheet', project: 'Obby Lesson Pack', est: 15, done: false },
+        { title: 'Describe recruitment channels', project: 'Thesis · Chapter 3', est: 10, done: false }
+      ]
+    };
+  }
+  componentDidMount() {
+    var self = this;
+    this.onStore = function (e) { if (e.key === 'nt-theme' && e.newValue) self.setState({ theme: e.newValue }); };
+    try { window.addEventListener('storage', this.onStore); } catch (e) {}
+    this.timer = setInterval(function () {
+      if (!self.state.running) return;
+      if (self.state.left <= 1) { self.finish(true); return; }
+      self.setState({ left: self.state.left - 1 });
+    }, 1000);
+  }
+  componentWillUnmount() {
+    clearInterval(this.timer);
+    try { window.removeEventListener('storage', this.onStore); } catch (e) {}
+  }
+  componentDidUpdate(prev) { if (prev.theme !== this.props.theme && this.props.theme) this.setState({ theme: this.props.theme }); }
+  finish(byTimer) {
+    var s = this.state;
+    var spent = Math.round((s.length - s.left) / 60) || (byTimer ? Math.round(s.length / 60) : 0);
+    var q = s.queue.map(function (t, i) { return i === s.idx ? Object.assign({}, t, { done: true }) : t; });
+    var next = s.idx + 1 < q.length ? s.idx + 1 : s.idx;
+    var len = q[next].est * 60;
+    this.setState({ queue: q, idx: next, length: len, left: len, running: false, focused: s.focused + spent, sessions: s.sessions + 1 });
+  }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var dark = s.theme === 'dark';
+    var m = Math.floor(s.left / 60), sec = s.left % 60;
+    var frac = s.left / s.length;
+    var leftMins = s.queue.filter(function (t) { return !t.done; }).reduce(function (a, t) { return a + t.est; }, 0);
+    var fmt = function (mins) { return Math.floor(mins / 60) + 'h ' + (mins % 60 < 10 ? '0' : '') + (mins % 60) + 'm'; };
+    var current = s.queue[s.idx];
+    return {
+      theme: s.theme,
+      isDark: dark,
+      isLight: !dark,
+      themeLabel: dark ? 'Switch to light mode' : 'Switch to dark mode',
+      toggleTheme: function () {
+        var t = self.state.theme === 'dark' ? 'light' : 'dark';
+        try { localStorage.setItem('nt-theme', t); } catch (e) {}
+        self.setState({ theme: t });
+      },
+      current: current,
+      position: s.idx + 1,
+      queueLen: s.queue.length,
+      clock: (m < 10 ? '0' : '') + m + ':' + (sec < 10 ? '0' : '') + sec,
+      offset: (816.8 * (1 - frac)).toFixed(1),
+      ringColor: s.running ? 'var(--accent-hover)' : 'var(--accent)',
+      ringLabel: m + ' minutes ' + sec + ' seconds remaining',
+      stateLabel: current.done ? 'All caught up' : (s.running ? 'Focusing · stay with it' : (s.left === s.length ? 'Ready when you are' : 'Paused')),
+      toggleLabel: s.running ? 'Pause' : (s.left === s.length ? 'Start' : 'Resume'),
+      toggle: function () { self.setState({ running: !self.state.running }); },
+      reset: function () { self.setState({ left: self.state.length, running: false }); },
+      addFive: function () { self.setState({ left: self.state.left + 300, length: self.state.length + 300 }); },
+      complete: function () { self.finish(false); },
+      presets: [10, 15, 25].map(function (p) {
+        var on = s.length === p * 60;
+        return {
+          label: p + ' min',
+          pick: function () { self.setState({ length: p * 60, left: p * 60, running: false }); },
+          style: 'height: 36px; padding: 0 14px; border-radius: 7px; border: 0; font: inherit; font-size: 13px; cursor: pointer; ' + (on ? 'background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow);' : 'background: transparent; color: var(--muted); font-weight: 500;')
+        };
+      }),
+      todayFocus: fmt(s.focused),
+      sessions: s.sessions,
+      leftMins: leftMins,
+      queue: s.queue.map(function (t, i) {
+        var cur = i === s.idx && !t.done;
+        return {
+          title: t.title, project: t.project, est: t.est,
+          rowStyle: 'display: flex; gap: 12px; align-items: center; padding: 9px 16px; ' + (cur ? 'background: var(--accent-soft);' : ''),
+          dot: 'width: 8px; height: 8px; border-radius: 50%; flex: none; background: ' + (t.done ? 'var(--ok-strong)' : (cur ? 'var(--accent)' : 'var(--control)')) + ';',
+          titleStyle: 'font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ' + (t.done ? 'color: var(--faint); text-decoration: line-through;' : 'color: var(--text);')
+        };
+      })
+    };
+  }
+}
+</script>
+</body>
+</html>

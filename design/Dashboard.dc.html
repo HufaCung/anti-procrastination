@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Dashboard</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nt{--bg:#FBFBFA;--surface:#FFFFFF;--subtle:#F7F7F5;--subtle2:#FCFCFB;--border:#E9E9E7;--border-strong:#E1E1DE;--control:#C9C9C5;--divider:#F0F0EE;--track:#EDEDEB;--text:#1F1F1E;--text2:#4A4A47;--muted:#6B6B68;--faint:#8A8A86;--accent:#5E5CE6;--accent-hover:#8E8CF0;--accent-text:#3E3CC0;--accent-soft:#EEEEFD;--accent-tint:#E4E3FB;--inverse:#1F1F1E;--inverse-text:#FFFFFF;--pill:#F1F1EF;--ok-bg:#E7F6EC;--ok-text:#1E6B3A;--ok-strong:#1E8A4C;--ok-border:#B7E4C7;--warn-bg:#FEF0C7;--warn-text:#93370D;--danger-bg:#FEF3F2;--danger-border:#FDD3CF;--danger-soft:#FEE4E2;--danger-text:#B42318;--danger-strong:#7A1A12;--danger-body:#8F2A20;--h0:#F1F1EF;--h1:#DCDBFA;--h2:#B9B8F4;--h3:#8E8CF0;--h4:#4F4DD6;--shadow:0 1px 2px rgba(0,0,0,0.06);color-scheme:light;transition:background-color 200ms ease,color 200ms ease}
+.nt[data-theme="dark"]{--bg:#111113;--surface:#19191C;--subtle:#151518;--subtle2:#1C1C20;--border:#2A2A30;--border-strong:#34343B;--control:#4A4A52;--divider:#24242A;--track:#2A2A30;--text:#EDEDEC;--text2:#C4C4C8;--muted:#A1A1A6;--faint:#8E8E93;--accent:#5E5CE6;--accent-hover:#7C7AF0;--accent-text:#B9B8F4;--accent-soft:#26254A;--accent-tint:#2E2D5C;--inverse:#EDEDEC;--inverse-text:#131316;--pill:#26262C;--ok-bg:#10301F;--ok-text:#6EE7B7;--ok-strong:#34D399;--ok-border:#1F5A3E;--warn-bg:#3A2A0E;--warn-text:#FDB022;--danger-bg:#2A1514;--danger-border:#5A2420;--danger-soft:#3A1715;--danger-text:#F97066;--danger-strong:#FCA5A0;--danger-body:#F4B4AE;--h0:#24242A;--h1:#2E2D5C;--h2:#4341A0;--h3:#6563E0;--h4:#9C9AF5;--shadow:0 1px 2px rgba(0,0,0,0.5);color-scheme:dark}
+.nt a{color:var(--accent-text)}
+</style>
+</helmet>
+<div class="nt" data-theme="{{theme}}" style="min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); font-family: Inter, system-ui, sans-serif; color: var(--text); font-size: 14px">
+  <div style="flex: 1 1 232px; min-width: 0">
+    <dc-import name="Sidebar" active="dashboard" theme="{{theme}}" on-toggle-theme="{{setTheme}}" hint-size="100%,900px"></dc-import>
+  </div>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 28px clamp(16px, 3vw, 40px) 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 22px; max-width: 1280px">
+
+    <header style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 13px; color: var(--muted)">Thursday, October 22</span>
+        <h1 style="margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em">Good afternoon, Hoang</h1>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 8px">
+        <button style="height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 500; display: flex; align-items: center; gap: 8px; cursor: pointer">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="color: var(--accent-text)"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg>
+          Plan my day
+        </button>
+        <a href="Project.dc.html" style="height: 38px; padding: 0 14px; border-radius: 8px; background: var(--accent); color: #FFFFFF; font-weight: 600; display: flex; align-items: center; gap: 8px; text-decoration: none; box-sizing: border-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+          New project
+        </a>
+      </div>
+    </header>
+
+    <sc-if value="{{showAlert}}" hint-placeholder-val="{{ true }}">
+      <div role="alert" style="display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 14px 16px; border-radius: 12px; background: var(--danger-bg); border: 1px solid var(--danger-border)">
+        <div style="width: 34px; height: 34px; border-radius: 9px; background: var(--danger-soft); color: var(--danger-text); display: flex; align-items: center; justify-content: center; flex: none">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"></path><path d="M12 9v4M12 17h.01"></path></svg>
+        </div>
+        <div style="flex: 1 1 280px; display: flex; flex-direction: column; gap: 2px">
+          <span style="font-weight: 600; color: var(--danger-strong)">Scholarship essay is 1 day overdue</span>
+          <span style="color: var(--danger-body); font-size: 13px">3 tasks left · about 40 min. Replanning moves them into today's first free slots.</span>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button onClick="{{dismiss}}" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--danger-border); background: var(--surface); color: var(--danger-strong); font: inherit; font-weight: 500; cursor: pointer">Snooze</button>
+          <button onClick="{{dismiss}}" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 0; background: #B42318; color: #FFFFFF; font: inherit; font-weight: 600; cursor: pointer">Replan to today</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <section aria-label="Key numbers" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px">
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; color: var(--muted)">Due this week</span>
+        <span style="font-size: 28px; font-weight: 650; letter-spacing: -0.02em">6</span>
+        <span style="font-size: 12.5px; color: var(--muted)">2 high priority</span>
+      </div>
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; color: var(--muted)">Overdue</span>
+        <span style="font-size: 28px; font-weight: 650; letter-spacing: -0.02em; color: var(--danger-text)">{{overdueCount}}</span>
+        <span style="font-size: 12.5px; color: var(--muted)">Scholarship essay</span>
+      </div>
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; color: var(--muted)">Focus today</span>
+        <span style="font-size: 28px; font-weight: 650; letter-spacing: -0.02em">1h 35m</span>
+        <div style="height: 5px; border-radius: 99px; background: var(--track); overflow: hidden"><div style="width: 53%; height: 100%; background: var(--accent)"></div></div>
+      </div>
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 6px">
+        <span style="font-size: 13px; color: var(--muted)">Today's plan</span>
+        <span style="font-size: 28px; font-weight: 650; letter-spacing: -0.02em">{{doneCount}}<span style="font-size: 16px; color: var(--muted); font-weight: 500"> / {{totalCount}} done</span></span>
+        <div style="height: 5px; border-radius: 99px; background: var(--track); overflow: hidden"><div style="{{planBar}}"></div></div>
+      </div>
+    </section>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px; align-items: start">
+
+      <section aria-labelledby="today-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--divider)">
+          <h2 id="today-h" style="margin: 0; font-size: 15px; font-weight: 600">Today · 10–15 min tasks</h2>
+          <a href="Focus.dc.html" style="font-size: 13px; font-weight: 500; text-decoration: none">Start focus →</a>
+        </div>
+        <ul style="list-style: none; margin: 0; padding: 4px 0">
+          <sc-for list="{{tasks}}" as="t" hint-placeholder-count="7">
+            <li style="display: flex; align-items: center; gap: 12px; padding: 8px 16px; min-height: 44px">
+              <button onClick="{{t.toggle}}" aria-label="{{t.checkLabel}}" style="{{t.boxStyle}}">
+                <sc-if value="{{t.done}}" hint-placeholder-val="{{ false }}">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5 10 17 19 7"></path></svg>
+                </sc-if>
+              </button>
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                <span style="{{t.titleStyle}}">{{t.title}}</span>
+                <span style="font-size: 12px; color: var(--muted)">{{t.project}} · {{t.time}}</span>
+              </div>
+              <span style="font-size: 12px; color: var(--muted); white-space: nowrap">{{t.est}}</span>
+              <span style="{{t.pillStyle}}">{{t.status}}</span>
+            </li>
+          </sc-for>
+        </ul>
+      </section>
+
+      <section aria-labelledby="dl-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden">
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid var(--divider)">
+          <h2 id="dl-h" style="margin: 0; font-size: 15px; font-weight: 600">Upcoming deadlines</h2>
+          <a href="Calendar.dc.html" style="font-size: 13px; font-weight: 500; text-decoration: none">Calendar →</a>
+        </div>
+        <div style="display: flex; flex-direction: column">
+          <sc-for list="{{deadlines}}" as="d" hint-placeholder-count="5">
+            <a href="Project.dc.html" style="display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--divider); text-decoration: none; color: var(--text)">
+              <div style="display: flex; align-items: center; gap: 10px">
+                <span style="{{d.dot}}"></span>
+                <span style="flex: 1; min-width: 0; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis">{{d.name}}</span>
+                <span style="{{d.riskStyle}}">{{d.risk}}</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; padding-left: 18px">
+                <div style="flex: 1; height: 5px; border-radius: 99px; background: var(--track); overflow: hidden"><div style="{{d.bar}}"></div></div>
+                <span style="font-size: 12px; color: var(--muted); width: 34px; text-align: right">{{d.pct}}</span>
+                <span style="{{d.dueStyle}}">{{d.due}}</span>
+              </div>
+            </a>
+          </sc-for>
+        </div>
+      </section>
+    </div>
+
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 16px">
+      <section aria-labelledby="wk-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <h2 id="wk-h" style="margin: 0; font-size: 15px; font-weight: 600">Focus this week</h2>
+          <span style="font-size: 13px; color: var(--muted)">9h 40m · goal 15h</span>
+        </div>
+        <div role="img" aria-label="Focus minutes per day: Mon 150, Tue 125, Wed 180, Thu 95 so far, Fri to Sun not yet" style="display: flex; align-items: flex-end; gap: 10px; height: 140px; padding-top: 6px">
+          <sc-for list="{{week}}" as="w" hint-placeholder-count="7">
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; height: 100%; justify-content: flex-end">
+              <span style="font-size: 11px; color: var(--muted)">{{w.label}}</span>
+              <div style="{{w.bar}}"></div>
+              <span style="{{w.dayStyle}}">{{w.day}}</span>
+            </div>
+          </sc-for>
+        </div>
+      </section>
+
+      <section aria-labelledby="rp-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; justify-content: space-between; align-items: baseline">
+          <h2 id="rp-h" style="margin: 0; font-size: 15px; font-weight: 600">Auto-replan</h2>
+          <span style="font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); font-weight: 600">2 suggestions</span>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 12px; border-radius: 10px; background: var(--subtle)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px; color: var(--accent-text)"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"></path><path d="M21 3v5h-5"></path></svg>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 500">Move 4 unfinished Thesis tasks from yesterday</span>
+            <span style="font-size: 13px; color: var(--muted)">Spread across Fri and Sat mornings · still 2 days of buffer before Oct 30.</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 12px; padding: 12px; border-radius: 10px; background: var(--subtle)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E07B00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex: none; margin-top: 1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+          <div style="display: flex; flex-direction: column; gap: 4px">
+            <span style="font-weight: 500">Q4 Launch Site needs 2h 10m more per day</span>
+            <span style="font-size: 13px; color: var(--muted)">At your current pace it finishes Nov 9, 3 days late. Trim scope or add sessions.</span>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: auto">
+          <button style="height: 36px; padding: 0 14px; border-radius: 8px; border: 0; background: var(--inverse); color: var(--inverse-text); font: inherit; font-weight: 600; cursor: pointer">Apply both</button>
+          <a href="Analytics.dc.html" style="height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border-strong); color: var(--text); text-decoration: none; display: flex; align-items: center; font-weight: 500; box-sizing: border-box">Review</a>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1060}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var t = props.theme || 'light';
+    try { t = localStorage.getItem('nt-theme') || t; } catch (e) {}
+    this.state = {
+      theme: t,
+      alert: true,
+      done: { t1: true, t2: true, t3: true }
+    };
+  }
+  componentDidMount() {
+    var self = this;
+    this.onStore = function (e) { if (e.key === 'nt-theme' && e.newValue) self.setState({ theme: e.newValue }); };
+    try { window.addEventListener('storage', this.onStore); } catch (e) {}
+  }
+  componentWillUnmount() { try { window.removeEventListener('storage', this.onStore); } catch (e) {} }
+  componentDidUpdate(prev) { if (prev.theme !== this.props.theme && this.props.theme) this.setState({ theme: this.props.theme }); }
+  renderVals() {
+    var self = this;
+    var done = this.state.done;
+    var raw = [
+      { id: 't1', title: 'Outline intro paragraph', project: 'Scholarship essay', time: '8:30', est: '10m', status: 'Done' },
+      { id: 't2', title: 'Write "why this field" section', project: 'Scholarship essay', time: '8:45', est: '15m', status: 'Done' },
+      { id: 't3', title: 'Record checkpoint walkthrough clip', project: 'Obby Lesson Pack', time: '10:00', est: '15m', status: 'Done' },
+      { id: 't4', title: 'Proofread essay and trim to 650 words', project: 'Scholarship essay', time: '14:00', est: '15m', status: 'In progress' },
+      { id: 't5', title: 'Submit essay on portal', project: 'Scholarship essay', time: '14:20', est: '10m', status: 'To do' },
+      { id: 't6', title: 'Summarise 2 papers for methods table', project: 'Thesis · Chapter 3', time: '15:00', est: '15m', status: 'To do' },
+      { id: 't7', title: 'Write kill-brick script worksheet', project: 'Obby Lesson Pack', time: '16:00', est: '15m', status: 'To do' }
+    ];
+    var pill = function (s) {
+      var b = 'font-size: 11.5px; font-weight: 600; padding: 3px 8px; border-radius: 99px; white-space: nowrap; ';
+      if (s === 'Done') return b + 'background: var(--ok-bg); color: var(--ok-text);';
+      if (s === 'In progress') return b + 'background: var(--accent-soft); color: var(--accent-text);';
+      return b + 'background: var(--pill); color: var(--text2);';
+    };
+    var tasks = raw.map(function (t) {
+      var isDone = !!done[t.id];
+      var status = isDone ? 'Done' : (t.status === 'Done' ? 'To do' : t.status);
+      return Object.assign({}, t, {
+        done: isDone,
+        status: status,
+        pillStyle: pill(status),
+        checkLabel: (isDone ? 'Mark not done: ' : 'Mark done: ') + t.title,
+        boxStyle: 'width: 22px; height: 22px; flex: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0; ' + (isDone ? 'background: var(--accent); border: 1.5px solid var(--accent);' : 'background: var(--surface); border: 1.5px solid var(--control);'),
+        titleStyle: 'font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; ' + (isDone ? 'color: var(--faint); text-decoration: line-through;' : 'color: var(--text);'),
+        toggle: function () {
+          var next = Object.assign({}, self.state.done);
+          next[t.id] = !next[t.id];
+          self.setState({ done: next });
+        }
+      });
+    });
+    var doneCount = tasks.filter(function (t) { return t.done; }).length;
+    var dot = function (c) { return 'width: 8px; height: 8px; border-radius: 3px; flex: none; background: ' + c + ';'; };
+    var risk = function (r) {
+      var b = 'font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 99px; white-space: nowrap; ';
+      if (r === 'Overdue') return b + 'background: var(--danger-soft); color: var(--danger-text);';
+      if (r === 'At risk') return b + 'background: var(--warn-bg); color: var(--warn-text);';
+      return b + 'background: var(--ok-bg); color: var(--ok-text);';
+    };
+    var bar = function (p, c) { return 'width: ' + p + '%; height: 100%; border-radius: 99px; background: ' + c + ';'; };
+    var due = function (late) { return 'font-size: 12px; white-space: nowrap; width: 64px; text-align: right; ' + (late ? 'color: var(--danger-text); font-weight: 600;' : 'color: var(--muted);'); };
+    var deadlines = [
+      { name: 'Scholarship essay', risk: 'Overdue', pct: '62%', due: 'Oct 21', dot: dot('#D92D20'), riskStyle: risk('Overdue'), bar: bar(62, '#D92D20'), dueStyle: due(true) },
+      { name: 'Obby Lesson Pack', risk: 'On track', pct: '72%', due: 'In 5 days', dot: dot('#5E5CE6'), riskStyle: risk('On track'), bar: bar(72, '#5E5CE6'), dueStyle: due(false) },
+      { name: 'Thesis · Chapter 3', risk: 'At risk', pct: '34%', due: 'In 8 days', dot: dot('#E07B00'), riskStyle: risk('At risk'), bar: bar(34, '#E07B00'), dueStyle: due(false) },
+      { name: 'Q4 Launch Site', risk: 'At risk', pct: '58%', due: 'In 15 days', dot: dot('#0E9384'), riskStyle: risk('At risk'), bar: bar(58, '#0E9384'), dueStyle: due(false) },
+      { name: 'Portfolio redesign', risk: 'On track', pct: '15%', due: 'In 29 days', dot: dot('#8A8A86'), riskStyle: risk('On track'), bar: bar(15, '#8A8A86'), dueStyle: due(false) }
+    ];
+    var mins = [150, 125, 180, 95, 0, 0, 0];
+    var days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var week = mins.map(function (m, i) {
+      var h = Math.max(4, Math.round(m / 180 * 96));
+      var today = i === 3;
+      return {
+        day: days[i],
+        label: m ? (Math.floor(m / 60) + 'h' + (m % 60 ? ' ' + (m % 60) + 'm' : '')) : '',
+        bar: 'width: 100%; max-width: 36px; height: ' + h + 'px; border-radius: 6px 6px 3px 3px; background: ' + (m === 0 ? 'var(--track)' : (today ? 'var(--accent)' : 'var(--h2)')) + ';',
+        dayStyle: 'font-size: 12px; ' + (today ? 'color: var(--text); font-weight: 600;' : 'color: var(--muted);')
+      };
+    });
+    return {
+      theme: this.state.theme,
+      setTheme: function (t) { try { localStorage.setItem('nt-theme', t); } catch (e) {} self.setState({ theme: t }); },
+      showAlert: this.state.alert,
+      dismiss: function () { self.setState({ alert: false }); },
+      overdueCount: this.state.alert ? 1 : 0,
+      tasks: tasks,
+      doneCount: doneCount,
+      totalCount: tasks.length,
+      planBar: 'height: 100%; background: var(--ok-strong); width: ' + Math.round(doneCount / tasks.length * 100) + '%; transition: width 240ms ease;',
+      deadlines: deadlines,
+      week: week
+    };
+  }
+}
+</script>
+</body>
+</html>

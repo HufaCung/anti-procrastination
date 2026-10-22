@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Set up your workspace</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nt{--bg:#FBFBFA;--surface:#FFFFFF;--subtle:#F7F7F5;--subtle2:#FCFCFB;--border:#E9E9E7;--border-strong:#E1E1DE;--control:#C9C9C5;--divider:#F0F0EE;--track:#EDEDEB;--text:#1F1F1E;--text2:#4A4A47;--muted:#6B6B68;--faint:#8A8A86;--accent:#5E5CE6;--accent-hover:#8E8CF0;--accent-text:#3E3CC0;--accent-soft:#EEEEFD;--accent-tint:#E4E3FB;--inverse:#1F1F1E;--inverse-text:#FFFFFF;--pill:#F1F1EF;--ok-bg:#E7F6EC;--ok-text:#1E6B3A;--ok-strong:#1E8A4C;--ok-border:#B7E4C7;--warn-bg:#FEF0C7;--warn-text:#93370D;--danger-bg:#FEF3F2;--danger-border:#FDD3CF;--danger-soft:#FEE4E2;--danger-text:#B42318;--danger-strong:#7A1A12;--danger-body:#8F2A20;--h0:#F1F1EF;--h1:#DCDBFA;--h2:#B9B8F4;--h3:#8E8CF0;--h4:#4F4DD6;--shadow:0 1px 2px rgba(0,0,0,0.06);color-scheme:light;transition:background-color 200ms ease,color 200ms ease}
+.nt[data-theme="dark"]{--bg:#111113;--surface:#19191C;--subtle:#151518;--subtle2:#1C1C20;--border:#2A2A30;--border-strong:#34343B;--control:#4A4A52;--divider:#24242A;--track:#2A2A30;--text:#EDEDEC;--text2:#C4C4C8;--muted:#A1A1A6;--faint:#8E8E93;--accent:#5E5CE6;--accent-hover:#7C7AF0;--accent-text:#B9B8F4;--accent-soft:#26254A;--accent-tint:#2E2D5C;--inverse:#EDEDEC;--inverse-text:#131316;--pill:#26262C;--ok-bg:#10301F;--ok-text:#6EE7B7;--ok-strong:#34D399;--ok-border:#1F5A3E;--warn-bg:#3A2A0E;--warn-text:#FDB022;--danger-bg:#2A1514;--danger-border:#5A2420;--danger-soft:#3A1715;--danger-text:#F97066;--danger-strong:#FCA5A0;--danger-body:#F4B4AE;--h0:#24242A;--h1:#2E2D5C;--h2:#4341A0;--h3:#6563E0;--h4:#9C9AF5;--shadow:0 1px 2px rgba(0,0,0,0.5);color-scheme:dark}
+.nt a{color:var(--accent-text)}
+.nt input:focus-visible,.nt button:focus-visible,.nt a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</helmet>
+<div class="nt" data-theme="{{theme}}" style="min-height: 100vh; display: flex; flex-direction: column; background: var(--bg); color: var(--text); font-family: Inter, system-ui, sans-serif; font-size: 14px; padding: 24px clamp(16px, 4vw, 48px); box-sizing: border-box">
+  <header style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+    <div style="display: flex; align-items: center; gap: 10px">
+      <div style="width: 28px; height: 28px; border-radius: 8px; background: var(--inverse); color: var(--inverse-text); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px">N</div>
+      <span style="font-weight: 600; font-size: 15px">Notion Toolkit</span>
+    </div>
+    <a href="Dashboard.dc.html" style="font-size: 13px; color: var(--muted); text-decoration: none">Skip for now</a>
+  </header>
+
+  <div style="flex: 1; display: flex; justify-content: center; padding: 40px 0">
+    <div style="width: 100%; max-width: 560px; display: flex; flex-direction: column; gap: 24px">
+      <div style="display: flex; gap: 6px" aria-label="{{stepAria}}">
+        <sc-for list="{{steps}}" as="st" hint-placeholder-count="3"><span style="{{st}}"></span></sc-for>
+      </div>
+
+      <sc-if value="{{s1}}" hint-placeholder-val="{{ true }}">
+        <section style="display: flex; flex-direction: column; gap: 20px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 13px; color: var(--muted)">Step 1 of 3</span>
+            <h1 style="margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em">How much focus time per day?</h1>
+            <p style="margin: 0; color: var(--muted); line-height: 1.5">We use this to check whether your deadlines are realistic. You can change it later in Profile.</p>
+          </div>
+          <div role="radiogroup" aria-label="Daily focus goal" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px">
+            <sc-for list="{{goals}}" as="g" hint-placeholder-count="4">
+              <button role="radio" aria-checked="{{g.checked}}" onClick="{{g.pick}}" style="{{g.style}}">
+                <span style="font-size: 18px; font-weight: 650">{{g.label}}</span>
+                <span style="font-size: 12.5px; color: var(--muted)">{{g.hint}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 8px">
+            <span style="font-size: 13px; font-weight: 500">Default task size</span>
+            <div role="radiogroup" aria-label="Default task size" style="display: flex; gap: 4px; padding: 3px; border-radius: 9px; background: var(--pill); align-self: flex-start">
+              <sc-for list="{{sizes}}" as="z" hint-placeholder-count="2">
+                <button role="radio" aria-checked="{{z.checked}}" onClick="{{z.pick}}" style="{{z.style}}">{{z.label}}</button>
+              </sc-for>
+            </div>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{s2}}" hint-placeholder-val="{{ false }}">
+        <section style="display: flex; flex-direction: column; gap: 20px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 13px; color: var(--muted)">Step 2 of 3</span>
+            <h1 style="margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em">What's your first project?</h1>
+            <p style="margin: 0; color: var(--muted); line-height: 1.5">Something with a deadline works best.</p>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ob-name" style="font-size: 13px; font-weight: 500">Project name</label>
+            <input id="ob-name" value="{{project}}" onChange="{{setProject}}" placeholder="e.g. Final report for Data Structures" style="height: 44px; padding: 0 12px; border-radius: 9px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); outline: 0">
+          </div>
+          <div style="display: flex; flex-wrap: wrap; gap: 12px">
+            <div style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px">
+              <label for="ob-due" style="font-size: 13px; font-weight: 500">Deadline</label>
+              <input id="ob-due" type="date" value="{{due}}" onChange="{{setDue}}" style="height: 44px; padding: 0 12px; border-radius: 9px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); outline: 0">
+            </div>
+            <div style="flex: 1 1 200px; display: flex; flex-direction: column; gap: 6px">
+              <span style="font-size: 13px; font-weight: 500">Priority</span>
+              <div role="radiogroup" aria-label="Priority" style="display: flex; gap: 4px; padding: 3px; border-radius: 9px; background: var(--pill)">
+                <sc-for list="{{prios}}" as="p" hint-placeholder-count="3">
+                  <button role="radio" aria-checked="{{p.checked}}" onClick="{{p.pick}}" style="{{p.style}}">{{p.label}}</button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <label for="ob-desc" style="font-size: 13px; font-weight: 500">What needs to happen? <span style="color: var(--muted); font-weight: 400">(optional, helps the AI plan)</span></label>
+            <textarea id="ob-desc" rows="3" placeholder="Research, write 3 sections, make slides…" style="font: inherit; padding: 10px 12px; border-radius: 9px; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); resize: vertical; line-height: 1.5"></textarea>
+          </div>
+        </section>
+      </sc-if>
+
+      <sc-if value="{{s3}}" hint-placeholder-val="{{ false }}">
+        <section style="display: flex; flex-direction: column; gap: 20px">
+          <div style="display: flex; flex-direction: column; gap: 6px">
+            <span style="font-size: 13px; color: var(--muted)">Step 3 of 3</span>
+            <h1 style="margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em">Your first plan is ready</h1>
+            <p style="margin: 0; color: var(--muted); line-height: 1.5">{{planSummary}}</p>
+          </div>
+          <div style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden">
+            <div style="display: flex; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--divider)">
+              <span style="font-weight: 600">{{projectName}}</span>
+              <span style="font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-text); font-weight: 600">AI draft</span>
+            </div>
+            <ul style="list-style: none; margin: 0; padding: 6px 0">
+              <sc-for list="{{plan}}" as="t" hint-placeholder-count="5">
+                <li style="display: flex; align-items: center; gap: 12px; padding: 8px 16px">
+                  <span style="width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--control); flex: none; box-sizing: border-box"></span>
+                  <span style="flex: 1; min-width: 0">{{t.title}}</span>
+                  <span style="font-size: 12px; color: var(--muted)">{{t.when}}</span>
+                  <span style="font-size: 12px; color: var(--muted); width: 32px; text-align: right">{{t.est}}m</span>
+                </li>
+              </sc-for>
+            </ul>
+          </div>
+        </section>
+      </sc-if>
+
+      <div style="display: flex; justify-content: space-between; gap: 10px; padding-top: 4px">
+        <button onClick="{{back}}" style="{{backStyle}}">Back</button>
+        <sc-if value="{{notLast}}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{next}}" style="height: 44px; padding: 0 22px; border-radius: 9px; border: 0; background: var(--accent); color: #FFFFFF; font: inherit; font-weight: 600; cursor: pointer">{{nextLabel}}</button>
+        </sc-if>
+        <sc-if value="{{isLast}}" hint-placeholder-val="{{ false }}">
+          <a href="Dashboard.dc.html" style="height: 44px; padding: 0 22px; border-radius: 9px; background: var(--accent); color: #FFFFFF; font-weight: 600; display: flex; align-items: center; text-decoration: none">Go to dashboard →</a>
+        </sc-if>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var th = props.theme || 'light';
+    try { th = localStorage.getItem('nt-theme') || th; } catch (e) {}
+    this.state = { theme: th, step: 1, goal: 120, size: 15, project: '', due: '2026-11-12', prio: 'High' };
+  }
+  componentDidMount() {
+    var self = this;
+    this.onStore = function (e) { if (e.key === 'nt-theme' && e.newValue) self.setState({ theme: e.newValue }); };
+    try { window.addEventListener('storage', this.onStore); } catch (e) {}
+  }
+  componentWillUnmount() { try { window.removeEventListener('storage', this.onStore); } catch (e) {} }
+  componentDidUpdate(prev) { if (prev.theme !== this.props.theme && this.props.theme) this.setState({ theme: this.props.theme }); }
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var seg = function (on) { return 'flex: 1; height: 36px; padding: 0 14px; border-radius: 7px; border: 0; font: inherit; font-size: 13px; cursor: pointer; ' + (on ? 'background: var(--surface); color: var(--text); font-weight: 600; box-shadow: var(--shadow);' : 'background: transparent; color: var(--text2); font-weight: 500;'); };
+    var name = s.project.trim() || 'Final report for Data Structures';
+    var dueTxt = (function () { var p = s.due.split('-'); var mo = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][Number(p[1]) - 1]; return mo ? mo + ' ' + Number(p[2]) : s.due; })();
+    return {
+      theme: s.theme,
+      stepAria: 'Step ' + s.step + ' of 3',
+      steps: [1, 2, 3].map(function (i) { return 'flex: 1; height: 4px; border-radius: 99px; transition: background 200ms ease; background: ' + (i <= s.step ? 'var(--accent)' : 'var(--track)') + ';'; }),
+      s1: s.step === 1, s2: s.step === 2, s3: s.step === 3,
+      goals: [[60, '1 hour', 'Light days'], [120, '2 hours', 'Recommended'], [180, '3 hours', 'Exam season'], [240, '4 hours', 'Full sprint']].map(function (g) {
+        var on = s.goal === g[0];
+        return { label: g[1], hint: g[2], checked: on ? 'true' : 'false', pick: function () { self.setState({ goal: g[0] }); },
+          style: 'display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 14px; border-radius: 12px; font: inherit; color: var(--text); text-align: left; cursor: pointer; background: ' + (on ? 'var(--accent-soft)' : 'var(--surface)') + '; border: ' + (on ? '2px solid var(--accent)' : '1px solid var(--border)') + ';' };
+      }),
+      sizes: [10, 15].map(function (z) { var on = s.size === z; return { label: z + ' min', checked: on ? 'true' : 'false', pick: function () { self.setState({ size: z }); }, style: seg(on) }; }),
+      prios: ['Low', 'Medium', 'High'].map(function (p) { var on = s.prio === p; return { label: p, checked: on ? 'true' : 'false', pick: function () { self.setState({ prio: p }); }, style: seg(on) }; }),
+      project: s.project, due: s.due,
+      setProject: function (e) { self.setState({ project: e.target.value }); },
+      setDue: function (e) { self.setState({ due: e.target.value }); },
+      projectName: name,
+      planSummary: '12 tasks of about ' + s.size + ' minutes each, spread before ' + dueTxt + ' within your ' + (s.goal / 60) + 'h daily goal. Here are the first five.',
+      plan: [
+        ['Read the assignment brief and list deliverables', 'Today', 10],
+        ['Collect 3 reference sources', 'Today', s.size],
+        ['Draft the report outline', 'Tomorrow', s.size],
+        ['Write the introduction', 'Tomorrow', s.size],
+        ['Implement and time the first data structure', 'Sat', s.size]
+      ].map(function (t) { return { title: t[0], when: t[1], est: t[2] }; }),
+      notLast: s.step < 3, isLast: s.step === 3,
+      nextLabel: s.step === 2 ? 'Generate plan' : 'Continue',
+      next: function () { self.setState({ step: Math.min(3, self.state.step + 1) }); },
+      back: function () { self.setState({ step: Math.max(1, self.state.step - 1) }); },
+      backStyle: 'height: 44px; padding: 0 18px; border-radius: 9px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 500; cursor: pointer; ' + (s.step === 1 ? 'visibility: hidden;' : '')
+    };
+  }
+}
+</script>
+</body>
+</html>

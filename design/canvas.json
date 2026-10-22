@@ -1,0 +1,28 @@
+{
+  "v": 3,
+  "attachments": {},
+  "boards": {
+    "Artboard-nxxa.dc.html": {"h": 600, "title": "Artboard 1", "w": 800, "x": 0, "y": 0},
+    "Dashboard.dc.html": {"x": 0, "y": 900, "w": 1440, "h": 1060, "title": "Dashboard", "expand": "fill", "is_interactive": true},
+    "Project.dc.html": {"x": 1520, "y": 900, "w": 1440, "h": 1100, "title": "Project · Smart Task Breakdown", "expand": "fill", "is_interactive": true},
+    "Calendar.dc.html": {"x": 3040, "y": 900, "w": 1440, "h": 1000, "title": "Calendar", "expand": "fill", "is_interactive": true},
+    "Focus.dc.html": {"x": 0, "y": 2120, "w": 1440, "h": 900, "title": "Focus Mode", "expand": "fill", "is_interactive": true},
+    "Analytics.dc.html": {"x": 1520, "y": 2120, "w": 1440, "h": 1140, "title": "Progress Tracker", "expand": "fill", "is_interactive": true},
+    "Sidebar.dc.html": {"x": 3040, "y": 2120, "w": 248, "h": 900, "title": "Sidebar (shared component)"},
+    "Profile.dc.html": {"x": 3408, "y": 2120, "w": 1440, "h": 1240, "title": "Profile & settings", "expand": "fill", "is_interactive": true},
+    "Login.dc.html": {"x": 0, "y": 3740, "w": 1440, "h": 900, "title": "Log in", "expand": "fill", "is_interactive": true},
+    "SignUp.dc.html": {"x": 1520, "y": 3740, "w": 1440, "h": 900, "title": "Sign up", "expand": "fill", "is_interactive": true},
+    "ForgotPassword.dc.html": {"x": 3040, "y": 3740, "w": 1440, "h": 900, "title": "Forgot password", "expand": "fill", "is_interactive": true},
+    "Onboarding.dc.html": {"x": 4560, "y": 3740, "w": 1440, "h": 900, "title": "Onboarding", "expand": "fill", "is_interactive": true}
+  },
+  "createdOnFiles": {"at": "2026-10-21T18:32:49.042Z", "v": 1},
+  "designSystems": [],
+  "launch": {"view": "canvas"},
+  "notes": {
+    "title": {"x": 0, "y": 640, "text": "Notion Toolkit — MVP screens", "kind": "title1", "maxW": 4848},
+    "auth": {"x": 0, "y": 3480, "text": "Auth & account", "kind": "title1", "maxW": 6000}
+  },
+  "order": ["Artboard-nxxa.dc.html", "Dashboard.dc.html", "Project.dc.html", "Calendar.dc.html", "Focus.dc.html", "Analytics.dc.html", "Sidebar.dc.html", "Profile.dc.html", "Login.dc.html", "SignUp.dc.html", "ForgotPassword.dc.html", "Onboarding.dc.html"],
+  "pages": [],
+  "title": "Notion Toolkit"
+}
