@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Calendar</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap">
+<style>
+body{margin:0}
+.nt{--bg:#FBFBFA;--surface:#FFFFFF;--subtle:#F7F7F5;--subtle2:#FCFCFB;--border:#E9E9E7;--border-strong:#E1E1DE;--control:#C9C9C5;--divider:#F0F0EE;--track:#EDEDEB;--text:#1F1F1E;--text2:#4A4A47;--muted:#6B6B68;--faint:#8A8A86;--accent:#5E5CE6;--accent-hover:#8E8CF0;--accent-text:#3E3CC0;--accent-soft:#EEEEFD;--accent-tint:#E4E3FB;--inverse:#1F1F1E;--inverse-text:#FFFFFF;--pill:#F1F1EF;--ok-bg:#E7F6EC;--ok-text:#1E6B3A;--ok-strong:#1E8A4C;--ok-border:#B7E4C7;--warn-bg:#FEF0C7;--warn-text:#93370D;--danger-bg:#FEF3F2;--danger-border:#FDD3CF;--danger-soft:#FEE4E2;--danger-text:#B42318;--danger-strong:#7A1A12;--danger-body:#8F2A20;--h0:#F1F1EF;--h1:#DCDBFA;--h2:#B9B8F4;--h3:#8E8CF0;--h4:#4F4DD6;--shadow:0 1px 2px rgba(0,0,0,0.06);color-scheme:light;transition:background-color 200ms ease,color 200ms ease}
+.nt[data-theme="dark"]{--bg:#111113;--surface:#19191C;--subtle:#151518;--subtle2:#1C1C20;--border:#2A2A30;--border-strong:#34343B;--control:#4A4A52;--divider:#24242A;--track:#2A2A30;--text:#EDEDEC;--text2:#C4C4C8;--muted:#A1A1A6;--faint:#8E8E93;--accent:#5E5CE6;--accent-hover:#7C7AF0;--accent-text:#B9B8F4;--accent-soft:#26254A;--accent-tint:#2E2D5C;--inverse:#EDEDEC;--inverse-text:#131316;--pill:#26262C;--ok-bg:#10301F;--ok-text:#6EE7B7;--ok-strong:#34D399;--ok-border:#1F5A3E;--warn-bg:#3A2A0E;--warn-text:#FDB022;--danger-bg:#2A1514;--danger-border:#5A2420;--danger-soft:#3A1715;--danger-text:#F97066;--danger-strong:#FCA5A0;--danger-body:#F4B4AE;--h0:#24242A;--h1:#2E2D5C;--h2:#4341A0;--h3:#6563E0;--h4:#9C9AF5;--shadow:0 1px 2px rgba(0,0,0,0.5);color-scheme:dark}
+.nt a{color:var(--accent-text)}
+</style>
+</helmet>
+<div class="nt" data-theme="{{theme}}" style="min-height: 100vh; display: flex; flex-wrap: wrap; background: var(--bg); font-family: Inter, system-ui, sans-serif; color: var(--text); font-size: 14px">
+  <div style="flex: 1 1 232px; min-width: 0">
+    <dc-import name="Sidebar" active="calendar" theme="{{theme}}" on-toggle-theme="{{setTheme}}" hint-size="100%,900px"></dc-import>
+  </div>
+
+  <main style="flex: 999 1 560px; min-width: 0; padding: 24px clamp(16px, 3vw, 40px) 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; max-width: 1320px">
+    <header style="display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between">
+      <div style="display: flex; align-items: center; gap: 12px">
+        <h1 style="margin: 0; font-size: 26px; font-weight: 650; letter-spacing: -0.02em">October 2026</h1>
+        <div style="display: flex; gap: 4px">
+          <button aria-label="Previous month" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
+          </button>
+          <button aria-label="Next month" style="width: 36px; height: 36px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); display: flex; align-items: center; justify-content: center; cursor: pointer">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
+          </button>
+        </div>
+        <button onClick="{{goToday}}" style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 500; cursor: pointer">Today</button>
+      </div>
+      <div style="display: flex; flex-wrap: wrap; gap: 14px; align-items: center; font-size: 12.5px; color: var(--text2)">
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--inverse)"></span>Deadline</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--h1)"></span>Scheduled tasks</span>
+        <span style="display: flex; align-items: center; gap: 6px"><span style="width: 10px; height: 10px; border-radius: 3px; background: var(--danger-soft); border: 1px solid var(--danger-text)"></span>Overdue</span>
+      </div>
+    </header>
+
+    <div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start">
+      <section aria-label="Month" style="flex: 999 1 560px; min-width: 0; overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px">
+        <div style="min-width: 640px">
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-bottom: 1px solid var(--divider)">
+            <sc-for list="{{weekdays}}" as="w" hint-placeholder-count="7">
+              <div style="padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--muted)">{{w}}</div>
+            </sc-for>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr))">
+            <sc-for list="{{cells}}" as="c" hint-placeholder-count="35">
+              <button onClick="{{c.pick}}" aria-label="{{c.aria}}" style="{{c.cellStyle}}">
+                <span style="{{c.numStyle}}">{{c.num}}</span>
+                <sc-for list="{{c.events}}" as="e" hint-placeholder-count="1">
+                  <span style="{{e.style}}">{{e.label}}</span>
+                </sc-for>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+      </section>
+
+      <aside aria-labelledby="day-h" style="flex: 1 1 300px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+        <section style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden">
+          <div style="padding: 14px 16px; border-bottom: 1px solid var(--divider); display: flex; justify-content: space-between; align-items: baseline">
+            <h2 id="day-h" style="margin: 0; font-size: 15px; font-weight: 600">{{dayTitle}}</h2>
+            <span style="font-size: 12.5px; color: var(--muted)">{{daySummary}}</span>
+          </div>
+          <sc-if value="{{hasAgenda}}" hint-placeholder-val="{{ true }}">
+            <ul style="list-style: none; margin: 0; padding: 6px 0">
+              <sc-for list="{{agenda}}" as="a" hint-placeholder-count="4">
+                <li style="display: flex; gap: 12px; padding: 8px 16px; align-items: flex-start">
+                  <span style="font-size: 12px; color: var(--muted); width: 42px; padding-top: 2px; font-variant-numeric: tabular-nums">{{a.time}}</span>
+                  <span style="{{a.bar}}"></span>
+                  <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px">
+                    <span style="font-weight: 500">{{a.title}}</span>
+                    <span style="font-size: 12px; color: var(--muted)">{{a.meta}}</span>
+                  </div>
+                </li>
+              </sc-for>
+            </ul>
+          </sc-if>
+          <sc-if value="{{noAgenda}}" hint-placeholder-val="{{ false }}">
+            <div style="padding: 20px 16px; color: var(--muted); display: flex; flex-direction: column; gap: 10px; align-items: flex-start">
+              <span>Nothing scheduled. A good day to get ahead.</span>
+              <button style="height: 36px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); font: inherit; font-weight: 500; cursor: pointer">Pull tasks from at-risk projects</button>
+            </div>
+          </sc-if>
+        </section>
+
+        <section aria-labelledby="next-h" style="background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px">
+          <h2 id="next-h" style="margin: 0; font-size: 15px; font-weight: 600">Next deadlines</h2>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div style="width: 44px; text-align: center; display: flex; flex-direction: column; border-radius: 8px; border: 1px solid var(--border); padding: 4px 0"><span style="font-size: 10.5px; font-weight: 600; color: var(--danger-text)">OCT</span><span style="font-size: 17px; font-weight: 650">27</span></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 500">Obby Lesson Pack</span><span style="font-size: 12px; color: var(--muted)">5 days · 72% · on track</span></div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div style="width: 44px; text-align: center; display: flex; flex-direction: column; border-radius: 8px; border: 1px solid var(--border); padding: 4px 0"><span style="font-size: 10.5px; font-weight: 600; color: var(--danger-text)">OCT</span><span style="font-size: 17px; font-weight: 650">30</span></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 500">Thesis · Chapter 3</span><span style="font-size: 12px; color: var(--warn-text); font-weight: 500">8 days · 34% · at risk</span></div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px">
+            <div style="width: 44px; text-align: center; display: flex; flex-direction: column; border-radius: 8px; border: 1px solid var(--border); padding: 4px 0"><span style="font-size: 10.5px; font-weight: 600; color: var(--danger-text)">NOV</span><span style="font-size: 17px; font-weight: 650">6</span></div>
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-weight: 500">Q4 Launch Site</span><span style="font-size: 12px; color: var(--warn-text); font-weight: 500">15 days · 58% · at risk</span></div>
+          </div>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["light","dark"],"default":"light"},"$preview":{"width":1440,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    var th = props.theme || 'light';
+    try { th = localStorage.getItem('nt-theme') || th; } catch (e) {}
+    this.state = { sel: 22, theme: th };
+  }
+  componentDidMount() {
+    var self = this;
+    this.onStore = function (e) { if (e.key === 'nt-theme' && e.newValue) self.setState({ theme: e.newValue }); };
+    try { window.addEventListener('storage', this.onStore); } catch (e) {}
+  }
+  componentWillUnmount() { try { window.removeEventListener('storage', this.onStore); } catch (e) {} }
+  componentDidUpdate(prev) { if (prev.theme !== this.props.theme && this.props.theme) this.setState({ theme: this.props.theme }); }
+  renderVals() {
+    var self = this;
+    var chip = function (kind) {
+      var b = 'display: block; font-size: 11.5px; line-height: 1.3; padding: 3px 6px; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: left; font-weight: 500; ';
+      if (kind === 'deadline') return b + 'background: var(--inverse); color: var(--inverse-text); font-weight: 600;';
+      if (kind === 'overdue') return b + 'background: var(--danger-soft); color: var(--danger-text); font-weight: 600; box-shadow: inset 0 0 0 1px var(--danger-border);';
+      if (kind === 'done') return b + 'background: var(--pill); color: var(--muted); text-decoration: line-through;';
+      return b + 'background: var(--accent-soft); color: var(--accent-text);';
+    };
+    var ev = {
+      2: [['task', 'Launch: sitemap']],
+      7: [['done', 'Thesis: 3.1 design']],
+      9: [['done', 'Launch: wireframes']],
+      14: [['done', 'Obby: kickoff']],
+      16: [['done', 'Obby: playtest #1']],
+      19: [['done', 'Essay: 4 tasks']],
+      20: [['done', 'Thesis: 2 tasks']],
+      21: [['overdue', 'Scholarship essay due'], ['task', 'Thesis: 4 left over']],
+      22: [['task', '7 tasks · 1h 35m']],
+      23: [['task', 'Thesis: 4 replanned'], ['task', 'Obby: 2 tasks']],
+      24: [['task', 'Thesis: 3 tasks']],
+      26: [['task', 'Launch: copy review']],
+      27: [['deadline', 'Obby Lesson Pack']],
+      28: [['task', 'Thesis: 3.4 analysis']],
+      29: [['task', 'Supervisor check-in']],
+      30: [['deadline', 'Thesis · Chapter 3']]
+    };
+    var agendas = {
+      21: [['23:59', 'Scholarship essay deadline', 'Missed · 3 tasks moved to today', '#D92D20']],
+      22: [
+        ['08:30', 'Outline intro paragraph', 'Scholarship essay · 10 min · done', 'var(--ok-strong)'],
+        ['08:45', 'Write "why this field" section', 'Scholarship essay · 15 min · done', 'var(--ok-strong)'],
+        ['10:00', 'Record checkpoint walkthrough clip', 'Obby Lesson Pack · 15 min · done', 'var(--ok-strong)'],
+        ['14:00', 'Proofread essay and trim to 650 words', 'Scholarship essay · 15 min · in progress', 'var(--accent)'],
+        ['14:20', 'Submit essay on portal', 'Scholarship essay · 10 min', 'var(--control)'],
+        ['15:00', 'Summarise 2 papers for methods table', 'Thesis · 15 min', 'var(--control)'],
+        ['16:00', 'Write kill-brick script worksheet', 'Obby Lesson Pack · 15 min', 'var(--control)']
+      ],
+      23: [
+        ['09:00', 'Describe recruitment channels', 'Thesis · 10 min · replanned', '#E07B00'],
+        ['09:15', 'Add demographics table shell', 'Thesis · 10 min · replanned', '#E07B00'],
+        ['09:30', 'Write interview protocol overview', 'Thesis · 15 min · replanned', '#E07B00'],
+        ['09:50', 'Explain pilot test changes', 'Thesis · 15 min · replanned', '#E07B00'],
+        ['14:00', 'Build checkpoint demo place', 'Obby Lesson Pack · 15 min', 'var(--accent)'],
+        ['14:20', 'Write lesson 4 quiz', 'Obby Lesson Pack · 10 min', 'var(--accent)']
+      ],
+      27: [['17:00', 'Obby Lesson Pack due', 'Share pack with Roblox Class', 'var(--inverse)']],
+      30: [['23:59', 'Thesis · Chapter 3 due', 'Submit to supervisor', 'var(--inverse)']]
+    };
+    var cells = [];
+    for (var i = 0; i < 35; i++) {
+      var inMonth = i >= 3 && i < 34;
+      var num = i < 3 ? 28 + i : (i < 34 ? i - 2 : 1);
+      var day = inMonth ? num : null;
+      var isToday = day === 22;
+      var isSel = day === this.state.sel;
+      var col = i % 7;
+      var events = (day && ev[day] ? ev[day] : []).map(function (e) { return { label: e[1], style: chip(e[0]) }; });
+      (function (d) {
+        cells.push({
+          num: num,
+          events: events,
+          aria: d ? ('October ' + d + (events.length ? ', ' + events.map(function (e) { return e.label; }).join(', ') : '')) : 'Outside October',
+          pick: function () { if (d) self.setState({ sel: d }); },
+          cellStyle: 'display: flex; flex-direction: column; gap: 4px; align-items: stretch; min-height: 118px; padding: 8px; border: 0; border-right: ' + (col < 6 ? '1px solid var(--divider)' : '0') + '; border-bottom: ' + (i < 28 ? '1px solid var(--divider)' : '0') + '; font: inherit; color: var(--text); text-align: left; cursor: pointer; min-width: 0; ' +
+            (isSel ? 'background: var(--accent-soft); box-shadow: inset 0 0 0 2px var(--accent);' : (inMonth ? (col > 4 ? 'background: var(--subtle2);' : 'background: var(--surface);') : 'background: var(--subtle);')),
+          numStyle: 'align-self: flex-start; font-size: 12.5px; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-variant-numeric: tabular-nums; ' +
+            (isToday ? 'background: var(--accent); color: #FFFFFF; font-weight: 700;' : (inMonth ? 'color: var(--text); font-weight: 500;' : 'color: var(--faint);'))
+        });
+      })(day);
+    }
+    var sel = this.state.sel;
+    var list = (agendas[sel] || []).map(function (a) {
+      return { time: a[0], title: a[1], meta: a[2], bar: 'width: 3px; align-self: stretch; border-radius: 3px; flex: none; background: ' + a[3] + ';' };
+    });
+    var wd = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    var name = wd[(sel + 3) % 7];
+    return {
+      theme: this.state.theme,
+      setTheme: function (t) { try { localStorage.setItem('nt-theme', t); } catch (e) {} self.setState({ theme: t }); },
+      weekdays: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      cells: cells,
+      goToday: function () { self.setState({ sel: 22 }); },
+      dayTitle: (sel === 22 ? 'Today · ' : '') + name + ', Oct ' + sel,
+      daySummary: list.length ? list.length + (list.length === 1 ? ' item' : ' items') : '',
+      agenda: list,
+      hasAgenda: list.length > 0,
+      noAgenda: list.length === 0
+    };
+  }
+}
+</script>
+</body>
+</html>
