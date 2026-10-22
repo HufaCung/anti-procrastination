@@ -6,3 +6,22 @@ playwright-report
 *.tsbuildinfo
 .pi
 vite.config.ts.timestamp-*
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+backend/data/*.db
+backend/dist
+frontend/dist
+
+# Environment variables & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.crt
+id_rsa
+id_ed25519
+credentials.json

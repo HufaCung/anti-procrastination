@@ -1,46 +1,75 @@
 # Notion Toolkit
 
-A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**. Built from the designs in `design/` and the spec in `HANDOFF.md`.
+A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**.
 
-## Run it
+This repository is organized as a monorepo containing:
+- **`frontend/`**: React 18, TypeScript, Vite, Tailwind/tokens CSS.
+- **`backend/`**: Node.js, Express, TypeScript, SQLite (`better-sqlite3`), JWT authentication.
+
+## Quick Start
 
 ```bash
+# 1. Install all dependencies (npm workspaces)
 npm install
-npm run dev          # http://localhost:5173
+
+# 2. Run both Backend (http://localhost:3001) & Frontend (http://localhost:5173)
+npm run dev
 ```
 
-Create an account. Onboarding has 2 steps (daily focus goal, then your first project); step 2 can be skipped. The app ships with no sample or mock data: a new account starts empty.
+You can also run them individually:
+```bash
+# Frontend only
+npm run dev:frontend
 
-## Scripts
+# Backend only
+npm run dev:backend
+```
 
-| Command | What it does |
+## Available Scripts
+
+| Command | Description |
 |---|---|
-| `npm run dev` | Dev server with hot reload |
-| `npm run build` | Type-check and build to `dist/` |
-| `npm run preview` | Serve the production build |
-| `npm run test` | Vitest unit tests for all business logic (`src/logic`) |
-| `npx playwright test` | End-to-end tests for the 12 acceptance criteria (builds and serves automatically) |
+| `npm run dev` | Runs both backend and frontend concurrently |
+| `npm run dev:frontend` | Runs the Vite development server (`http://localhost:5173`) |
+| `npm run dev:backend` | Runs the Express + SQLite backend with tsx watch (`http://localhost:3001`) |
+| `npm run build` | Compiles both backend and frontend |
+| `npm test` | Runs unit tests for both frontend and backend |
 
-The first time you run Playwright on a new machine, install its browser once: `npx playwright install chromium`.
-
-## Structure
+## Project Structure
 
 ```
-src/
-  data/        types, localStorage repository (storage.ts), client-side auth (auth.ts), project colors
-  logic/       pure, unit-tested functions: progress & risk, scheduling & replan, timer, analytics, alerts
-  store/       AppStore context (single reducer) + toasts
-  components/  Sidebar, AppShell, Modal, form controls, icons, project & quick-task modals
-  pages/       one file per route
-  styles/      tokens.css (theme tokens, verbatim from the design) + app.css
-tests/e2e/     Playwright flows
-tests/fixtures/ realistic workspace used only by tests (never bundled into the app)
+notion-toolkit/
+├── frontend/                     # React + Vite client
+│   ├── src/
+│   │   ├── components/           # UI components, modals, sidebar, icons
+│   │   ├── data/                 # API client, auth, storage, types
+│   │   ├── logic/                # Business logic (scheduling, timer, analytics)
+│   │   ├── pages/                # Routes (Dashboard, Focus, Calendar, Project, etc.)
+│   │   ├── store/                # AppStore context & state reducer
+│   │   └── styles/               # Tokens & CSS
+│   ├── tests/                    # Playwright e2e & fixtures
+│   └── package.json
+│
+├── backend/                      # Express + SQLite API server
+│   ├── src/
+│   │   ├── db/                   # SQLite database connection & schema (better-sqlite3)
+│   │   ├── middleware/           # Auth & JWT verification middleware
+│   │   ├── routes/               # REST API endpoints (auth, projects, tasks, sessions, data)
+│   │   ├── server.ts             # Express app setup
+│   │   └── types.ts              # TypeScript domain types
+│   ├── data/                     # SQLite database storage (.db files, gitignored)
+│   └── package.json
+│
+├── design/                       # UI design specifications & HTML prototypes
+├── package.json                  # Root workspace config
+└── README.md
 ```
 
-## Notes
+## Backend API Endpoints (SQLite)
 
-- **No backend.** Everything persists in `localStorage` under `nt:v1:*` keys through `src/data/storage.ts`, so a real API (for example Supabase) can replace it without touching the UI. `src/data/auth.ts` is the only module that knows about users and sessions.
-- **No AI.** Tasks are written by you; the app only schedules, times and tracks them.
-- **Time.** All logic takes `now` as a parameter and works in the browser's local time.
-- **Focus timer.** Remaining time is derived from the stored end time, so it survives reloads, tab switches and a sleeping laptop. A session that ends while the app is closed is completed the next time it opens.
-- **Accessibility.** Real buttons and labels, `role="switch"`/`role="radio"` controls, visible focus rings, focus-trapped modals that close on Esc, and `prefers-reduced-motion` support. Every screen passes an axe WCAG 2 AA audit in both themes.
+- **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`, `/api/auth/account`
+- **Data Sync**: `/api/data` (GET all user data, PUT sync/replace data)
+- **Projects**: `/api/projects` (GET, POST, DELETE `/:id`)
+- **Tasks**: `/api/tasks` (GET, POST, DELETE `/:id`)
+- **Sessions**: `/api/sessions` (GET, POST)
+- **Settings**: `/api/settings` (GET, PATCH)

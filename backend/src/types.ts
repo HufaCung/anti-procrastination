@@ -8,20 +8,22 @@ export interface User {
   id: ID;
   name: string;
   email: string;
-  passwordHash: string; // mock auth: SHA-256 via SubtleCrypto
+  passwordHash: string;
   createdAt: string;
-  avatar?: string; // data URL
+  avatar?: string;
   passwordChangedAt?: string;
 }
+
+export type SafeUser = Omit<User, 'passwordHash'>;
 
 export interface Settings {
   userId: ID;
   theme: Theme;
-  dailyGoalMin: number; // default 180
-  defaultTaskMin: 10 | 15; // default 15
-  timeZone: string; // default 'Asia/Ho_Chi_Minh'
-  weekStart: 'mon' | 'sun'; // default 'mon'
-  autoReplan: boolean; // nightly at 22:00 local
+  dailyGoalMin: number;
+  defaultTaskMin: 10 | 15;
+  timeZone: string;
+  weekStart: 'mon' | 'sun';
+  autoReplan: boolean;
   deadlineAlerts: boolean;
   weeklyDigest: boolean;
   focusSound: boolean;
@@ -34,7 +36,7 @@ export interface Project {
   color: string;
   description?: string;
   priority: Priority;
-  dueDate: string; // ISO date (YYYY-MM-DD), end of day local
+  dueDate: string;
   createdAt: string;
   completedAt?: string;
 }
@@ -43,15 +45,15 @@ export interface Task {
   id: ID;
   userId: ID;
   projectId: ID;
-  section: string; // e.g. "3.2 Participants"; "Inbox" default
+  section: string;
   title: string;
-  estimateMin: number; // 10–15 typical, 5–30 allowed
+  estimateMin: number;
   status: TaskStatus;
   order: number;
-  scheduledFor?: string; // ISO datetime (slot start)
+  scheduledFor?: string;
   completedAt?: string;
   createdAt: string;
-  replannedFrom?: string; // previous scheduledFor, for "replanned" labels
+  replannedFrom?: string;
 }
 
 export interface FocusSession {
@@ -65,14 +67,13 @@ export interface FocusSession {
   completedTask: boolean;
 }
 
-/** Active focus timer, persisted so it survives reloads and sleeping laptops. */
 export interface ActiveTimer {
   taskId?: ID;
-  lengthMs: number; // total planned length (presets + extensions)
-  endsAt?: number; // epoch ms, set while running
-  remainingMs: number; // used while paused
+  lengthMs: number;
+  endsAt?: number;
+  remainingMs: number;
   running: boolean;
-  firstStartedAt?: string; // ISO, first time Start was pressed
+  firstStartedAt?: string;
 }
 
 export interface ParkingNote {
@@ -89,12 +90,12 @@ export interface ReplanUndo {
 export interface Meta {
   userId: ID;
   lastAutoReplanAt?: string;
-  shownAlerts: string[]; // "<projectId>:<kind>"
-  snoozedAlerts: Record<ID, string>; // projectId -> YYYY-MM-DD hidden for that day
+  shownAlerts: string[];
+  snoozedAlerts: Record<ID, string>;
   timer?: ActiveTimer;
   parking: ParkingNote[];
   lastReplan?: ReplanUndo;
-  onboarded?: boolean; // false right after sign-up until onboarding is finished or skipped
+  onboarded?: boolean;
 }
 
 export interface AppData {
