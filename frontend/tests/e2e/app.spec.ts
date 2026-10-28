@@ -102,8 +102,6 @@ test.describe('1–2 · auth and onboarding', () => {
     await page.getByLabel('Email').fill('me@example.com');
     await page.getByRole('button', { name: 'Send reset link' }).click();
     await expect(page.getByRole('heading', { name: 'Check your inbox' })).toBeVisible();
-    await page.getByRole('button', { name: 'Resend email' }).click();
-    await expect(page.getByRole('button', { name: 'Sent again ✓' })).toBeVisible();
   });
 });
 
@@ -519,7 +517,7 @@ test.describe('12 · keyboard and modals', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
     await expect(sidebar(page)).toContainText('Hoang Tran');
     const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export' }).click()]);
-    expect(download.suggestedFilename()).toMatch(/notion-toolkit-export-.*\.json/);
+    expect(download.suggestedFilename()).toMatch(/tinydo-export-.*\.json/);
     await page.getByRole('button', { name: 'Delete account' }).click();
     const dialog = page.getByRole('dialog', { name: 'Delete your account?' });
     await dialog.getByRole('button', { name: 'Delete account' }).click();

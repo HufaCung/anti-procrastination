@@ -78,6 +78,16 @@ export function getSession(): AuthSession | null {
     s = null;
   }
   if (!s || !usersRepo.byId(s.userId)) return null;
+  const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+  if (Date.now() - new Date(s.createdAt).getTime() > THIRTY_DAYS) {
+    try {
+      localStorage.removeItem(KEYS.session);
+      sessionStorage.removeItem(KEYS.session);
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
   return s;
 }
 
@@ -189,7 +199,13 @@ export async function changePassword(userId: string, current: string, next: stri
   if (!user) return { ok: false, error: 'Account not found.' };
   if (user.passwordHash !== (await hashFor(user.id, current))) return { ok: false, error: 'Current password is incorrect.' };
   if (next.length < 8) return { ok: false, error: AUTH_ERRORS.password };
-  usersRepo.save({ ...user, passwordHash: await hashFor(user.id, next), passwordChangedAt: new Date().toISOString() });
+  const newHash = await hashFor(user.id, next);
+  usersRepo.save({ ...user, passwordHash: newHash, passwordChangedAt: new Date().toISOString() });
+  try {
+    await api.changePassword({ oldPasswordHash: user.passwordHash!, newPasswordHash: newHash });
+  } catch {
+    /* fallback to local */
+  }
   return { ok: true };
 }
 
@@ -211,6 +227,11 @@ export async function updateProfile(
   if (patch.avatar === null) delete next.avatar;
   else if (patch.avatar) next.avatar = patch.avatar;
   usersRepo.save(next);
+  try {
+    await api.updateProfile({ name: next.name, ...(next.avatar !== undefined ? { avatar: next.avatar } : {}) });
+  } catch {
+    /* fallback to local */
+  }
   return { ok: true, user: next };
 }
 

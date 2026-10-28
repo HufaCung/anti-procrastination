@@ -59,8 +59,8 @@ export function OnboardingPage() {
     <div className="auth" style={{ flexDirection: 'column', padding: '24px clamp(16px, 4vw, 48px)' }}>
       <header className="auth-head">
         <div className="row" style={{ gap: 10 }}>
-          <div className="logo lg" aria-hidden="true">N</div>
-          <span style={{ fontWeight: 600, fontSize: 15 }}>Notion Toolkit</span>
+          <div className="logo lg" aria-hidden="true">T</div>
+          <span style={{ fontWeight: 600, fontSize: 15 }}>TinyDo</span>
         </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={skip}>Skip for now</button>
       </header>

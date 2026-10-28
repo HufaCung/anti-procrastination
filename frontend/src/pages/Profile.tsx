@@ -10,18 +10,6 @@ import { changePassword, updateProfile } from '../data/auth';
 import { daysBetween, fmt, fmtMinutes } from '../logic/dates';
 import type { Settings } from '../data/types';
 
-const TIMEZONES: [string, string][] = [
-  ['Asia/Ho_Chi_Minh', '(GMT+7) Ho Chi Minh City'],
-  ['Asia/Bangkok', '(GMT+7) Bangkok'],
-  ['Asia/Singapore', '(GMT+8) Singapore'],
-  ['Asia/Tokyo', '(GMT+9) Tokyo'],
-  ['Australia/Sydney', '(GMT+10) Sydney'],
-  ['Europe/London', '(GMT+0) London'],
-  ['Europe/Berlin', '(GMT+1) Berlin'],
-  ['America/New_York', '(GMT−5) New York'],
-  ['America/Los_Angeles', '(GMT−8) Los Angeles'],
-];
-
 export function ProfilePage() {
   useDocumentTitle('Profile & settings');
   const s = useStore();
@@ -31,7 +19,6 @@ export function ProfilePage() {
   const settings = s.data!.settings;
   const [name, setName] = useState(user.name);
   const [email, setEmail] = useState(user.email);
-  const [tz, setTz] = useState(settings.timeZone);
   const [weekStart, setWeekStart] = useState(settings.weekStart);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
@@ -44,7 +31,7 @@ export function ProfilePage() {
     setEmail(user.email);
   }, [user.name, user.email]);
 
-  const dirty = name !== user.name || email !== user.email || tz !== settings.timeZone || weekStart !== settings.weekStart;
+  const dirty = name !== user.name || email !== user.email || weekStart !== settings.weekStart;
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +40,7 @@ export function ProfilePage() {
       setErrors(r.errors ?? {});
       return;
     }
-    s.updateSettings({ timeZone: tz, weekStart });
+    s.updateSettings({ weekStart });
     s.refreshUser();
     setErrors({});
     setSaved(true);
@@ -100,7 +87,7 @@ export function ProfilePage() {
     const d = s.data!;
     const payload = {
       exportedAt: new Date().toISOString(),
-      app: 'Notion Toolkit',
+      app: 'TinyDo',
       version: 1,
       user: { name: user.name, email: user.email, createdAt: user.createdAt },
       settings: d.settings,
@@ -112,7 +99,7 @@ export function ProfilePage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `notion-toolkit-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `tinydo-export-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -133,7 +120,6 @@ export function ProfilePage() {
   const toggles: [keyof Settings, string, string][] = [
     ['autoReplan', 'Auto-replan unfinished tasks', 'Every night at 22:00, move leftovers into free slots.'],
     ['deadlineAlerts', 'Deadline alerts', 'Warn 3 days, 1 day and 2 hours before a deadline.'],
-    ['weeklyDigest', 'Weekly email summary', 'Sunday evening recap of focus time and progress.'],
     ['focusSound', 'Focus Mode end sound', 'Play a soft chime when a session ends.'],
   ];
 
@@ -166,13 +152,6 @@ export function ProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 14 }}>
             <TextField id="pf-name" label="Full name" value={name} large={false} onChange={(v) => { setName(v); setSaved(false); setErrors((x) => ({ ...x, name: '' })); }} error={errors.name || undefined} autoComplete="name" />
             <TextField id="pf-email" label="Email" type="email" value={email} large={false} onChange={(v) => { setEmail(v); setSaved(false); setErrors((x) => ({ ...x, email: '' })); }} error={errors.email || undefined} autoComplete="email" />
-            <div className="field">
-              <label htmlFor="pf-tz">Time zone</label>
-              <select id="pf-tz" className="select" value={tz} onChange={(e) => { setTz(e.target.value); setSaved(false); }}>
-                {!TIMEZONES.some(([v]) => v === tz) && <option value={tz}>{tz}</option>}
-                {TIMEZONES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-              </select>
-            </div>
             <div className="field">
               <label htmlFor="pf-ws">Week starts on</label>
               <select id="pf-ws" className="select" value={weekStart} onChange={(e) => { setWeekStart(e.target.value as 'mon' | 'sun'); setSaved(false); }}>

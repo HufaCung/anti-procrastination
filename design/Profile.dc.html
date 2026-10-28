@@ -51,14 +51,6 @@ body{margin:0}
             <input id="pf-email" type="email" value="{{email}}" onChange="{{setEmail}}" style="height: 42px; padding: 0 12px; border-radius: 9px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong); outline: 0">
           </div>
           <div style="display: flex; flex-direction: column; gap: 6px">
-            <label for="pf-tz" style="font-size: 13px; font-weight: 500">Time zone</label>
-            <select id="pf-tz" style="height: 42px; padding: 0 10px; border-radius: 9px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong)">
-              <option>(GMT+7) Ho Chi Minh City</option>
-              <option>(GMT+8) Singapore</option>
-              <option>(GMT+9) Tokyo</option>
-            </select>
-          </div>
-          <div style="display: flex; flex-direction: column; gap: 6px">
             <label for="pf-ws" style="font-size: 13px; font-weight: 500">Week starts on</label>
             <select id="pf-ws" style="height: 42px; padding: 0 10px; border-radius: 9px; font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--border-strong)">
               <option>Monday</option>
@@ -157,7 +149,6 @@ class Component extends DCLogic {
     var defs = [
       ['replan', 'Auto-replan unfinished tasks', 'Every night at 22:00, move leftovers into free slots.'],
       ['alerts', 'Deadline alerts', 'Warn 3 days, 1 day and 2 hours before a deadline.'],
-      ['digest', 'Weekly email summary', 'Sunday evening recap of focus time and progress.'],
       ['sound', 'Focus Mode end sound', 'Play a soft chime when a session ends.']
     ];
     return {

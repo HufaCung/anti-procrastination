@@ -1,6 +1,6 @@
-# Notion Toolkit: Handoff to Claude Code
+# TinyDo: Handoff to Claude Code
 
-You are building the working MVP of **Notion Toolkit**, a productivity web app with three core features: Deadline Manager, Smart Task Breakdown (with Focus Mode) and Progress Tracker. The UI design is finished. It lives in `design/` as interactive prototype screens. Your job is to turn that design into a real, running app with persistent data, then test it and fix any errors.
+You are building the working MVP of **TinyDo**, a productivity web app with three core features: Deadline Manager, Smart Task Breakdown (with Focus Mode) and Progress Tracker. The UI design is finished. It lives in `design/` as interactive prototype screens. Your job is to turn that design into a real, running app with persistent data, then test it and fix any errors.
 
 Read this whole file before writing code. Open the `design/*.dc.html` files when you build each screen. They are the source of truth for layout, copy, spacing and colors.
 
@@ -9,7 +9,7 @@ Read this whole file before writing code. Open the `design/*.dc.html` files when
 ## 1. What is in this folder
 
 ```
-notion-toolkit/
+tinydo/
 ├── HANDOFF.md              ← this file
 └── design/
     ├── canvas.json         ← canvas index (board names and sizes; ignore x/y)

@@ -19,10 +19,10 @@
   "designSystems": [],
   "launch": {"view": "canvas"},
   "notes": {
-    "title": {"x": 0, "y": 640, "text": "Notion Toolkit — MVP screens", "kind": "title1", "maxW": 4848},
+    "title": {"x": 0, "y": 640, "text": "TinyDo — MVP screens", "kind": "title1", "maxW": 4848},
     "auth": {"x": 0, "y": 3480, "text": "Auth & account", "kind": "title1", "maxW": 6000}
   },
   "order": ["Artboard-nxxa.dc.html", "Dashboard.dc.html", "Project.dc.html", "Calendar.dc.html", "Focus.dc.html", "Analytics.dc.html", "Sidebar.dc.html", "Profile.dc.html", "Login.dc.html", "SignUp.dc.html", "ForgotPassword.dc.html", "Onboarding.dc.html"],
   "pages": [],
-  "title": "Notion Toolkit"
+  "title": "TinyDo"
 }

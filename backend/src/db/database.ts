@@ -12,7 +12,7 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'notion_toolkit.db');
+const dbPath = process.env.DATABASE_PATH || path.join(dataDir, 'tinydo.db');
 export const db = new Database(dbPath);
 
 // Enable WAL mode & foreign keys
