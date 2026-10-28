@@ -12,7 +12,6 @@ export function ForgotPasswordPage() {
   const [email, setEmail] = useState(s.user?.email ?? '');
   const [err, setErr] = useState('');
   const [status, setStatus] = useState<'idle' | 'loading' | 'sent'>('idle');
-  const [resent, setResent] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
 
   const submit = (e: React.FormEvent) => {
@@ -56,12 +55,6 @@ export function ForgotPasswordPage() {
               <p style={{ color: 'var(--muted)', lineHeight: 1.5 }}>
                 We sent a reset link to <span style={{ color: 'var(--text)', fontWeight: 600, overflowWrap: 'anywhere' }}>{email.trim()}</span>. It expires in 30 minutes.
               </p>
-              <div className="row wrap" style={{ fontSize: 13, color: 'var(--muted)' }}>
-                Didn’t get it?
-                <button type="button" className="text-btn" onClick={() => { requestPasswordReset(email); setResent(true); }} disabled={resent}>
-                  {resent ? 'Sent again ✓' : 'Resend email'}
-                </button>
-              </div>
               <p style={{ fontSize: 12, color: 'var(--muted)' }}>Demo mode: no email is actually sent.</p>
             </div>
           )}

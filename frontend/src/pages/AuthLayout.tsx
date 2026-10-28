@@ -7,9 +7,9 @@ export function AuthHeader({ right }: { right?: ReactNode }) {
   const s = useStore();
   return (
     <header className="auth-head">
-      <Link to="/" className="row" style={{ gap: 10, color: 'var(--text)', textDecoration: 'none' }} aria-label="Notion Toolkit home">
-        <div className="logo lg" aria-hidden="true">N</div>
-        <span style={{ fontWeight: 600, fontSize: 15 }}>Notion Toolkit</span>
+      <Link to="/" className="row" style={{ gap: 10, color: 'var(--text)', textDecoration: 'none' }} aria-label="TinyDo home">
+        <div className="logo lg" aria-hidden="true">T</div>
+        <span style={{ fontWeight: 600, fontSize: 15 }}>TinyDo</span>
       </Link>
       <div className="row" style={{ gap: 12 }}>
         {right}
@@ -22,8 +22,7 @@ export function AuthHeader({ right }: { right?: ReactNode }) {
 export function AuthFooter() {
   return (
     <footer style={{ fontSize: 12, color: 'var(--muted)' }}>
-      © {new Date().getFullYear()} Notion Toolkit · <a href="#privacy" style={{ color: 'var(--muted)' }} onClick={(e) => e.preventDefault()}>Privacy</a> ·{' '}
-      <a href="#terms" style={{ color: 'var(--muted)' }} onClick={(e) => e.preventDefault()}>Terms</a>
+      © {new Date().getFullYear()} TinyDo
     </footer>
   );
 }

@@ -1,4 +1,4 @@
-# Notion Toolkit
+# TinyDo
 
 A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**.
 
@@ -38,7 +38,7 @@ npm run dev:backend
 ## Project Structure
 
 ```
-notion-toolkit/
+tinydo/
 ├── frontend/                     # React + Vite client
 │   ├── src/
 │   │   ├── components/           # UI components, modals, sidebar, icons

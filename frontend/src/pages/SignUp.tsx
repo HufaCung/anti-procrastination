@@ -75,7 +75,7 @@ export function SignUpPage() {
               <div className="col" style={{ gap: 6 }}>
                 <label className="check" style={{ alignItems: 'flex-start', lineHeight: 1.45 }}>
                   <input ref={refs.agree} type="checkbox" checked={agree} onChange={(e) => { setAgree(e.target.checked); clear('agree'); }} style={{ marginTop: 2 }} aria-invalid={!!errors.agree} />
-                  <span>I agree to the <a href="#terms" onClick={(e) => e.preventDefault()}>Terms</a> and <a href="#privacy" onClick={(e) => e.preventDefault()}>Privacy Policy</a>.</span>
+                  <span>I agree to the Terms and Privacy Policy.</span>
                 </label>
                 {errors.agree && <span role="alert" className="err-text">{errors.agree}</span>}
               </div>

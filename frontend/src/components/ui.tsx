@@ -330,6 +330,6 @@ export function ThemeIconButton({ theme, onToggle }: { theme: 'light' | 'dark'; 
 
 export function useDocumentTitle(title: string) {
   useEffect(() => {
-    document.title = title ? `${title} · Notion Toolkit` : 'Notion Toolkit';
+    document.title = title ? `${title} · TinyDo` : 'TinyDo';
   }, [title]);
 }

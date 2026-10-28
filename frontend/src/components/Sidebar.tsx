@@ -23,9 +23,9 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
   return (
     <nav className={`sidebar ${more ? 'more-open' : ''}`} aria-label="Main">
       <div className="brand">
-        <div className="logo" aria-hidden="true">N</div>
+        <div className="logo" aria-hidden="true">T</div>
         <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
-          <span style={{ fontWeight: 600, fontSize: 14 }}>Notion Toolkit</span>
+          <span style={{ fontWeight: 600, fontSize: 14 }}>TinyDo</span>
           <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{first}’s workspace</span>
         </div>
         <button type="button" className="btn btn-secondary btn-sm mobile-only" aria-expanded={more} aria-controls="side-more" onClick={() => setMore((m) => !m)}>

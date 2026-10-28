@@ -86,7 +86,6 @@ export function FocusPage() {
         <div className="row" style={{ gap: 10 }}>
           <span className={`live-dot ${timer.running ? 'running' : ''}`} aria-hidden="true" />
           <span style={{ fontWeight: 600 }}>Focus Mode</span>
-          <span className="muted">· notifications paused</span>
         </div>
         <div className="row wrap" style={{ gap: 12, color: 'var(--muted)', fontSize: 13 }}>
           <span data-testid="focus-today">Today {fmtMinutesPadded(s.todayFocusMin)} · {s.todaySessions} {s.todaySessions === 1 ? 'session' : 'sessions'}</span>

@@ -33,6 +33,6 @@ app.use('/api/settings', settingsRouter);
 // Start server when run directly
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {
-    console.log(`[backend] Notion Toolkit API running on http://localhost:${PORT}`);
+    console.log(`[backend] TinyDo API running on http://localhost:${PORT}`);
   });
 }
