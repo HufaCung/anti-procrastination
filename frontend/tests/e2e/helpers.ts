@@ -1,5 +1,6 @@
 import { expect, type Page, test as base } from '@playwright/test';
 import { buildSeed } from '../fixtures/seed';
+import { randomUUID } from 'node:crypto';
 
 /** Fails the test on any console error or uncaught exception; stubs Google Fonts so offline runs stay clean. */
 export const test = base.extend<{ errors: string[] }>({
@@ -16,10 +17,8 @@ export const test = base.extend<{ errors: string[] }>({
 });
 export { expect };
 
-let counter = 0;
 export function uniqueEmail() {
-  counter++;
-  return `user${Date.now()}${counter}@example.com`;
+  return `user-${randomUUID()}@example.com`;
 }
 
 export async function signUp(page: Page, opts: { name?: string; email?: string; password?: string } = {}) {

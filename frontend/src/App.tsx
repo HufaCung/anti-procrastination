@@ -17,6 +17,7 @@ import { NotFoundPage } from './pages/NotFound';
 function RequireAuth() {
   const s = useStore();
   const loc = useLocation();
+  if (!s.ready) return <main>Loading your workspace...</main>;
   if (!s.user || !s.data) {
     let deleted = false;
     try {
@@ -33,6 +34,7 @@ function RequireAuth() {
 function PublicOnly() {
   const s = useStore();
   const loc = useLocation();
+  if (!s.ready) return <main>Loading your workspace...</main>;
   if (s.user && s.data) {
     const from = (loc.state as { from?: string } | null)?.from;
     const to = s.data.meta.onboarded === false ? '/onboarding' : from && from !== '/login' ? from : '/';

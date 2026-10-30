@@ -123,6 +123,11 @@ export function loadUserData(userId: string): AppData {
   };
 }
 
+export function hasUserData(userId: string): boolean {
+  return (['settings', 'meta', 'projects', 'tasks', 'sessions'] as Collection[])
+    .some((collection) => read<{ userId: string }>(collection).some((item) => item.userId === userId));
+}
+
 function replaceFor<T extends { userId: string }>(c: Collection, userId: string, items: T[]) {
   const others = read<T>(c).filter((x) => x.userId !== userId);
   write(c, [...others, ...items]);
