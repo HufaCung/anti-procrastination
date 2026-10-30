@@ -161,6 +161,7 @@ export function ProfilePage() {
             </div>
           </div>
           <div className="row" style={{ gap: 12 }}>
+            {errors.form && <span role="alert">{errors.form}</span>}
             <button type="submit" className="btn btn-primary" disabled={!dirty}>Save changes</button>
             {saved && <span role="status" className="saved-note">Saved</span>}
           </div>

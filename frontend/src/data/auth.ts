@@ -1,10 +1,9 @@
 /**
- * Mock, client-side auth. This is the only module that knows how users and sessions
- * are stored, so a real provider can replace it later.
+ * Authentication requests are verified by the backend. A local user copy keeps
+ * the current profile and session available to the interface.
  */
 import type { User } from './types';
 import { KEYS, deleteUserData, migrate, readJSON, usersRepo, writeJSON } from './storage';
-import { uid } from '../logic/ids';
 import { api, setAuthToken } from './api';
 
 export interface AuthSession {
@@ -106,29 +105,15 @@ export async function signUp(input: { name: string; email: string; password: str
   if (!input.agree) errors.agree = AUTH_ERRORS.terms;
   if (!errors.email && usersRepo.byEmail(input.email)) errors.email = AUTH_ERRORS.duplicate;
   if (Object.keys(errors).length) return { ok: false, errors };
-  const now = new Date().toISOString();
-  const id = uid('u_');
-  const user: User = {
-    id,
+  const result = await api.signUp({
     name: input.name.trim(),
     email: input.email.trim(),
-    passwordHash: await hashFor(id, input.password),
-    createdAt: now,
-    passwordChangedAt: now,
-  };
+    password: input.password,
+  });
+  if (!result?.token || !result.user) return { ok: false, errors: { form: 'Could not create account. The email may already be in use, or the server may be unavailable.' } };
+  const user = { ...result.user, passwordHash: await hashFor(result.user.id, input.password) };
   usersRepo.save(user);
   setSession(user.id, true);
-  try {
-    await api.signUp({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      password: input.password,
-      passwordHash: user.passwordHash,
-    });
-  } catch {
-    /* fallback to local */
-  }
   return { ok: true, user };
 }
 
@@ -137,41 +122,16 @@ export async function logIn(input: { email: string; password: string; remember: 
   if (!EMAIL_RE.test(input.email.trim())) errors.email = AUTH_ERRORS.email;
   if (input.password.length < 8) errors.password = AUTH_ERRORS.password;
   if (Object.keys(errors).length) return { ok: false, errors };
-  let user = usersRepo.byEmail(input.email);
-  if (!user || user.passwordHash !== (await hashFor(user.id, input.password))) {
-    // Try remote login in case account was created on another device/session
-    try {
-      const res = await api.logIn({
-        email: input.email,
-        password: input.password,
-        passwordHash: '',
-        remember: input.remember,
-      });
-      if (res?.user) {
-        const passwordHash = await hashFor(res.user.id, input.password);
-        user = { ...res.user, passwordHash };
-        usersRepo.save(user);
-      }
-    } catch {
-      /* ignore */
-    }
-  } else {
-    // Local match succeeded, also log in to backend to get JWT token
-    try {
-      await api.logIn({
-        email: input.email,
-        password: input.password,
-        passwordHash: user.passwordHash,
-        remember: input.remember,
-      });
-    } catch {
-      /* ignore */
-    }
-  }
-
-  if (!user || user.passwordHash !== (await hashFor(user.id, input.password))) {
+  const res = await api.logIn({
+    email: input.email,
+    password: input.password,
+    remember: input.remember,
+  });
+  if (!res?.user || !res.token) {
     return { ok: false, errors: { form: AUTH_ERRORS.invalid } };
   }
+  const user = { ...res.user, passwordHash: await hashFor(res.user.id, input.password) };
+  usersRepo.save(user);
   setSession(user.id, input.remember);
   return { ok: true, user };
 }
@@ -186,26 +146,15 @@ export function logOut(): void {
   }
 }
 
-export function requestPasswordReset(email: string): { ok: boolean; error?: string } {
-  if (!EMAIL_RE.test(email.trim())) return { ok: false, error: AUTH_ERRORS.email };
-  if (import.meta.env?.DEV) {
-    console.info(`[dev] Mock password reset requested for ${email.trim()}. No email is sent in the MVP.`);
-  }
-  return { ok: true };
-}
-
 export async function changePassword(userId: string, current: string, next: string): Promise<{ ok: boolean; error?: string }> {
   const user = usersRepo.byId(userId);
   if (!user) return { ok: false, error: 'Account not found.' };
   if (user.passwordHash !== (await hashFor(user.id, current))) return { ok: false, error: 'Current password is incorrect.' };
   if (next.length < 8) return { ok: false, error: AUTH_ERRORS.password };
   const newHash = await hashFor(user.id, next);
+  const result = await api.changePassword({ oldPassword: current, newPassword: next });
+  if (!result?.user) return { ok: false, error: 'Could not update password. Please try again.' };
   usersRepo.save({ ...user, passwordHash: newHash, passwordChangedAt: new Date().toISOString() });
-  try {
-    await api.changePassword({ oldPasswordHash: user.passwordHash!, newPasswordHash: newHash });
-  } catch {
-    /* fallback to local */
-  }
   return { ok: true };
 }
 
@@ -226,12 +175,9 @@ export async function updateProfile(
   const next: User = { ...user, name: name.trim(), email };
   if (patch.avatar === null) delete next.avatar;
   else if (patch.avatar) next.avatar = patch.avatar;
-  usersRepo.save(next);
-  try {
-    await api.updateProfile({ name: next.name, ...(next.avatar !== undefined ? { avatar: next.avatar } : {}) });
-  } catch {
-    /* fallback to local */
-  }
+  const result = await api.updateProfile({ name: next.name, email: next.email, ...(patch.avatar !== undefined ? { avatar: patch.avatar } : {}) });
+  if (!result?.user) return { ok: false, errors: { form: 'Could not save profile. The email may already be in use, or the server may be unavailable.' } };
+  usersRepo.save({ ...next, ...result.user, passwordHash: user.passwordHash });
   return { ok: true, user: next };
 }
 

@@ -62,6 +62,7 @@ export function SignUpPage() {
             </div>
             {deleted && <div role="status" className="status-ok">Your account and its data were deleted.</div>}
             <form onSubmit={submit} noValidate className="col" style={{ gap: 16 }}>
+              {errors.form && <div role="alert" className="status-bad">{errors.form}</div>}
               <TextField label="Full name" autoComplete="name" placeholder="Nguyen Van A" value={name} inputRef={refs.name} onChange={(v) => { setName(v); clear('name'); }} error={errors.name} />
               <TextField label="Email" type="email" autoComplete="email" placeholder="you@example.com" value={email} inputRef={refs.email} onChange={(v) => { setEmail(v); clear('email'); }} error={errors.email} />
               <PasswordField label="Password" autoComplete="new-password" value={pw} inputRef={refs.password} onChange={(v) => { setPw(v); clear('password'); }} error={errors.password}>

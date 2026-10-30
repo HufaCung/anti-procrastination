@@ -19,52 +19,44 @@ function hashPassword(userId: string, password: string): string {
   return crypto.createHash('sha256').update(`nt:${userId}:${password}`).digest('hex');
 }
 
-function generateUserId(): string {
-  return 'u_' + Math.random().toString(36).slice(2, 10);
-}
-
 // POST /api/auth/signup
 authRouter.post('/signup', (req, res: Response) => {
-  const { name, email, password, passwordHash, id } = req.body;
-
-  if (!email || typeof email !== 'string') {
+  const { name, email, password } = req.body;
+  if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
     res.status(400).json({ error: 'Valid email is required' });
     return;
   }
-  if (!name || typeof name !== 'string') {
+  if (typeof name !== 'string' || name.trim().length < 2) {
     res.status(400).json({ error: 'Name is required' });
     return;
   }
 
-  const existing = usersDb.findByEmail(email);
+  if (typeof password !== 'string' || password.length < 8 || password.length > 1024) {
+    res.status(400).json({ error: 'Password must be at least 8 characters' });
+    return;
+  }
+  const normalized = email.trim().toLowerCase();
+  const existing = usersDb.findByEmail(normalized);
   if (existing) {
     res.status(409).json({ error: 'An account with this email already exists' });
     return;
   }
 
-  const userId = id || generateUserId();
-  const finalHash = passwordHash || (password ? hashPassword(userId, password) : null);
-
-  if (!finalHash) {
-    res.status(400).json({ error: 'Password or passwordHash is required' });
-    return;
-  }
-
+  const userId = crypto.randomUUID();
   const newUser: User = {
     id: userId,
     name: name.trim(),
-    email: email.toLowerCase().trim(),
-    passwordHash: finalHash,
+    email: normalized,
+    passwordHash: hashPassword(userId, password),
     createdAt: new Date().toISOString(),
   };
 
-  usersDb.create(newUser);
-  const token = signToken(newUser.id);
-
-  res.status(201).json({
-    token,
-    user: sanitizeUser(newUser),
-  });
+  try {
+    usersDb.create(newUser);
+    res.status(201).json({ token: signToken(newUser.id), user: sanitizeUser(newUser) });
+  } catch {
+    res.status(409).json({ error: 'Account already exists' });
+  }
 });
 
 // POST /api/auth/login
@@ -112,10 +104,22 @@ authRouter.get('/me', authMiddleware, (req: AuthenticatedRequest, res: Response)
 // PATCH /api/auth/profile
 authRouter.patch('/profile', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const { name, avatar } = req.body;
+  const { name, email, avatar } = req.body;
 
   const patch: Partial<User> = {};
   if (name !== undefined) patch.name = String(name).trim();
+  if (email !== undefined) {
+    if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+      res.status(400).json({ error: 'Valid email is required' });
+      return;
+    }
+    const existing = usersDb.findByEmail(email);
+    if (existing && existing.id !== user.id) {
+      res.status(409).json({ error: 'An account with this email already exists' });
+      return;
+    }
+    patch.email = email.trim().toLowerCase();
+  }
   if (avatar !== undefined) patch.avatar = avatar;
 
   const updated = usersDb.update(user.id, patch);
@@ -153,32 +157,8 @@ authRouter.post('/change-password', authMiddleware, (req: AuthenticatedRequest, 
   res.json({ user: sanitizeUser(updated) });
 });
 
-// POST /api/auth/forgot-password (mock/direct reset)
-authRouter.post('/forgot-password', (req, res: Response) => {
-  const { email, newPassword, newPasswordHash } = req.body;
-  if (!email) {
-    res.status(400).json({ error: 'Email is required' });
-    return;
-  }
-
-  const user = usersDb.findByEmail(email);
-  if (!user) {
-    res.status(404).json({ error: 'Account not found' });
-    return;
-  }
-
-  const finalNewHash = newPasswordHash || (newPassword ? hashPassword(user.id, newPassword) : null);
-  if (!finalNewHash) {
-    res.status(400).json({ error: 'New password is required' });
-    return;
-  }
-
-  const updated = usersDb.update(user.id, {
-    passwordHash: finalNewHash,
-    passwordChangedAt: new Date().toISOString(),
-  });
-
-  res.json({ user: sanitizeUser(updated) });
+authRouter.post('/forgot-password', (_req, res: Response) => {
+  res.status(503).json({ error: 'Password reset is not available yet' });
 });
 
 // DELETE /api/auth/account

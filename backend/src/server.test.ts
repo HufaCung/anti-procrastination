@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from './server.js';
-import { usersDb, projectsDb, tasksDb, sessionsDb, settingsDb, metaDb, getAppData, saveAppData, initDb } from './db/database.js';
+import { usersDb, projectsDb, tasksDb, sessionsDb, settingsDb, metaDb, getAppData, saveAppData, initDb, getDataRevision, syncAppData } from './db/database.js';
 import { sanitizeUser } from './routes/auth.js';
 import { signToken, getJwtSecret } from './middleware/auth.js';
 import type { AppData, Project, Task, User } from './types.js';
@@ -167,5 +167,61 @@ describe('SQLite Database & Operations', () => {
         process.env.JWT_SECRET = originalSecret;
       }
     }
+  });
+});
+
+describe('API security and synchronization', () => {
+  let server: ReturnType<typeof app.listen>;
+  let base: string;
+  const call = async (path: string, method: string, body?: unknown, token?: string) => {
+    const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    return { status: response.status, body: await response.json() as any };
+  };
+  beforeAll(async () => {
+    await new Promise<void>((resolve, reject) => { server = app.listen(0, '127.0.0.1', (err?: Error) => err ? reject(err) : resolve()); });
+    base = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
+  });
+  afterAll(async () => { await new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve())); });
+
+  const signup = async (name: string, email: string, password = 'password1') => {
+    return call('/api/auth/signup', 'POST', { name, email, password });
+  };
+
+  it('creates accounts immediately and does not let the client choose an existing id', async () => {
+    const email = 'victim@example.com';
+    const first = await call('/api/auth/signup', 'POST', { id: 'victim', name: 'Victim', email, password: 'password1' });
+    expect(first.status).toBe(201);
+    expect(first.body.user.id).not.toBe('victim');
+    const second = await call('/api/auth/signup', 'POST', { id: first.body.user.id, name: 'Attacker', email: 'attacker@example.com', password: 'password2' });
+    expect(second.body.user.id).not.toBe(first.body.user.id);
+    expect((await call('/api/auth/login', 'POST', { email, password: 'password1' })).body.token).toBeTruthy();
+    expect((await call('/api/auth/forgot-password', 'POST', { email, newPassword: 'password2' })).status).toBe(503);
+  });
+
+  it('persists email changes and rejects an email already in use', async () => {
+    const a = await signup('Alice', 'a@example.com');
+    await signup('Bob', 'b@example.com');
+    expect((await call('/api/auth/profile', 'PATCH', { email: 'b@example.com' }, a.body.token)).status).toBe(409);
+    expect((await call('/api/auth/profile', 'PATCH', { email: 'new@example.com' }, a.body.token)).status).toBe(200);
+    expect((await call('/api/auth/login', 'POST', { email: 'new@example.com', password: 'password1' })).body.token).toBeTruthy();
+  });
+
+  it('rejects stale snapshots and cross-user record ownership changes', () => {
+    const a: User = { id: 'sync-a', name: 'A', email: 'sync-a@example.com', passwordHash: 'x', createdAt: new Date().toISOString() };
+    const b: User = { ...a, id: 'sync-b', email: 'sync-b@example.com' };
+    usersDb.create(a); usersDb.create(b);
+    const project: Project = { id: 'private-project', userId: a.id, name: 'Private', color: '#000', priority: 'low', dueDate: '2027-01-01', createdAt: new Date().toISOString() };
+    projectsDb.save(project);
+    const stale = getDataRevision(a.id);
+    const snapshot = getAppData(a.id);
+    projectsDb.save({ ...project, name: 'Updated elsewhere' });
+    expect(syncAppData(a.id, snapshot, stale)).toBeNull();
+    expect(getAppData(a.id).projects[0].name).toBe('Updated elsewhere');
+    expect(() => projectsDb.save({ ...project, userId: b.id })).toThrow(/another user/);
+    const bData = getAppData(b.id);
+    bData.projects = [{ ...project, userId: b.id }];
+    expect(() => syncAppData(b.id, bData, getDataRevision(b.id))).toThrow(/another user/);
+    expect(getAppData(a.id).projects[0].name).toBe('Updated elsewhere');
+    expect(getAppData(b.id).projects).toHaveLength(0);
   });
 });

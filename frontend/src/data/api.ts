@@ -16,8 +16,10 @@ export function setAuthToken(token: string | null, remember = true): void {
       localStorage.removeItem(TOKEN_KEY);
       sessionStorage.removeItem(TOKEN_KEY);
     } else if (remember) {
+      sessionStorage.removeItem(TOKEN_KEY);
       localStorage.setItem(TOKEN_KEY, token);
     } else {
+      localStorage.removeItem(TOKEN_KEY);
       sessionStorage.setItem(TOKEN_KEY, token);
     }
   } catch {
@@ -51,7 +53,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // Auth
-  async signUp(payload: { name: string; email: string; password?: string; passwordHash?: string; id?: string }) {
+  async signUp(payload: { name: string; email: string; password: string }) {
     const res = await request<{ token: string; user: User }>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -77,14 +79,14 @@ export const api = {
     return request<{ user: User }>('/api/auth/me');
   },
 
-  async updateProfile(patch: { name?: string; avatar?: string }) {
+  async updateProfile(patch: { name?: string; email?: string; avatar?: string | null }) {
     return request<{ user: User }>('/api/auth/profile', {
       method: 'PATCH',
       body: JSON.stringify(patch),
     });
   },
 
-  async changePassword(payload: { oldPasswordHash: string; newPasswordHash: string }) {
+  async changePassword(payload: { oldPassword: string; newPassword: string }) {
     return request<{ user: User }>('/api/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -98,17 +100,17 @@ export const api = {
   },
 
   // AppData bulk sync
-  async fetchAppData(): Promise<AppData | null> {
-    const res = await request<{ data: AppData }>('/api/data');
-    return res?.data ?? null;
+  async fetchAppData(): Promise<{ data: AppData; revision: number } | null> {
+    return request<{ data: AppData; revision: number }>('/api/data');
   },
 
-  async syncAppData(data: AppData): Promise<boolean> {
-    const res = await request<{ success: boolean }>('/api/data', {
-      method: 'PUT',
-      body: JSON.stringify({ data }),
-    });
-    return Boolean(res?.success);
+  async syncAppData(data: AppData, revision: number): Promise<{ revision: number } | 'conflict' | null> {
+    try {
+      const token = getAuthToken();
+      const res = await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ data, revision }) });
+      if (res.status === 409) return 'conflict';
+      return res.ok ? await res.json() as { revision: number } : null;
+    } catch { return null; }
   },
 
   // Granular project / task / session APIs

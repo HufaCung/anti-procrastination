@@ -93,15 +93,41 @@ test.describe('1–2 · auth and onboarding', () => {
     await page.waitForURL((u) => u.pathname === '/');
   });
 
-  test('forgot password shows the inbox state', async ({ page, errors }) => {
+  test('a new browser loads existing server data without replacing it', async ({ page, browser }) => {
+    const { email, password } = await signUpAndOnboard(page, { project: 'Cross device project' });
+    await expect.poll(async () => page.evaluate(async () => {
+      const token = localStorage.getItem('nt:v1:token') ?? sessionStorage.getItem('nt:v1:token');
+      const response = await fetch('/api/data', { headers: { Authorization: `Bearer ${token}` } });
+      const result = await response.json();
+      return result.data?.projects?.some((p: { name: string }) => p.name === 'Cross device project');
+    })).toBe(true);
+
+    const context = await browser.newContext();
+    try {
+      const other = await context.newPage();
+      await other.goto(new URL('/login', page.url()).href);
+      await other.getByLabel('Email').fill(email);
+      await other.getByLabel('Password', { exact: true }).fill(password);
+      await other.getByRole('button', { name: 'Log in' }).click();
+      await expect(sidebar(other).getByText('Cross device project')).toBeVisible();
+      await other.reload();
+      await expect(sidebar(other).getByText('Cross device project')).toBeVisible();
+      await expect.poll(async () => page.evaluate(async () => {
+        const token = localStorage.getItem('nt:v1:token');
+        const response = await fetch('/api/data', { headers: { Authorization: `Bearer ${token}` } });
+        const result = await response.json();
+        return result.data?.projects?.some((p: { name: string }) => p.name === 'Cross device project');
+      })).toBe(true);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('forgot password explains reset is unavailable', async ({ page, errors }) => {
     void errors;
     await page.goto('/login');
     await page.getByRole('link', { name: 'Forgot password?' }).click();
-    await page.getByRole('button', { name: 'Send reset link' }).click();
-    await expect(page.getByText('Enter a valid email address.')).toBeVisible();
-    await page.getByLabel('Email').fill('me@example.com');
-    await page.getByRole('button', { name: 'Send reset link' }).click();
-    await expect(page.getByRole('heading', { name: 'Check your inbox' })).toBeVisible();
+    await expect(page.getByText(/Password reset by email is not available yet/)).toBeVisible();
   });
 });
 
@@ -459,6 +485,7 @@ test.describe('12 · keyboard and modals', () => {
     void errors;
     await signUpAndOnboard(page);
     await page.goto('/');
+    await expect(page.getByText('Skip to content')).toBeVisible();
     await page.keyboard.press('Tab');
     const focused = await page.evaluate(() => {
       const el = document.activeElement as HTMLElement;

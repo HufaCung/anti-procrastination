@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
 import type { AppData, FocusSession, Priority, Project, Settings, Task, TaskStatus, Theme, User } from '../data/types';
 import * as auth from '../data/auth';
-import { THEME_KEY, loadUserData, saveUserData, usersRepo } from '../data/storage';
+import { THEME_KEY, hasUserData, loadUserData, saveUserData, usersRepo } from '../data/storage';
 import { api } from '../data/api';
 import { PROJECT_COLORS } from '../data/colors';
 import { uid } from '../logic/ids';
@@ -170,42 +170,87 @@ export function AppProvider({ children }: { children: ReactNode }) {
   dataRef.current = data;
   const userRef = useRef(user);
   userRef.current = user;
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
+  const syncRef = useRef<{ userId: string; revision: number; synced: string; running: boolean; blocked: boolean } | null>(null);
 
-  // Persist on every change to localStorage and backend SQLite.
+  // Keep a local copy even when the server is unavailable or reports a conflict.
   useEffect(() => {
-    if (user && data) {
-      saveUserData(user.id, data);
-      api.syncAppData(data).catch(() => {});
-    }
-  }, [user, data]);
+    if (user && data && loadedFor === user.id) saveUserData(user.id, data);
+  }, [user, data, loadedFor]);
 
-  // Fetch fresh data from backend SQLite when user logs in with an empty local store
+  // Read the server before enabling writes. Remember the last synchronized snapshot
+  // so local changes survive reloads and can never silently overwrite newer data.
   useEffect(() => {
+    setLoadedFor(null);
+    syncRef.current = null;
     if (!user) return;
     let cancelled = false;
-    api.fetchAppData().then((remoteData) => {
-      if (cancelled || !remoteData) return;
-      const local = dataRef.current;
-      const isEmpty = !local || (local.projects.length === 0 && local.tasks.length === 0);
-      if (isEmpty && (remoteData.projects.length > 0 || remoteData.tasks.length > 0)) {
-        dispatch({ type: 'load', data: remoteData });
-        saveUserData(user.id, remoteData);
+    const key = `nt:sync:${user.id}`;
+    api.fetchAppData().then((remote) => {
+      if (cancelled) return;
+      const local = loadUserData(user.id);
+      let previous: { revision: number; synced: string } | null = null;
+      try { previous = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* no snapshot */ }
+      if (!remote) {
+        toast({ tone: 'danger', title: 'Could not load your data from the server', body: 'Your local copy is available, but changes will not sync. Reload when connected.', duration: 15000 });
+        setLoadedFor(user.id);
+        return;
       }
-    }).catch(() => {});
+      const localText = JSON.stringify(local);
+      const hasLegacyData = !previous && hasUserData(user.id);
+      const dirty = previous ? localText !== previous.synced : hasLegacyData;
+      const conflict = dirty && (previous ? previous.revision !== remote.revision : remote.revision !== 0);
+      const selected = dirty ? local : remote.data;
+      const synced = dirty ? (previous?.synced ?? '') : JSON.stringify(remote.data);
+      syncRef.current = { userId: user.id, revision: dirty && previous ? previous.revision : remote.revision, synced, running: false, blocked: conflict };
+      if (!dirty) {
+        try { localStorage.setItem(key, JSON.stringify({ revision: remote.revision, synced })); } catch { /* local storage unavailable */ }
+      }
+      if (conflict) toast({ tone: 'danger', title: 'Sync conflict', body: 'Your local changes were kept. Export them before resolving the data on another device.', duration: 20000 });
+      dispatch({ type: 'load', data: selected });
+      setLoadedFor(user.id);
+    });
     return () => {
       cancelled = true;
     };
   }, [user?.id]);
 
+  useEffect(() => {
+    const sync = syncRef.current;
+    if (!user || !data || loadedFor !== user.id || !sync || sync.userId !== user.id || sync.running || sync.blocked) return;
+    if (JSON.stringify(data) === sync.synced) return;
+    sync.running = true;
+    const run = async () => {
+      while (syncRef.current === sync && userRef.current?.id === sync.userId) {
+        const current = dataRef.current;
+        if (!current) break;
+        const snapshot = JSON.stringify(current);
+        if (snapshot === sync.synced) break;
+        const result = await api.syncAppData(current, sync.revision);
+        if (syncRef.current !== sync) return;
+        if (!result || result === 'conflict') {
+          sync.blocked = true;
+          toast({ tone: 'danger', title: result === 'conflict' ? 'Sync conflict' : 'Sync failed', body: 'Your local changes were kept. Export them before reloading or changing devices.', duration: 20000 });
+          break;
+        }
+        sync.revision = result.revision;
+        sync.synced = snapshot;
+        try { localStorage.setItem(`nt:sync:${sync.userId}`, JSON.stringify({ revision: sync.revision, synced: snapshot })); } catch { /* local storage unavailable */ }
+      }
+      sync.running = false;
+    };
+    void run();
+  }, [user, data, loadedFor, toast]);
+
   // Keep theme in sync with the user's settings on login.
   useEffect(() => {
-    if (data && data.settings.theme !== readTheme()) {
+    if (user && loadedFor === user.id && data && data.settings.theme !== readTheme()) {
       applyTheme(data.settings.theme, false);
       setThemeState(data.settings.theme);
     }
     // only when user changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
+  }, [user?.id, loadedFor]);
 
   // Other tabs.
   useEffect(() => {
@@ -577,7 +622,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Global timer watcher: completes sessions even when the Focus page is closed.
   const timer = data?.meta.timer;
   useEffect(() => {
-    if (!timer?.running || timer.endsAt == null) return;
+    if (!user || loadedFor !== user.id || !timer?.running || timer.endsAt == null) return;
     const check = () => {
       const t = dataRef.current?.meta.timer;
       if (t && T.isFinished(t, Date.now())) timerComplete(true);
@@ -585,7 +630,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     check();
     const id = window.setInterval(check, 500);
     return () => window.clearInterval(id);
-  }, [timer?.running, timer?.endsAt, timerComplete]);
+  }, [user?.id, loadedFor, timer?.running, timer?.endsAt, timerComplete]);
 
   const addParking = useCallback((text: string) => {
     const v = text.trim();
@@ -600,7 +645,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const lastCheck = useRef('');
   useEffect(() => {
     const d = dataRef.current;
-    if (!d || !user) return;
+    if (!d || !user || loadedFor !== user.id) return;
     // Guard against double invocation (React StrictMode) for the same tick.
     const key = `${user.id}:${now.getTime()}`;
     if (lastCheck.current === key) return;
@@ -642,10 +687,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, now]);
+  }, [user?.id, now, loadedFor]);
 
   const store: AppStore = {
-    ready: true,
+    ready: !user || loadedFor === user.id,
     user, data, now, theme,
     activeProjects: derived.activeProjects,
     stats: derived.stats,

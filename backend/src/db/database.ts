@@ -97,7 +97,27 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_tasks_user ON tasks(user_id);
     CREATE INDEX IF NOT EXISTS idx_tasks_project ON tasks(project_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON focus_sessions(user_id);
+
+    CREATE TABLE IF NOT EXISTS data_revisions (user_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0);
   `);
+  for (const table of ['projects', 'tasks', 'focus_sessions', 'settings', 'meta']) {
+    for (const [operation, row] of [['INSERT', 'NEW'], ['UPDATE', 'NEW'], ['DELETE', 'OLD']]) {
+      db.exec(`CREATE TRIGGER IF NOT EXISTS revision_${table}_${operation.toLowerCase()}
+        AFTER ${operation} ON ${table} BEGIN
+          INSERT INTO data_revisions (user_id, revision) VALUES (${row}.user_id, 1)
+          ON CONFLICT(user_id) DO UPDATE SET revision = revision + 1;
+        END`);
+    }
+  }
+  // Existing databases predate revision tracking. Mark their persisted workspaces
+  // as initialized so an old local cache cannot replace them as an empty revision.
+  db.exec(`INSERT OR IGNORE INTO data_revisions (user_id, revision)
+    SELECT id, 1 FROM users WHERE
+      EXISTS (SELECT 1 FROM projects WHERE user_id = users.id) OR
+      EXISTS (SELECT 1 FROM tasks WHERE user_id = users.id) OR
+      EXISTS (SELECT 1 FROM focus_sessions WHERE user_id = users.id) OR
+      EXISTS (SELECT 1 FROM settings WHERE user_id = users.id) OR
+      EXISTS (SELECT 1 FROM meta WHERE user_id = users.id)`);
 }
 
 // Initialize tables immediately
@@ -109,12 +129,6 @@ export const usersDb = {
     const stmt = db.prepare(`
       INSERT INTO users (id, name, email, password_hash, created_at, avatar, password_changed_at)
       VALUES (@id, @name, @email, @passwordHash, @createdAt, @avatar, @passwordChangedAt)
-      ON CONFLICT(id) DO UPDATE SET
-        name = excluded.name,
-        email = excluded.email,
-        password_hash = excluded.password_hash,
-        avatar = excluded.avatar,
-        password_changed_at = excluded.password_changed_at
     `);
     stmt.run({
       id: user.id,
@@ -247,7 +261,7 @@ export const settingsDb = {
 
 // ---------------- Meta ----------------
 export function defaultMeta(userId: string): Meta {
-  return { userId, shownAlerts: [], snoozedAlerts: {}, parking: [] };
+  return { userId, shownAlerts: [], snoozedAlerts: {}, parking: [], onboarded: false };
 }
 
 export const metaDb = {
@@ -310,6 +324,7 @@ export const projectsDb = {
   },
 
   save(p: Project): void {
+    assertOwner('projects', p.id, p.userId);
     const stmt = db.prepare(`
       INSERT INTO projects (id, user_id, name, color, description, priority, due_date, created_at, completed_at)
       VALUES (@id, @userId, @name, @color, @description, @priority, @dueDate, @createdAt, @completedAt)
@@ -362,6 +377,8 @@ export const tasksDb = {
   },
 
   save(t: Task): void {
+    assertOwner('tasks', t.id, t.userId);
+    if (!db.prepare('SELECT 1 FROM projects WHERE id = ? AND user_id = ?').get(t.projectId, t.userId)) throw new Error('Project does not belong to user');
     const stmt = db.prepare(`
       INSERT INTO tasks (id, user_id, project_id, section, title, estimate_min, status, task_order, scheduled_for, completed_at, created_at, replanned_from)
       VALUES (@id, @userId, @projectId, @section, @title, @estimateMin, @status, @order, @scheduledFor, @completedAt, @createdAt, @replannedFrom)
@@ -416,6 +433,7 @@ export const sessionsDb = {
   },
 
   save(s: FocusSession): void {
+    assertOwner('focus_sessions', s.id, s.userId);
     const stmt = db.prepare(`
       INSERT INTO focus_sessions (id, user_id, task_id, project_id, started_at, ended_at, minutes, completed_task)
       VALUES (@id, @userId, @taskId, @projectId, @startedAt, @endedAt, @minutes, @completedTask)
@@ -447,6 +465,24 @@ export const sessionsDb = {
 };
 
 // ---------------- Bulk AppData Sync ----------------
+function assertOwner(table: 'projects' | 'tasks' | 'focus_sessions', id: string, userId: string): void {
+  const row = db.prepare(`SELECT user_id FROM ${table} WHERE id = ?`).get(id) as { user_id: string } | undefined;
+  if (row && row.user_id !== userId) throw new Error('Record belongs to another user');
+}
+
+export function getDataRevision(userId: string): number {
+  const row = db.prepare('SELECT revision FROM data_revisions WHERE user_id = ?').get(userId) as { revision: number } | undefined;
+  return row?.revision ?? 0;
+}
+
+export function syncAppData(userId: string, data: AppData, revision: number): number | null {
+  return db.transaction(() => {
+    if (getDataRevision(userId) !== revision) return null;
+    saveAppData(userId, data);
+    return getDataRevision(userId);
+  })();
+}
+
 export function getAppData(userId: string): AppData {
   return {
     projects: projectsDb.getByUser(userId),
