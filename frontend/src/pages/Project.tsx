@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Page, useUI } from '../components/AppShell';
 import { Icon } from '../components/Icon';
+import { DatePicker } from '../components/DatePicker';
 import { EmptyState, ProgressBar, RiskPill, StatusButton, useDocumentTitle } from '../components/ui';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
-import type { Task } from '../data/types';
+import type { Subtask, Task } from '../data/types';
+import { uid } from '../logic/ids';
 import { daysBetween, fmt, fmtMinutes, fmtMinutesPadded, parseDay, startOfDay } from '../logic/dates';
 import { PRIORITY_LABEL } from '../logic/progress';
+import * as T from '../logic/timer';
 
 const PRIORITY_COLOR = { high: '#E0560A', medium: '#E0A100', low: '#8A8A86' } as const;
 
@@ -46,6 +49,7 @@ function ProjectView({ projectId }: { projectId: string }) {
   const [draft, setDraft] = useState('');
   const [draftEst, setDraftEst] = useState<number>(settings.defaultTaskMin);
   const [draftErr, setDraftErr] = useState(false);
+  const [draftDue, setDraftDue] = useState('');
   const [highlight, setHighlight] = useState<string | null>(params.get('task'));
   const draftRef = useRef<HTMLInputElement>(null);
 
@@ -89,7 +93,8 @@ function ProjectView({ projectId }: { projectId: string }) {
       draftRef.current?.focus();
       return;
     }
-    const t = s.addTask({ projectId, title: draft, estimateMin: draftEst });
+    const t = s.addTask({ projectId, title: draft, estimateMin: draftEst, ...(draftDue ? { dueDate: draftDue } : {}) });
+    setDraftDue('');
     setDraft('');
     setDraftErr(false);
     setHighlight(t.id);
@@ -174,21 +179,24 @@ function ProjectView({ projectId }: { projectId: string }) {
       </section>
 
       <div className="split">
-        <section aria-labelledby="tasks-h" className="card clip main">
+        <section aria-labelledby="tasks-h" className="card main">
           <div className="card-head" style={{ padding: '12px 16px' }}>
             <h2 id="tasks-h" className="section-title">Task breakdown</h2>
             <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Click a status to move it: To do → In progress → Done</span>
           </div>
 
-          <form onSubmit={addTask} className="add-form" noValidate>
+          <form onSubmit={addTask} className="col" style={{ padding: '12px 16px', gap: 10 }} noValidate data-tour="add-task">
+          <div className="add-form" style={{ padding: 0 }}>
             <label className="grow-input" style={draftErr ? { borderColor: 'var(--danger-text)' } : undefined}>
               <Icon name="plus" size={15} />
               <input ref={draftRef} value={draft} onChange={(e) => { setDraft(e.target.value); setDraftErr(false); }} placeholder="Add a 10–15 min task…" aria-label="New task title" aria-invalid={draftErr} />
             </label>
-            <select className="select" value={draftEst} onChange={(e) => setDraftEst(Number(e.target.value))} aria-label="Estimate">
+            <select className="select" value={draftEst} onChange={(e) => setDraftEst(Number(e.target.value))} aria-label="Estimate" data-tour="estimate">
               {[5, 10, 15, 20, 25, 30].map((m) => <option key={m} value={m}>{m} min</option>)}
             </select>
             <button type="submit" className="btn btn-dark">Add</button>
+          </div>
+          <div style={{ maxWidth: 260 }}><DatePicker id="task-due" label="Task deadline (optional)" value={draftDue} onChange={setDraftDue} optional /></div>
           </form>
 
           {groups.length === 0 ? (
@@ -213,6 +221,15 @@ function ProjectView({ projectId }: { projectId: string }) {
                       onCycle={() => s.cycleStatus(t.id)}
                       onDelete={() => removeTask(t)}
                       onMove={(dir) => s.moveTask(t.id, dir)}
+                      onSubtasks={(fn) => s.updateSubtasks(t.id, fn)}
+                      onFocus={() => {
+                        const timer = s.data?.meta.timer;
+                        if (timer && (timer.running || !T.isPristine(timer))) {
+                          toast({ title: 'Finish or reset the current session first' });
+                          return;
+                        }
+                        navigate(`/focus?task=${encodeURIComponent(t.id)}`);
+                      }}
                     />
                   ))}
                 </ul>
@@ -256,7 +273,7 @@ function ProjectView({ projectId }: { projectId: string }) {
 }
 
 function TaskRow({
-  task, first, last, highlight, onRename, onEstimate, onCycle, onDelete, onMove,
+  task, first, last, highlight, onRename, onEstimate, onCycle, onDelete, onMove, onSubtasks, onFocus,
 }: {
   task: Task;
   first: boolean;
@@ -267,12 +284,53 @@ function TaskRow({
   onCycle: () => void;
   onDelete: () => void;
   onMove: (dir: -1 | 1) => void;
+  onSubtasks: (fn: (subtasks: Subtask[]) => Subtask[]) => void;
+  onFocus: () => void;
 }) {
   const [title, setTitle] = useState(task.title);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [subtaskTitle, setSubtaskTitle] = useState('');
+  const [menuAbove, setMenuAbove] = useState(false);
+  const [menuMaxHeight, setMenuMaxHeight] = useState(320);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const addRef = useRef<HTMLInputElement>(null);
+  const cancelTitle = useRef(false);
+  const subtasks = task.subtasks ?? [];
   useEffect(() => setTitle(task.title), [task.title]);
+  useLayoutEffect(() => {
+    if (!menuOpen) return;
+    const updatePosition = () => {
+      const trigger = menuRef.current?.querySelector('button');
+      const menu = menuRef.current?.querySelector<HTMLElement>('[role="menu"]');
+      if (!trigger || !menu) return;
+      const bounds = trigger.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - bounds.bottom - 12;
+      const spaceAbove = bounds.top - 12;
+      const above = spaceBelow < menu.scrollHeight && spaceAbove > spaceBelow;
+      setMenuAbove(above);
+      setMenuMaxHeight(Math.max(40, Math.min(320, above ? spaceAbove : spaceBelow)));
+    };
+    updatePosition();
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+    return () => { window.removeEventListener('resize', updatePosition); window.removeEventListener('scroll', updatePosition, true); };
+  }, [menuOpen]);
+  useEffect(() => {
+    if (!menuOpen) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)')?.focus();
+    const dismiss = (event: MouseEvent) => { if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setMenuOpen(false); menuRef.current?.querySelector<HTMLButtonElement>('button')?.focus(); } };
+    document.addEventListener('mousedown', dismiss);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('mousedown', dismiss); document.removeEventListener('keydown', escape); };
+  }, [menuOpen]);
+  useEffect(() => { if (adding) addRef.current?.focus(); }, [adding]);
   const done = task.status === 'done';
   const dot = done ? 'var(--ok-strong)' : task.status === 'in_progress' ? 'var(--accent)' : 'var(--control)';
   const commit = () => {
+    if (cancelTitle.current) { cancelTitle.current = false; setTitle(task.title); return; }
     const v = title.trim();
     if (!v) setTitle(task.title);
     else if (v !== task.title) onRename(v);
@@ -281,10 +339,12 @@ function TaskRow({
   const slipped = !!when && !done && when.getTime() < startOfDay(new Date()).getTime();
   const estOptions = Array.from(new Set([5, 10, 15, 20, 25, 30, task.estimateMin])).sort((a, b) => a - b);
   return (
-    <li id={`task-${task.id}`} className="task-row item-enter" style={{ padding: '6px 16px', background: highlight ? 'var(--accent-soft)' : undefined, transition: 'background-color 600ms ease' }}>
+    <li id={`task-${task.id}`} className="task-item" style={{ background: highlight ? 'var(--accent-soft)' : undefined, transition: 'background-color 600ms ease' }}>
+      <div className="task-row" style={{ padding: '6px 16px' }}>
       <span className="dot round" style={{ background: dot }} aria-hidden="true" />
       <div className="col" style={{ flex: 1, minWidth: 0, gap: 1 }}>
         <input
+          ref={titleRef}
           className={`inline-edit ${done ? 'done' : ''}`}
           value={title}
           aria-label={`Task title: ${task.title}`}
@@ -293,14 +353,15 @@ function TaskRow({
           onKeyDown={(e) => {
             if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
             if (e.key === 'Escape') {
-              setTitle(task.title);
+              cancelTitle.current = true;
               (e.target as HTMLInputElement).blur();
             }
           }}
         />
+        {task.dueDate && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Deadline: {fmt.dowMonthDay(parseDay(task.dueDate))}</span>}
         {when && !done && (
           <span style={{ fontSize: 11.5, color: slipped ? 'var(--danger-text)' : task.replannedFrom ? 'var(--accent-text)' : 'var(--muted)', fontWeight: slipped ? 500 : 400 }}>
-            {fmt.dowMonthDay(when)} · {fmt.time(when)}{slipped ? ' · slipped' : task.replannedFrom ? ' · replanned' : ''}
+            Planned: {fmt.dowMonthDay(when)} · {fmt.time(when)}{slipped ? ' · slipped' : task.replannedFrom ? ' · replanned' : ''}
           </span>
         )}
       </div>
@@ -308,17 +369,57 @@ function TaskRow({
         {estOptions.map((m) => <option key={m} value={m}>{m} min</option>)}
       </select>
       <StatusButton status={task.status} title={task.title} onClick={onCycle} />
-      <div className="actions">
-        <button type="button" className="icon-btn plain sm" aria-label={`Move up: ${task.title}`} disabled={first} onClick={() => onMove(-1)}>
-          <Icon name="up" size={14} />
+      <div className="task-menu" ref={menuRef}>
+        <button type="button" className="icon-btn plain sm" aria-label={`Options for ${task.title}`} aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(!menuOpen)} data-tour="task-options">
+          <Icon name="more" size={18} stroke={3} />
         </button>
-        <button type="button" className="icon-btn plain sm" aria-label={`Move down: ${task.title}`} disabled={last} onClick={() => onMove(1)}>
-          <Icon name="down" size={14} />
-        </button>
-        <button type="button" className="icon-btn plain danger" aria-label={`Delete task: ${task.title}`} onClick={onDelete}>
-          <Icon name="trash" size={15} />
-        </button>
+        {menuOpen && <div className={`task-menu-popover ${menuAbove ? 'above' : ''}`} style={{ maxHeight: menuMaxHeight }} role="menu" aria-label={`Options for ${task.title}`} onKeyDown={(event) => {
+          if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+          event.preventDefault();
+          const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+          const current = items.indexOf(document.activeElement as HTMLButtonElement);
+          const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
+          items[next]?.focus();
+        }}>
+          <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setAdding(true); }}><Icon name="plus" size={15} /> Add subtask</button>
+          <button type="button" role="menuitem" disabled={done} onClick={() => { setMenuOpen(false); onFocus(); }}><Icon name="play" size={15} /> Focus on task</button>
+          <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); titleRef.current?.focus(); titleRef.current?.select(); }}><Icon name="edit" size={15} /> Edit task</button>
+          <button type="button" role="menuitem" disabled={first} onClick={() => { setMenuOpen(false); onMove(-1); }}><Icon name="up" size={15} /> Move up</button>
+          <button type="button" role="menuitem" disabled={last} onClick={() => { setMenuOpen(false); onMove(1); }}><Icon name="down" size={15} /> Move down</button>
+          <button type="button" role="menuitem" className="danger" onClick={() => { setMenuOpen(false); onDelete(); }}><Icon name="trash" size={15} /> Delete task</button>
+        </div>}
       </div>
+      </div>
+      {(subtasks.length > 0 || adding) && <div className="subtasks">
+        {subtasks.length > 0 && <div className="subtasks-caption">{subtasks.filter((subtask) => subtask.done).length} of {subtasks.length} subtasks done</div>}
+        <ul className="subtasks-list">
+          {subtasks.map((subtask) => <SubtaskRow key={subtask.id} subtask={subtask} onChange={(patch) => onSubtasks((items) => items.map((item) => item.id === subtask.id ? { ...item, ...patch } : item))} onDelete={() => onSubtasks((items) => items.filter((item) => item.id !== subtask.id))} />)}
+        </ul>
+        {adding && <form className="subtask-add" onSubmit={(event) => {
+          event.preventDefault();
+          const value = subtaskTitle.trim();
+          if (!value) { addRef.current?.focus(); return; }
+          const newSubtask = { id: uid('st_'), title: value, done: false };
+          onSubtasks((items) => [...items, newSubtask]);
+          setSubtaskTitle('');
+          setAdding(false);
+        }}>
+          <input ref={addRef} className="input" aria-label={`New subtask for ${task.title}`} placeholder="Add a small step…" value={subtaskTitle} onChange={(event) => setSubtaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { setAdding(false); setSubtaskTitle(''); } }} />
+          <button type="submit" className="btn btn-primary btn-sm">Add</button>
+          <button type="button" className="icon-btn plain sm" aria-label="Cancel adding subtask" onClick={() => { setAdding(false); setSubtaskTitle(''); }}><Icon name="x" size={14} /></button>
+        </form>}
+      </div>}
     </li>
   );
+}
+
+function SubtaskRow({ subtask, onChange, onDelete }: { subtask: Subtask; onChange: (patch: Partial<Subtask>) => void; onDelete: () => void }) {
+  const [title, setTitle] = useState(subtask.title);
+  const cancelTitle = useRef(false);
+  useEffect(() => setTitle(subtask.title), [subtask.title]);
+  return <li className="subtask-row">
+    <input type="checkbox" checked={subtask.done} aria-label={`Complete subtask: ${subtask.title}`} onChange={(event) => onChange({ done: event.target.checked })} />
+    <input className={`inline-edit ${subtask.done ? 'done' : ''}`} aria-label={`Subtask title: ${subtask.title}`} value={title} onChange={(event) => setTitle(event.target.value)} onBlur={() => { if (cancelTitle.current) { cancelTitle.current = false; setTitle(subtask.title); return; } const value = title.trim(); if (!value) setTitle(subtask.title); else if (value !== subtask.title) onChange({ title: value }); }} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { cancelTitle.current = true; event.currentTarget.blur(); } }} />
+    <button type="button" className="icon-btn plain sm" aria-label={`Delete subtask: ${subtask.title}`} onClick={onDelete}><Icon name="trash" size={14} /></button>
+  </li>;
 }

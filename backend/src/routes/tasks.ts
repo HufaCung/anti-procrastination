@@ -17,7 +17,7 @@ tasksRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
 // POST /api/tasks
 tasksRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const { id, projectId, section, title, estimateMin, status, order, scheduledFor, completedAt, createdAt, replannedFrom } = req.body;
+  const { id, projectId, section, title, estimateMin, status, order, scheduledFor, completedAt, createdAt, replannedFrom, subtasks, dueDate } = req.body;
 
   if (!projectId || !title) {
     res.status(400).json({ error: 'projectId and title are required' });
@@ -34,12 +34,19 @@ tasksRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
     status: status || 'todo',
     order: Number(order) || 0,
     scheduledFor: scheduledFor || undefined,
+    dueDate: dueDate || undefined,
     completedAt: completedAt || undefined,
     createdAt: createdAt || new Date().toISOString(),
     replannedFrom: replannedFrom || undefined,
+    subtasks,
   };
 
-  tasksDb.save(task);
+  try {
+    tasksDb.save(task);
+  } catch {
+    res.status(400).json({ error: 'Invalid task or project' });
+    return;
+  }
   res.status(201).json({ task });
 });
 

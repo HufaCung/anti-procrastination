@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Page } from '../components/AppShell';
 import { Icon } from '../components/Icon';
 import { Avatar } from '../components/Sidebar';
-import { ConfirmModal, Modal, PasswordField, Segmented, Switch, TextField, useDocumentTitle } from '../components/ui';
+import { Modal, PasswordField, Segmented, Switch, TextField, useDocumentTitle } from '../components/ui';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
 import { changePassword, updateProfile } from '../data/auth';
@@ -18,24 +18,21 @@ export function ProfilePage() {
   const user = s.user!;
   const settings = s.data!.settings;
   const [name, setName] = useState(user.name);
-  const [email, setEmail] = useState(user.email);
   const [weekStart, setWeekStart] = useState(settings.weekStart);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saved, setSaved] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setName(user.name);
-    setEmail(user.email);
-  }, [user.name, user.email]);
+  }, [user.name]);
 
-  const dirty = name !== user.name || email !== user.email || weekStart !== settings.weekStart;
+  const dirty = name !== user.name || weekStart !== settings.weekStart;
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
-    const r = await updateProfile(user.id, { name, email });
+    const r = await updateProfile(user.id, { name });
     if (!r.ok) {
       setErrors(r.errors ?? {});
       return;
@@ -83,30 +80,6 @@ export function ProfilePage() {
     reader.readAsDataURL(f);
   };
 
-  const exportData = () => {
-    const d = s.data!;
-    const payload = {
-      exportedAt: new Date().toISOString(),
-      app: 'TinyDo',
-      version: 1,
-      user: { name: user.name, email: user.email, createdAt: user.createdAt },
-      settings: d.settings,
-      projects: d.projects,
-      tasks: d.tasks,
-      focusSessions: d.sessions,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `tinydo-export-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast({ tone: 'ok', title: 'Export downloaded', body: `${d.projects.length} projects, ${d.tasks.length} tasks, ${d.sessions.length} sessions.` });
-  };
-
   const setFlag = (k: keyof Settings, v: boolean) => {
     s.updateSettings({ [k]: v } as Partial<Settings>);
     if (k === 'deadlineAlerts' && v && 'Notification' in window && Notification.permission === 'default') {
@@ -150,8 +123,12 @@ export function ProfilePage() {
             </div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 14 }}>
-            <TextField id="pf-name" label="Full name" value={name} large={false} onChange={(v) => { setName(v); setSaved(false); setErrors((x) => ({ ...x, name: '' })); }} error={errors.name || undefined} autoComplete="name" />
-            <TextField id="pf-email" label="Email" type="email" value={email} large={false} onChange={(v) => { setEmail(v); setSaved(false); setErrors((x) => ({ ...x, email: '' })); }} error={errors.email || undefined} autoComplete="email" />
+            <TextField id="pf-name" label="Display name" value={name} large={false} onChange={(v) => { setName(v); setSaved(false); setErrors((x) => ({ ...x, name: '' })); }} error={errors.name || undefined} autoComplete="name" />
+            <div className="field">
+              <label htmlFor="pf-username">Username</label>
+              <input id="pf-username" className="input" value={user.username} readOnly aria-describedby="pf-username-hint" />
+              <span id="pf-username-hint" className="meta">Username cannot be changed.</span>
+            </div>
             <div className="field">
               <label htmlFor="pf-ws">Week starts on</label>
               <select id="pf-ws" className="select" value={weekStart} onChange={(e) => { setWeekStart(e.target.value as 'mon' | 'sun'); setSaved(false); }}>
@@ -203,36 +180,14 @@ export function ProfilePage() {
           <button type="button" className="btn btn-secondary btn-md" onClick={() => setPwOpen(true)}>Change password</button>
         </div>
         <div className="set-row">
-          <div className="col" style={{ gap: 2 }}><span className="k">Export data</span><span className="h">Projects, tasks and focus sessions as JSON.</span></div>
-          <button type="button" className="btn btn-secondary btn-md" onClick={exportData}>
-            <Icon name="download" size={15} />
-            Export
-          </button>
-        </div>
-        <div className="set-row">
           <div className="col" style={{ gap: 2 }}><span className="k">Log out</span><span className="h">Member since {fmt.monthDay(new Date(user.createdAt))}, {new Date(user.createdAt).getFullYear()}.</span></div>
           <button type="button" className="btn btn-secondary btn-md" onClick={() => { s.logOut(); navigate('/login'); }}>
             <Icon name="logout" size={15} />
             Log out
           </button>
         </div>
-        <div className="set-row danger">
-          <div className="col" style={{ gap: 2 }}><span className="k">Delete account</span><span className="h">Permanently removes your workspace and all data.</span></div>
-          <button type="button" className="btn btn-danger-outline btn-md" onClick={() => setConfirmDelete(true)}>Delete account</button>
-        </div>
       </section>
 
-      <ConfirmModal
-        open={confirmDelete}
-        onClose={() => setConfirmDelete(false)}
-        title="Delete your account?"
-        body={<>This permanently removes <strong>{user.email}</strong>, {s.data!.projects.length} projects, {s.data!.tasks.length} tasks and all focus history from this browser. This can’t be undone.</>}
-        confirmLabel="Delete account"
-        onConfirm={() => {
-          setConfirmDelete(false);
-          s.deleteAccount();
-        }}
-      />
       <ChangePasswordModal open={pwOpen} onClose={() => setPwOpen(false)} />
     </Page>
   );
@@ -269,7 +224,7 @@ function ChangePasswordModal({ open, onClose }: { open: boolean; onClose: () => 
         <div className="modal-body">
           <PasswordField label="Current password" autoComplete="current-password" value={cur} onChange={(v) => { setCur(v); setErr({}); }} error={err.cur} />
           <PasswordField label="New password" autoComplete="new-password" value={next} onChange={(v) => { setNext(v); setErr({}); }} error={err.next} />
-          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Forgot it? <Link to="/forgot-password">Reset by email</Link>.</span>
+          <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Password reset is unavailable.</span>
         </div>
         <div className="modal-foot">
           <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>

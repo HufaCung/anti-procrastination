@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Modal, Segmented } from './ui';
+import { DatePicker } from './DatePicker';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
 import { schedule } from '../logic/schedule';
@@ -18,6 +19,7 @@ export function QuickTaskModal({ open, onClose, defaultProjectId }: { open: bool
   const [section, setSection] = useState('Inbox');
   const [when, setWhen] = useState<When>('auto');
   const [error, setError] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const ref = useRef<HTMLInputElement>(null);
   const projects = s.activeProjects;
 
@@ -25,6 +27,7 @@ export function QuickTaskModal({ open, onClose, defaultProjectId }: { open: bool
     if (!open) return;
     setTitle('');
     setError('');
+    setDueDate('');
     setWhen('auto');
     setSection('Inbox');
     setEst(s.data?.settings.defaultTaskMin ?? 15);
@@ -43,11 +46,11 @@ export function QuickTaskModal({ open, onClose, defaultProjectId }: { open: bool
     }
     if (!projectId) return;
     const d = s.data!;
-    const task = s.addTask({ projectId, title, estimateMin: est, section });
+    const task = s.addTask({ projectId, title, estimateMin: est, section, ...(dueDate ? { dueDate } : {}) });
     let label = 'Not scheduled';
     if (when !== 'none') {
       const now = new Date();
-      const opts = when === 'today' ? { onlyDay: now, ignoreDeadline: true } : when === 'tomorrow' ? { onlyDay: addDays(startOfDay(now), 1), ignoreDeadline: true } : {};
+      const opts = when === 'today' ? { onlyDay: now } : when === 'tomorrow' ? { onlyDay: addDays(startOfDay(now), 1) } : {};
       const res = schedule([task], d.settings, [...d.tasks, task], d.projects, now, opts);
       const to = res.placements[0]?.to;
       if (to) {
@@ -104,6 +107,7 @@ export function QuickTaskModal({ open, onClose, defaultProjectId }: { open: bool
               <span className="field-label">Schedule</span>
               <Segmented label="Schedule" full value={when} onChange={setWhen} options={[{ value: 'auto', label: 'Auto' }, { value: 'today', label: 'Today' }, { value: 'tomorrow', label: 'Tomorrow' }, { value: 'none', label: 'Later' }]} />
             </div>
+            <DatePicker id="qt-due" label="Task deadline (optional)" value={dueDate} onChange={setDueDate} optional />
           </div>
           <div className="modal-foot">
             <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>

@@ -34,7 +34,10 @@ export function FocusPage() {
   useEffect(() => {
     const tid = params.get('task');
     if (tid && data.tasks.some((t) => t.id === tid)) {
-      if (timer.taskId !== tid && !timer.running) s.timerSelectTask(tid);
+      if (timer.taskId !== tid) {
+        if (timer.running || !T.isPristine(timer)) toast({ title: 'Finish or reset the current session first' });
+        else s.timerSelectTask(tid);
+      }
       const next = new URLSearchParams(params);
       next.delete('task');
       setParams(next, { replace: true });
@@ -130,11 +133,14 @@ export function FocusPage() {
 
           <div role="radiogroup" aria-label="Session length" className="seg tall" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 6 }}>
             {T.PRESETS_MIN.map((p) => (
-              <button key={p} type="button" role="radio" aria-checked={lengthMin === p} disabled={timer.running} onClick={() => s.timerSetLength(p)}>
+              <button key={p} type="button" role="radio" aria-checked={lengthMin === p} disabled={!pristine} onClick={() => s.timerSetLength(p)}>
                 {p} min
               </button>
             ))}
           </div>
+          <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', maxWidth: 420 }}>
+            {current ? 'Choose a session length before starting. When the timer ends, this task is marked done; its subtasks stay as you checked them.' : 'Choose a session length before starting. This session won’t be linked to a task.'} {!pristine && 'Finish or reset the session to change its length or task.'}
+          </p>
 
           <div className="row wrap" style={{ gap: 10, justifyContent: 'center' }}>
             <button type="button" className="icon-btn round-btn" aria-label="Reset timer" title="Reset" onClick={s.timerReset} disabled={pristine}>
@@ -180,8 +186,8 @@ export function FocusPage() {
                             className="t"
                             title="Focus on this task"
                             onClick={() => {
-                              if (timer.running) {
-                                toast({ title: 'Pause or finish the current session first' });
+                              if (!T.isPristine(timer)) {
+                                toast({ title: 'Finish or reset the current session first' });
                                 return;
                               }
                               s.timerSelectTask(t.id);

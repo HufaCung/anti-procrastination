@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express';
 import crypto from 'node:crypto';
-import { usersDb, deleteUserData } from '../db/database.js';
+import { usersDb } from '../db/database.js';
 import { signToken, authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
 import type { User, SafeUser } from '../types.js';
 
@@ -21,32 +21,26 @@ function hashPassword(userId: string, password: string): string {
 
 // POST /api/auth/signup
 authRouter.post('/signup', (req, res: Response) => {
-  const { name, email, password } = req.body;
-  if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
-    res.status(400).json({ error: 'Valid email is required' });
+  const { username, password } = req.body;
+  if (typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 100 || /\s/.test(username.trim())) {
+    res.status(400).json({ error: 'Username must be 2-100 characters without spaces' });
     return;
   }
-  if (typeof name !== 'string' || name.trim().length < 2) {
-    res.status(400).json({ error: 'Name is required' });
-    return;
-  }
-
   if (typeof password !== 'string' || password.length < 8 || password.length > 1024) {
-    res.status(400).json({ error: 'Password must be at least 8 characters' });
+    res.status(400).json({ error: 'Password must be 8-1024 characters' });
     return;
   }
-  const normalized = email.trim().toLowerCase();
-  const existing = usersDb.findByEmail(normalized);
-  if (existing) {
-    res.status(409).json({ error: 'An account with this email already exists' });
+  const normalized = username.trim().toLowerCase();
+  if (usersDb.findByUsername(normalized)) {
+    res.status(409).json({ error: 'An account with this username already exists' });
     return;
   }
 
   const userId = crypto.randomUUID();
   const newUser: User = {
     id: userId,
-    name: name.trim(),
-    email: normalized,
+    name: username.trim(),
+    username: normalized,
     passwordHash: hashPassword(userId, password),
     createdAt: new Date().toISOString(),
   };
@@ -61,31 +55,21 @@ authRouter.post('/signup', (req, res: Response) => {
 
 // POST /api/auth/login
 authRouter.post('/login', (req, res: Response) => {
-  const { email, password, passwordHash } = req.body;
+  const { username, password } = req.body;
 
-  if (!email || typeof email !== 'string') {
-    res.status(400).json({ error: 'Email is required' });
+  if (!username || typeof username !== 'string') {
+    res.status(400).json({ error: 'Username is required' });
     return;
   }
 
-  const user = usersDb.findByEmail(email);
+  const user = usersDb.findByUsername(username);
   if (!user) {
-    res.status(200).json({ error: 'Email or password is incorrect' });
+    res.status(200).json({ error: 'Username or password is incorrect' });
     return;
   }
 
-  const expectedHash = user.passwordHash;
-  let matches = false;
-
-  if (passwordHash && passwordHash === expectedHash) {
-    matches = true;
-  } else if (password) {
-    const computed = hashPassword(user.id, password);
-    matches = computed === expectedHash;
-  }
-
-  if (!matches) {
-    res.status(200).json({ error: 'Email or password is incorrect' });
+  if (typeof password !== 'string' || hashPassword(user.id, password) !== user.passwordHash) {
+    res.status(200).json({ error: 'Username or password is incorrect' });
     return;
   }
 
@@ -104,21 +88,13 @@ authRouter.get('/me', authMiddleware, (req: AuthenticatedRequest, res: Response)
 // PATCH /api/auth/profile
 authRouter.patch('/profile', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const { name, email, avatar } = req.body;
+  const { name, username, avatar } = req.body;
 
   const patch: Partial<User> = {};
   if (name !== undefined) patch.name = String(name).trim();
-  if (email !== undefined) {
-    if (typeof email !== 'string' || !/^\S+@\S+\.\S+$/.test(email.trim())) {
-      res.status(400).json({ error: 'Valid email is required' });
-      return;
-    }
-    const existing = usersDb.findByEmail(email);
-    if (existing && existing.id !== user.id) {
-      res.status(409).json({ error: 'An account with this email already exists' });
-      return;
-    }
-    patch.email = email.trim().toLowerCase();
+  if (username !== undefined) {
+    res.status(400).json({ error: 'Username cannot be changed' });
+    return;
   }
   if (avatar !== undefined) patch.avatar = avatar;
 
@@ -159,11 +135,4 @@ authRouter.post('/change-password', authMiddleware, (req: AuthenticatedRequest, 
 
 authRouter.post('/forgot-password', (_req, res: Response) => {
   res.status(503).json({ error: 'Password reset is not available yet' });
-});
-
-// DELETE /api/auth/account
-authRouter.delete('/account', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
-  const user = req.user!;
-  deleteUserData(user.id);
-  res.json({ success: true, message: 'Account and all data deleted' });
 });

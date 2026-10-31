@@ -36,7 +36,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
 
       <div className="row">
         <SearchBox />
-        <button type="button" className="icon-btn" aria-label="New task" title="New task" onClick={onNewTask} style={{ background: 'var(--accent)', color: '#fff', borderColor: 'transparent' }}>
+        <button type="button" className="icon-btn" aria-label="New task" title="New task" data-tour="quick-task" onClick={onNewTask} style={{ background: 'var(--accent)', color: '#fff', borderColor: 'transparent' }}>
           <Icon name="plus" size={16} stroke={2.2} />
         </button>
       </div>
@@ -51,11 +51,11 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
           <span style={{ flex: 1 }}>Projects</span>
           <span className="count">{s.activeProjects.length}</span>
         </NavLink>
-        <NavLink to="/calendar" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+        <NavLink to="/calendar" data-tour="calendar" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="calendar" size={17} stroke={1.9} />
           <span style={{ flex: 1 }}>Calendar</span>
         </NavLink>
-        <NavLink to="/focus" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+        <NavLink to="/focus" data-tour="focus" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="focus" size={17} stroke={1.9} />
           <span style={{ flex: 1 }}>Focus Mode</span>
           <TimerBadge />

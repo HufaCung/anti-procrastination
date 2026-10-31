@@ -62,6 +62,10 @@ function write<T>(c: Collection, items: T[]): void {
 export function migrate(): void {
   const store = ls();
   if (!store) return;
+  const users = read<(User & { email?: string })>('users');
+  if (users.some((user) => !user.username && user.email)) {
+    write('users', users.map(({ email, ...user }) => ({ ...user, username: user.username ?? email })));
+  }
   const v = readJSON<number>(KEYS.version, 0);
   if (v === SCHEMA_VERSION) return;
   // Future: if (v < 2) { ...transform collections... }
@@ -71,15 +75,13 @@ export function migrate(): void {
 // ---------- Users ----------
 export const usersRepo = {
   all: (): User[] => read<User>('users'),
-  byEmail: (email: string) => read<User>('users').find((u) => u.email.toLowerCase() === email.trim().toLowerCase()),
+  byUsername: (username: string) => read<User>('users').find((u) => u.username.toLowerCase() === username.trim().toLowerCase()),
   byId: (id: string) => read<User>('users').find((u) => u.id === id),
   save(user: User) {
     const all = read<User>('users').filter((u) => u.id !== user.id);
     write('users', [...all, user]);
   },
-  remove(id: string) {
-    write('users', read<User>('users').filter((u) => u.id !== id));
-  },
+
 };
 
 // ---------- Per-user data ----------
@@ -139,10 +141,4 @@ export function saveUserData(userId: string, data: AppData): void {
   replaceFor('sessions', userId, data.sessions);
   replaceFor('settings', userId, [data.settings]);
   replaceFor('meta', userId, [data.meta]);
-}
-
-export function deleteUserData(userId: string): void {
-  (['projects', 'tasks', 'sessions', 'settings', 'meta'] as Collection[]).forEach((c) =>
-    write(c, read<{ userId: string }>(c).filter((x) => x.userId !== userId)),
-  );
 }

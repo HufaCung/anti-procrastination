@@ -53,7 +53,7 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   // Auth
-  async signUp(payload: { name: string; email: string; password: string }) {
+  async signUp(payload: { username: string; password: string }) {
     const res = await request<{ token: string; user: User }>('/api/auth/signup', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -64,7 +64,7 @@ export const api = {
     return res;
   },
 
-  async logIn(payload: { email: string; password?: string; passwordHash?: string; remember?: boolean }) {
+  async logIn(payload: { username: string; password?: string; passwordHash?: string; remember?: boolean }) {
     const res = await request<{ token: string; user: User }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -79,7 +79,7 @@ export const api = {
     return request<{ user: User }>('/api/auth/me');
   },
 
-  async updateProfile(patch: { name?: string; email?: string; avatar?: string | null }) {
+  async updateProfile(patch: { name?: string; avatar?: string | null }) {
     return request<{ user: User }>('/api/auth/profile', {
       method: 'PATCH',
       body: JSON.stringify(patch),
@@ -90,12 +90,6 @@ export const api = {
     return request<{ user: User }>('/api/auth/change-password', {
       method: 'POST',
       body: JSON.stringify(payload),
-    });
-  },
-
-  async deleteAccount() {
-    return request<{ success: boolean }>('/api/auth/account', {
-      method: 'DELETE',
     });
   },
 

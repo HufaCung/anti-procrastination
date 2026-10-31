@@ -8,23 +8,23 @@ import { Icon } from '../components/Icon';
 export function LoginPage() {
   useDocumentTitle('Log in');
   const s = useStore();
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [pw, setPw] = useState('');
-  const [remember, setRemember] = useState(true);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const emailRef = useRef<HTMLInputElement>(null);
+  const usernameRef = useRef<HTMLInputElement>(null);
   const pwRef = useRef<HTMLInputElement>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (loading) return;
     setLoading(true);
-    const r = await s.logIn({ email, password: pw, remember });
+    const r = await s.logIn({ username, password: pw, remember: true });
     if (!r.ok) {
       setLoading(false);
       setErrors(r.errors);
-      if (r.errors.email) emailRef.current?.focus();
+      if (r.errors.username) usernameRef.current?.focus();
       else if (r.errors.password || r.errors.form) pwRef.current?.focus();
     }
     // On success the route guard redirects.
@@ -43,20 +43,15 @@ export function LoginPage() {
             <form onSubmit={submit} noValidate className="col" style={{ gap: 16 }}>
               {errors.form && <div role="alert" className="status-bad">{errors.form}</div>}
               <TextField
-                label="Email" type="email" autoComplete="email" placeholder="you@example.com" value={email} inputRef={emailRef}
-                onChange={(v) => { setEmail(v); setErrors(({ email: _e, form: _f, ...rest }) => rest); }}
-                error={errors.email}
+                label="Username" autoComplete="username" placeholder="Your username" value={username} inputRef={usernameRef}
+                onChange={(v) => { setUsername(v); setErrors(({ username: _e, form: _f, ...rest }) => rest); }}
+                error={errors.username}
               />
               <PasswordField
                 label="Password" autoComplete="current-password" value={pw} inputRef={pwRef}
                 onChange={(v) => { setPw(v); setErrors(({ password: _p, form: _f, ...rest }) => rest); }}
                 error={errors.password}
-                right={<Link to="/forgot-password" style={{ fontSize: 13, fontWeight: 500, textDecoration: 'none' }}>Forgot password?</Link>}
               />
-              <label className="check">
-                <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
-                Keep me logged in for 30 days
-              </label>
               <button type="submit" className={`btn btn-primary btn-lg btn-block ${loading ? 'loading' : ''}`} disabled={loading}>
                 {loading && <span className="spinner" aria-hidden="true" />}
                 {loading ? 'Logging in…' : 'Log in'}

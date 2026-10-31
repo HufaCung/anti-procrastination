@@ -7,7 +7,7 @@ export type Theme = 'light' | 'dark';
 export interface User {
   id: ID;
   name: string;
-  email: string;
+  username: string;
   passwordHash?: string; // mock auth: SHA-256 via SubtleCrypto
   createdAt: string;
   avatar?: string; // data URL
@@ -48,10 +48,18 @@ export interface Task {
   estimateMin: number; // 10–15 typical, 5–30 allowed
   status: TaskStatus;
   order: number;
+  dueDate?: string; // Optional task deadline (YYYY-MM-DD)
   scheduledFor?: string; // ISO datetime (slot start)
   completedAt?: string;
   createdAt: string;
   replannedFrom?: string; // previous scheduledFor, for "replanned" labels
+  subtasks?: Subtask[];
+}
+
+export interface Subtask {
+  id: ID;
+  title: string;
+  done: boolean;
 }
 
 export interface FocusSession {

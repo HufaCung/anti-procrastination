@@ -24,7 +24,7 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
-      email TEXT NOT NULL UNIQUE,
+      username TEXT NOT NULL UNIQUE,
       password_hash TEXT NOT NULL,
       created_at TEXT NOT NULL,
       avatar TEXT,
@@ -100,6 +100,11 @@ export function initDb() {
 
     CREATE TABLE IF NOT EXISTS data_revisions (user_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0);
   `);
+  const userColumns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+  if (!userColumns.some((column) => column.name === 'username')) db.exec('ALTER TABLE users RENAME COLUMN email TO username');
+  const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
+  if (!taskColumns.some((column) => column.name === 'due_date')) db.exec('ALTER TABLE tasks ADD COLUMN due_date TEXT');
+  if (!taskColumns.some((column) => column.name === 'subtasks')) db.exec('ALTER TABLE tasks ADD COLUMN subtasks TEXT');
   for (const table of ['projects', 'tasks', 'focus_sessions', 'settings', 'meta']) {
     for (const [operation, row] of [['INSERT', 'NEW'], ['UPDATE', 'NEW'], ['DELETE', 'OLD']]) {
       db.exec(`CREATE TRIGGER IF NOT EXISTS revision_${table}_${operation.toLowerCase()}
@@ -127,13 +132,13 @@ initDb();
 export const usersDb = {
   create(user: User): void {
     const stmt = db.prepare(`
-      INSERT INTO users (id, name, email, password_hash, created_at, avatar, password_changed_at)
-      VALUES (@id, @name, @email, @passwordHash, @createdAt, @avatar, @passwordChangedAt)
+      INSERT INTO users (id, name, username, password_hash, created_at, avatar, password_changed_at)
+      VALUES (@id, @name, @username, @passwordHash, @createdAt, @avatar, @passwordChangedAt)
     `);
     stmt.run({
       id: user.id,
       name: user.name,
-      email: user.email.toLowerCase().trim(),
+      username: user.username.toLowerCase().trim(),
       passwordHash: user.passwordHash,
       createdAt: user.createdAt,
       avatar: user.avatar || null,
@@ -147,7 +152,7 @@ export const usersDb = {
     return {
       id: row.id,
       name: row.name,
-      email: row.email,
+      username: row.username,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       avatar: row.avatar || undefined,
@@ -155,13 +160,13 @@ export const usersDb = {
     };
   },
 
-  findByEmail(email: string): User | null {
-    const row = db.prepare('SELECT * FROM users WHERE LOWER(email) = LOWER(?)').get(email.trim()) as any;
+  findByUsername(username: string): User | null {
+    const row = db.prepare('SELECT * FROM users WHERE LOWER(username) = LOWER(?)').get(username.trim()) as any;
     if (!row) return null;
     return {
       id: row.id,
       name: row.name,
-      email: row.email,
+      username: row.username,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       avatar: row.avatar || undefined,
@@ -169,19 +174,18 @@ export const usersDb = {
     };
   },
 
-  update(id: string, patch: Partial<User>): User | null {
+  update(id: string, patch: Partial<Omit<User, 'id' | 'username'>>): User | null {
     const current = usersDb.findById(id);
     if (!current) return null;
     const updated = { ...current, ...patch };
     const stmt = db.prepare(`
       UPDATE users
-      SET name = @name, email = @email, password_hash = @passwordHash, avatar = @avatar, password_changed_at = @passwordChangedAt
+      SET name = @name, password_hash = @passwordHash, avatar = @avatar, password_changed_at = @passwordChangedAt
       WHERE id = @id
     `);
     stmt.run({
       id,
       name: updated.name,
-      email: updated.email.toLowerCase().trim(),
       passwordHash: updated.passwordHash,
       avatar: updated.avatar || null,
       passwordChangedAt: updated.passwordChangedAt || null,
@@ -370,18 +374,22 @@ export const tasksDb = {
       status: r.status,
       order: r.task_order,
       scheduledFor: r.scheduled_for || undefined,
+      dueDate: r.due_date || undefined,
       completedAt: r.completed_at || undefined,
       createdAt: r.created_at,
       replannedFrom: r.replanned_from || undefined,
+      subtasks: r.subtasks ? JSON.parse(r.subtasks) : undefined,
     }));
   },
 
   save(t: Task): void {
     assertOwner('tasks', t.id, t.userId);
     if (!db.prepare('SELECT 1 FROM projects WHERE id = ? AND user_id = ?').get(t.projectId, t.userId)) throw new Error('Project does not belong to user');
+    if (t.subtasks !== undefined && (!Array.isArray(t.subtasks) || t.subtasks.some((s) => !s || typeof s.id !== 'string' || !s.id || typeof s.title !== 'string' || !s.title.trim() || typeof s.done !== 'boolean') || new Set(t.subtasks.map((s) => s.id)).size !== t.subtasks.length)) throw new Error('Invalid subtasks');
+    if (t.dueDate !== undefined && (typeof t.dueDate !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(t.dueDate) || Number.isNaN(Date.parse(`${t.dueDate}T00:00:00Z`)) || new Date(`${t.dueDate}T00:00:00Z`).toISOString().slice(0, 10) !== t.dueDate)) throw new Error('Invalid task deadline');
     const stmt = db.prepare(`
-      INSERT INTO tasks (id, user_id, project_id, section, title, estimate_min, status, task_order, scheduled_for, completed_at, created_at, replanned_from)
-      VALUES (@id, @userId, @projectId, @section, @title, @estimateMin, @status, @order, @scheduledFor, @completedAt, @createdAt, @replannedFrom)
+      INSERT INTO tasks (id, user_id, project_id, section, title, estimate_min, status, task_order, scheduled_for, completed_at, created_at, replanned_from, subtasks, due_date)
+      VALUES (@id, @userId, @projectId, @section, @title, @estimateMin, @status, @order, @scheduledFor, @completedAt, @createdAt, @replannedFrom, @subtasks, @dueDate)
       ON CONFLICT(id) DO UPDATE SET
         user_id = excluded.user_id,
         project_id = excluded.project_id,
@@ -392,7 +400,9 @@ export const tasksDb = {
         task_order = excluded.task_order,
         scheduled_for = excluded.scheduled_for,
         completed_at = excluded.completed_at,
-        replanned_from = excluded.replanned_from
+        replanned_from = excluded.replanned_from,
+        subtasks = excluded.subtasks,
+        due_date = excluded.due_date
     `);
     stmt.run({
       id: t.id,
@@ -407,6 +417,8 @@ export const tasksDb = {
       completedAt: t.completedAt || null,
       createdAt: t.createdAt,
       replannedFrom: t.replannedFrom || null,
+      subtasks: t.subtasks === undefined ? null : JSON.stringify(t.subtasks),
+      dueDate: t.dueDate || null,
     });
   },
 
@@ -537,16 +549,4 @@ export function saveAppData(userId: string, data: AppData): void {
   });
 
   syncTx();
-}
-
-export function deleteUserData(userId: string): void {
-  const delTx = db.transaction(() => {
-    db.prepare('DELETE FROM focus_sessions WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM tasks WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM projects WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM settings WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM meta WHERE user_id = ?').run(userId);
-    db.prepare('DELETE FROM users WHERE id = ?').run(userId);
-  });
-  delTx();
 }

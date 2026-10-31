@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar';
 import { QuickTaskModal } from './QuickTaskModal';
 import { ProjectModal } from './ProjectModal';
 import type { Project } from '../data/types';
+import { WelcomeTour } from './WelcomeTour';
 
 interface UIActions {
   openQuickTask: (projectId?: string) => void;
@@ -43,6 +44,7 @@ export function AppShell() {
         <Sidebar onNewTask={() => ui.openQuickTask(loc.pathname.startsWith('/projects/') ? loc.pathname.split('/')[2] : undefined)} />
       </div>
       <Outlet />
+      <WelcomeTour />
     </div>
   );
 }

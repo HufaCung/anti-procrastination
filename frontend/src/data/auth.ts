@@ -3,7 +3,7 @@
  * the current profile and session available to the interface.
  */
 import type { User } from './types';
-import { KEYS, deleteUserData, migrate, readJSON, usersRepo, writeJSON } from './storage';
+import { KEYS, migrate, readJSON, usersRepo, writeJSON } from './storage';
 import { api, setAuthToken } from './api';
 
 export interface AuthSession {
@@ -12,15 +12,15 @@ export interface AuthSession {
   remember: boolean;
 }
 
-export const EMAIL_RE = /^\S+@\S+\.\S+$/;
+export const USERNAME_RE = /^\S{2,100}$/;
 
 export const AUTH_ERRORS = {
-  email: 'Enter a valid email address.',
+  username: 'Enter a username of 2-100 characters without spaces.',
   password: 'Password must be at least 8 characters.',
-  name: 'Enter your full name.',
+  name: 'Enter your display name.',
   terms: 'Please accept the Terms to continue.',
-  duplicate: 'An account with this email already exists.',
-  invalid: 'Email or password is incorrect.',
+  duplicate: 'An account with this username already exists.',
+  invalid: 'Username or password is incorrect.',
 } as const;
 
 export async function sha256(text: string): Promise<string> {
@@ -47,7 +47,7 @@ export function passwordScore(pw: string): number {
   return s;
 }
 
-/** Salted with the immutable user id, so changing email keeps the password valid. */
+/** Salted with the immutable user id. */
 function hashFor(userId: string, password: string) {
   return sha256(`nt:${userId}:${password}`);
 }
@@ -97,39 +97,27 @@ export function currentUser(): User | null {
 
 export type AuthResult = { ok: true; user: User } | { ok: false; errors: Record<string, string> };
 
-export async function signUp(input: { name: string; email: string; password: string; agree: boolean }): Promise<AuthResult> {
+export async function signUp(input: { username: string; password: string; confirmPassword: string }): Promise<AuthResult> {
   const errors: Record<string, string> = {};
-  if (input.name.trim().length < 2) errors.name = AUTH_ERRORS.name;
-  if (!EMAIL_RE.test(input.email.trim())) errors.email = AUTH_ERRORS.email;
-  if (input.password.length < 8) errors.password = AUTH_ERRORS.password;
-  if (!input.agree) errors.agree = AUTH_ERRORS.terms;
-  if (!errors.email && usersRepo.byEmail(input.email)) errors.email = AUTH_ERRORS.duplicate;
+  if (!USERNAME_RE.test(input.username.trim())) errors.username = AUTH_ERRORS.username;
+  if (input.password.length < 8 || input.password.length > 1024) errors.password = AUTH_ERRORS.password;
+  if (input.password !== input.confirmPassword) errors.confirmPassword = 'Passwords do not match.';
   if (Object.keys(errors).length) return { ok: false, errors };
-  const result = await api.signUp({
-    name: input.name.trim(),
-    email: input.email.trim(),
-    password: input.password,
-  });
-  if (!result?.token || !result.user) return { ok: false, errors: { form: 'Could not create account. The email may already be in use, or the server may be unavailable.' } };
+  const result = await api.signUp({ username: input.username.trim(), password: input.password });
+  if (!result?.token || !result.user) return { ok: false, errors: { form: 'Could not create account. The username may already be in use, or the server may be unavailable.' } };
   const user = { ...result.user, passwordHash: await hashFor(result.user.id, input.password) };
   usersRepo.save(user);
   setSession(user.id, true);
   return { ok: true, user };
 }
 
-export async function logIn(input: { email: string; password: string; remember: boolean }): Promise<AuthResult> {
+export async function logIn(input: { username: string; password: string; remember: boolean }): Promise<AuthResult> {
   const errors: Record<string, string> = {};
-  if (!EMAIL_RE.test(input.email.trim())) errors.email = AUTH_ERRORS.email;
-  if (input.password.length < 8) errors.password = AUTH_ERRORS.password;
+  if (!input.username.trim()) errors.username = AUTH_ERRORS.username;
+  if (!input.password) errors.password = 'Enter your password.';
   if (Object.keys(errors).length) return { ok: false, errors };
-  const res = await api.logIn({
-    email: input.email,
-    password: input.password,
-    remember: input.remember,
-  });
-  if (!res?.user || !res.token) {
-    return { ok: false, errors: { form: AUTH_ERRORS.invalid } };
-  }
+  const res = await api.logIn({ username: input.username, password: input.password, remember: input.remember });
+  if (!res?.user || !res.token) return { ok: false, errors: { form: AUTH_ERRORS.invalid } };
   const user = { ...res.user, passwordHash: await hashFor(res.user.id, input.password) };
   usersRepo.save(user);
   setSession(user.id, input.remember);
@@ -160,30 +148,19 @@ export async function changePassword(userId: string, current: string, next: stri
 
 export async function updateProfile(
   userId: string,
-  patch: { name?: string; email?: string; avatar?: string | null },
+  patch: { name?: string; avatar?: string | null },
 ): Promise<{ ok: boolean; errors?: Record<string, string>; user?: User }> {
   const user = usersRepo.byId(userId);
   if (!user) return { ok: false, errors: { form: 'Account not found.' } };
   const errors: Record<string, string> = {};
   const name = patch.name ?? user.name;
-  const email = (patch.email ?? user.email).trim();
   if (name.trim().length < 2) errors.name = AUTH_ERRORS.name;
-  if (!EMAIL_RE.test(email)) errors.email = AUTH_ERRORS.email;
-  const other = usersRepo.byEmail(email);
-  if (!errors.email && other && other.id !== userId) errors.email = AUTH_ERRORS.duplicate;
   if (Object.keys(errors).length) return { ok: false, errors };
-  const next: User = { ...user, name: name.trim(), email };
+  const next: User = { ...user, name: name.trim() };
   if (patch.avatar === null) delete next.avatar;
   else if (patch.avatar) next.avatar = patch.avatar;
-  const result = await api.updateProfile({ name: next.name, email: next.email, ...(patch.avatar !== undefined ? { avatar: patch.avatar } : {}) });
-  if (!result?.user) return { ok: false, errors: { form: 'Could not save profile. The email may already be in use, or the server may be unavailable.' } };
+  const result = await api.updateProfile({ name: next.name, ...(patch.avatar !== undefined ? { avatar: patch.avatar } : {}) });
+  if (!result?.user) return { ok: false, errors: { form: 'Could not save profile. Please try again.' } };
   usersRepo.save({ ...next, ...result.user, passwordHash: user.passwordHash });
   return { ok: true, user: next };
-}
-
-export function deleteAccount(userId: string): void {
-  deleteUserData(userId);
-  usersRepo.remove(userId);
-  api.deleteAccount().catch(() => {});
-  logOut();
 }
