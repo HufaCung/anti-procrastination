@@ -19,13 +19,6 @@ function RequireAuth() {
   const loc = useLocation();
   if (!s.ready) return <main>Loading your workspace...</main>;
   if (!s.user || !s.data) {
-    let deleted = false;
-    try {
-      deleted = sessionStorage.getItem('nt-after-delete') === '1';
-    } catch {
-      /* ignore */
-    }
-    if (deleted) return <Navigate to="/signup" replace state={{ deleted: true }} />;
     return <Navigate to="/login" replace state={{ from: loc.pathname + loc.search }} />;
   }
   return <Outlet />;

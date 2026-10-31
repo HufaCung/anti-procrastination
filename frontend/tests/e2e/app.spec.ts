@@ -1,4 +1,4 @@
-import { test, expect, signUp, signUpAndOnboard, sidebar, uniqueEmail } from './helpers';
+import { test, expect, signUp, signUpAndOnboard, sidebar } from './helpers';
 
 test.describe('1–2 · auth and onboarding', () => {
   test('sign up → 2-step onboarding → project page, and the dashboard shows the new project', async ({ page, errors }) => {
@@ -15,6 +15,7 @@ test.describe('1–2 · auth and onboarding', () => {
     await page.getByLabel(/Notes/).fill('Hash tables chapter');
     await page.getByRole('button', { name: 'Create project' }).click();
     await page.waitForURL(/\/projects\//);
+    await page.getByRole('button', { name: 'Skip tour' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Data Structures report' })).toBeVisible();
     await expect(page.getByText('No tasks yet')).toBeVisible();
     await expect(page.getByText(/AI|Smart breakdown/)).toHaveCount(0);
@@ -34,6 +35,7 @@ test.describe('1–2 · auth and onboarding', () => {
     await expect(page.getByText('Step 2 of 2')).toBeVisible();
     await page.getByRole('button', { name: 'Skip', exact: true }).click();
     await page.waitForURL((u) => u.pathname === '/');
+    await page.getByRole('button', { name: 'Skip tour' }).click();
     await expect(page.getByText('Start with one project')).toBeVisible();
     await expect(page.getByRole('button', { name: /sample data/i })).toHaveCount(0);
     await expect(sidebar(page).getByText('Create your first project')).toBeVisible();
@@ -47,33 +49,34 @@ test.describe('1–2 · auth and onboarding', () => {
     void errors;
     await page.goto('/signup');
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page.getByText('Enter your full name.')).toBeVisible();
-    await expect(page.getByText('Enter a valid email address.')).toBeVisible();
+    await expect(page.getByText('Enter a username of 2-100 characters without spaces.')).toBeVisible();
     await expect(page.getByText('Password must be at least 8 characters.')).toBeVisible();
-    await expect(page.getByText('Please accept the Terms to continue.')).toBeVisible();
     // strength meter
     await page.getByLabel('Password', { exact: true }).fill('abcdefgh');
     await expect(page.getByText('Password strength: Weak')).toBeVisible();
     await page.getByLabel('Password', { exact: true }).fill('Abcdefg1!');
     await expect(page.getByText('Password strength: Strong')).toBeVisible();
+    await page.getByLabel('Username').fill('validuser');
+    await page.getByLabel('Confirm password').fill('different');
+    await page.getByRole('button', { name: 'Create account' }).click();
+    await expect(page.getByText('Passwords do not match.')).toBeVisible();
     await page.getByRole('link', { name: 'Log in' }).first().click();
-    await page.getByLabel('Email').fill('nobody@example.com');
+    await page.getByLabel('Username').fill('nobody@example.com');
     await page.getByLabel('Password', { exact: true }).fill('wrongpass1');
     await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(page.getByText('Email or password is incorrect.')).toBeVisible();
+    await expect(page.getByText('Username or password is incorrect.')).toBeVisible();
   });
 
-  test('duplicate email is rejected', async ({ page, errors }) => {
+  test('duplicate username is rejected', async ({ page, errors }) => {
     void errors;
     const { email } = await signUpAndOnboard(page);
     await sidebar(page).getByRole('button', { name: 'Log out' }).click();
     await page.goto('/signup');
-    await page.getByLabel('Full name').fill('Someone Else');
-    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Username').fill(email);
     await page.getByLabel('Password', { exact: true }).fill('Another123');
-    await page.getByRole('checkbox', { name: /I agree/ }).check();
+    await page.getByLabel('Confirm password').fill('Another123');
     await page.getByRole('button', { name: 'Create account' }).click();
-    await expect(page.getByText('An account with this email already exists.')).toBeVisible();
+    await expect(page.getByText('Could not create account. The username may already be in use, or the server may be unavailable.')).toBeVisible();
   });
 
   test('log out → log in → data persists after reload; guards redirect', async ({ page, errors }) => {
@@ -83,7 +86,7 @@ test.describe('1–2 · auth and onboarding', () => {
     await page.waitForURL('**/login');
     await page.goto('/calendar');
     await page.waitForURL('**/login');
-    await page.getByLabel('Email').fill(email);
+    await page.getByLabel('Username').fill(email);
     await page.getByLabel('Password', { exact: true }).fill(password);
     await page.getByRole('button', { name: 'Log in' }).click();
     await page.waitForURL('**/calendar');
@@ -106,7 +109,7 @@ test.describe('1–2 · auth and onboarding', () => {
     try {
       const other = await context.newPage();
       await other.goto(new URL('/login', page.url()).href);
-      await other.getByLabel('Email').fill(email);
+      await other.getByLabel('Username').fill(email);
       await other.getByLabel('Password', { exact: true }).fill(password);
       await other.getByRole('button', { name: 'Log in' }).click();
       await expect(sidebar(other).getByText('Cross device project')).toBeVisible();
@@ -125,9 +128,71 @@ test.describe('1–2 · auth and onboarding', () => {
 
   test('forgot password explains reset is unavailable', async ({ page, errors }) => {
     void errors;
-    await page.goto('/login');
-    await page.getByRole('link', { name: 'Forgot password?' }).click();
+    await page.goto('/forgot-password');
     await expect(page.getByText(/Password reset by email is not available yet/)).toBeVisible();
+  });
+});
+
+test('task deadline calendar selects and saves a date without a planned start', async ({ page }) => {
+  await signUpAndOnboard(page, { project: 'Deadline project' });
+  await sidebar(page).getByRole('link', { name: /Deadline project/ }).click();
+  await page.setViewportSize({ width: 375, height: 780 });
+  await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+  await page.getByLabel('New task title').fill('Read research');
+  await expect(page.getByLabel('Planned start (optional)')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Task deadline (optional)' }).click();
+  const calendar = page.getByRole('group', { name: 'Task deadline (optional) calendar' });
+  await expect(calendar).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+  await page.keyboard.press('Escape');
+  await expect(calendar).toHaveCount(0);
+  await page.getByRole('button', { name: 'Task deadline (optional)' }).click();
+  const heading = await calendar.locator('.date-calendar-month').innerText();
+  await calendar.getByRole('button', { name: 'Next month' }).click();
+  await expect(calendar.locator('.date-calendar-month')).not.toHaveText(heading);
+  await calendar.getByRole('button', { name: 'Today', exact: true }).click();
+  await expect(calendar).toHaveCount(0);
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
+  const row = page.locator('.task-item', { has: page.getByLabel('Task title: Read research') });
+  await expect(row).toContainText('Deadline:');
+  await page.reload();
+  await expect(row).toContainText('Deadline:');
+  await expect(row).not.toContainText('Planned:');
+});
+
+test.describe('welcome tour', () => {
+  test('guides a new user through project tasks and can be completed', async ({ page }) => {
+    await signUp(page);
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await page.getByLabel('Project name').fill('First project');
+    await page.getByRole('button', { name: 'Create project' }).click();
+    const tour = page.getByRole('dialog', { name: 'Turn a big project into small steps' });
+    await expect(tour).toBeVisible();
+    await expect(page.locator('.tour-spotlight')).toBeVisible();
+    await tour.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('dialog', { name: 'Pick a time estimate' })).toBeVisible();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await page.getByRole('button', { name: 'Next', exact: true }).click();
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByLabel('New task title')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+  });
+
+  test('skipped setup guides the empty dashboard and Escape dismisses it', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 780 });
+    await signUp(page);
+    await page.getByRole('button', { name: 'Skip for now' }).click();
+    await expect(page.getByRole('dialog', { name: 'Give your goal a home' })).toBeVisible();
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.getByRole('dialog', { name: 'Add small tasks' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByText('Start with one project')).toBeVisible();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
   });
 });
 
@@ -150,12 +215,13 @@ test.describe('3–4 · projects and tasks', () => {
     await page.getByRole('button', { name: 'Edit project' }).click();
     const edit = page.getByRole('dialog', { name: 'Edit project' });
     await edit.getByLabel('Project name').fill('Robotics club showcase');
-    await edit.getByLabel('Deadline').fill('2099-12-01');
+    await edit.getByRole('button', { name: 'Deadline', exact: true }).click();
+    await edit.getByRole('group', { name: 'Deadline calendar' }).getByRole('button', { name: 'Today', exact: true }).click();
     await edit.getByRole('radio', { name: 'High' }).click();
     await edit.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByRole('heading', { level: 1, name: 'Robotics club showcase' })).toBeVisible();
     await expect(page.getByText('High priority')).toBeVisible();
-    await expect(page.getByText(/Due \w+, Dec 1/)).toBeVisible();
+    await expect(page.getByText(/Due .*today/)).toBeVisible();
 
     // delete
     await page.getByRole('button', { name: 'Edit project' }).click();
@@ -194,7 +260,8 @@ test.describe('3–4 · projects and tasks', () => {
     // reorder: move "Proofread" up within Inbox
     const inbox = page.locator('.group', { hasText: 'Inbox' });
     await expect(inbox.locator('input.inline-edit').first()).toHaveValue('Write the final conclusion');
-    await page.getByRole('button', { name: 'Move up: Proofread the conclusion' }).click();
+    await page.getByRole('button', { name: 'Options for Proofread the conclusion' }).click();
+    await page.getByRole('menuitem', { name: 'Move up' }).click();
     await expect(inbox.locator('input.inline-edit').first()).toHaveValue('Proofread the conclusion');
 
     // status cycle + numbers
@@ -213,17 +280,124 @@ test.describe('3–4 · projects and tasks', () => {
     await expect(pct).toHaveText('0% complete');
 
     // delete with undo
-    await page.getByRole('button', { name: 'Delete task: Proofread the conclusion' }).click();
+    await page.getByRole('button', { name: 'Options for Proofread the conclusion' }).click();
+    await page.getByRole('menuitem', { name: 'Delete task' }).click();
     await expect(page.getByLabel('Task title: Proofread the conclusion')).toHaveCount(0);
     await page.getByRole('button', { name: 'Undo' }).click();
     await expect(page.getByLabel('Task title: Proofread the conclusion')).toBeVisible();
-    await page.getByRole('button', { name: 'Delete task: Proofread the conclusion' }).click();
+    await page.getByRole('button', { name: 'Options for Proofread the conclusion' }).click();
+    await page.getByRole('menuitem', { name: 'Delete task' }).click();
     await expect(page.getByLabel('Task title: Proofread the conclusion')).toHaveCount(0);
 
     // persists
     await page.reload();
     await expect(page.getByLabel('Task title: Write the final conclusion')).toBeVisible();
     await expect(page.getByLabel('Task title: Proofread the conclusion')).toHaveCount(0);
+  });
+
+  test('subtasks stay with their parent through edit, undo, reload and another device', async ({ page, browser }) => {
+    const { email, password } = await signUpAndOnboard(page, { project: 'Subtask project' });
+    await sidebar(page).getByRole('link', { name: /Subtask project/ }).click();
+    await page.getByLabel('New task title').fill('Write report');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByLabel('Task title: Write report').fill('Discard task edit');
+    await page.getByLabel('Task title: Write report').press('Escape');
+    await expect(page.getByLabel('Task title: Write report')).toHaveValue('Write report');
+    await page.getByRole('button', { name: 'Options for Write report' }).click();
+    await page.getByRole('menuitem', { name: 'Add subtask' }).click();
+    await page.getByLabel('New subtask for Write report').fill('Find sources');
+    await page.locator('.subtask-add').getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByLabel('Subtask title: Find sources').fill('Find three sources');
+    await page.getByLabel('Complete subtask: Find sources').check();
+    await expect(page.getByLabel('Complete subtask: Find three sources')).toBeChecked();
+    await page.getByLabel('Subtask title: Find three sources').fill('Discard this change');
+    await page.getByLabel('Subtask title: Find three sources').press('Escape');
+    await expect(page.getByLabel('Subtask title: Find three sources')).toHaveValue('Find three sources');
+    await expect(page.getByText('1 of 1 subtasks done')).toBeVisible();
+    await page.getByRole('button', { name: 'Options for Write report' }).click();
+    await page.getByRole('menuitem', { name: 'Delete task' }).click();
+    await expect(page.getByLabel('Subtask title: Find three sources')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Undo' }).click();
+    await expect(page.getByLabel('Complete subtask: Find three sources')).toBeChecked();
+    await expect.poll(async () => page.evaluate(async () => {
+      const token = localStorage.getItem('nt:v1:token');
+      const response = await fetch('/api/data', { headers: { Authorization: `Bearer ${token}` } });
+      const result = await response.json();
+      return result.data.tasks.some((task: { title: string; subtasks?: { title: string; done: boolean }[] }) => task.title === 'Write report' && task.subtasks?.some((sub) => sub.title === 'Find three sources' && sub.done));
+    })).toBe(true);
+    await page.reload();
+    await expect(page.getByLabel('Complete subtask: Find three sources')).toBeChecked();
+    const otherContext = await browser.newContext();
+    try {
+      const other = await otherContext.newPage();
+      await other.goto(new URL('/login', page.url()).href);
+      await other.getByLabel('Username').fill(email);
+      await other.getByLabel('Password', { exact: true }).fill(password);
+      await other.getByRole('button', { name: 'Log in' }).click();
+      await sidebar(other).getByRole('link', { name: /Subtask project/ }).click();
+      await expect(other.getByLabel('Complete subtask: Find three sources')).toBeChecked();
+      await other.getByRole('button', { name: 'Delete subtask: Find three sources' }).click();
+      await expect(other.getByLabel('Subtask title: Find three sources')).toHaveCount(0);
+    } finally { await otherContext.close(); }
+  });
+
+  test('deleting the final completed task returns the project to active', async ({ page }) => {
+    await signUpAndOnboard(page, { project: 'Reopened project' });
+    await sidebar(page).getByRole('link', { name: /Reopened project/ }).click();
+    await page.getByLabel('New task title').fill('Only task');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: /^Status To do, change: Only task/ }).click();
+    await page.getByRole('button', { name: /^Status In progress, change: Only task/ }).click();
+    await expect(page.getByTestId('project-pct')).toHaveText('100% complete');
+    await page.getByRole('button', { name: 'Options for Only task' }).click();
+    await page.getByRole('menuitem', { name: 'Delete task' }).click();
+    await expect(page.getByText('No tasks yet')).toBeVisible();
+    await expect(sidebar(page).getByRole('link', { name: /Reopened project/ })).toBeVisible();
+  });
+
+  test('a task can be selected for Focus and its suggested timer changed before starting', async ({ page }) => {
+    await signUpAndOnboard(page, { project: 'Focus project' });
+    await sidebar(page).getByRole('link', { name: /Focus project/ }).click();
+    await page.getByLabel('New task title').fill('Review notes');
+    await page.getByLabel('Estimate', { exact: true }).selectOption('10');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByRole('button', { name: 'Options for Review notes' }).click();
+    await page.getByRole('menuitem', { name: 'Focus on task' }).click();
+    await expect(page.getByRole('heading', { name: 'Review notes' })).toBeVisible();
+    await expect(page.getByTestId('clock')).toHaveText('10:00');
+    await page.getByRole('radio', { name: '25 min' }).click();
+    await expect(page.getByTestId('clock')).toHaveText('25:00');
+    await page.getByRole('button', { name: 'Start', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+    await page.waitForTimeout(1100);
+    await page.getByRole('button', { name: 'Pause', exact: true }).click();
+    await expect(page.getByRole('radio', { name: '10 min' })).toBeDisabled();
+    await expect(page.getByText(/Finish or reset the session to change its length or task/)).toBeVisible();
+    await page.getByRole('button', { name: 'Mark done' }).click();
+    await page.getByRole('button', { name: 'Exit' }).click();
+    await expect(page.getByRole('button', { name: /^Status Done, change: Review notes/ })).toBeVisible();
+  });
+
+  test('task menu remains inside a small viewport and supports keyboard navigation', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 500 });
+    await signUpAndOnboard(page, { project: 'Menu project' });
+    await sidebar(page).getByRole('button', { name: 'More' }).click();
+    await sidebar(page).getByRole('link', { name: /Menu project/ }).click();
+    await page.getByLabel('New task title').fill('Menu task');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    const trigger = page.getByRole('button', { name: 'Options for Menu task' });
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+    const menu = page.getByRole('menu', { name: 'Options for Menu task' });
+    const bounds = await menu.boundingBox();
+    expect(bounds!.y).toBeGreaterThanOrEqual(0);
+    expect(bounds!.y + bounds!.height).toBeLessThanOrEqual(500);
+    await expect(menu.getByRole('menuitem', { name: 'Add subtask' })).toBeFocused();
+    await page.keyboard.press('ArrowDown');
+    await expect(menu.getByRole('menuitem', { name: 'Focus on task' })).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(menu).toHaveCount(0);
+    await expect(trigger).toBeFocused();
   });
 
   test('dashboard and sidebar numbers update from today’s list', async ({ page, errors }) => {
@@ -295,6 +469,7 @@ test.describe('6 · focus mode', () => {
     void errors;
     await signUpAndOnboard(page, { sample: true });
     await page.goto('/focus');
+    await expect(page.locator('.queue-row.current')).toBeVisible();
     const title = await page.getByRole('heading', { level: 1 }).innerText();
     await page.getByRole('button', { name: 'Start' }).click();
     await page.getByRole('button', { name: 'Exit' }).click();
@@ -535,26 +710,18 @@ test.describe('12 · keyboard and modals', () => {
     await expect(page.getByLabel('Task title: Email the TA')).toBeVisible();
   });
 
-  test('profile: save, export and delete account', async ({ page, errors }) => {
+  test('profile: save display name and log out', async ({ page, errors }) => {
     void errors;
-    const { email } = await signUpAndOnboard(page);
+    await signUpAndOnboard(page);
     await page.goto('/profile');
-    await page.getByLabel('Full name').fill('Hoang Tran');
+    await expect(page.getByLabel('Username')).toHaveAttribute('readonly', '');
+    await page.getByLabel('Display name').fill('Hoang Tran');
     await page.getByRole('button', { name: 'Save changes' }).click();
     await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
     await expect(sidebar(page)).toContainText('Hoang Tran');
-    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export' }).click()]);
-    expect(download.suggestedFilename()).toMatch(/tinydo-export-.*\.json/);
-    await page.getByRole('button', { name: 'Delete account' }).click();
-    const dialog = page.getByRole('dialog', { name: 'Delete your account?' });
-    await dialog.getByRole('button', { name: 'Delete account' }).click();
-    await page.waitForURL('**/signup');
-    await expect(page.getByText('Your account and its data were deleted.')).toBeVisible();
-    await page.goto('/login');
-    await page.getByLabel('Email').fill(email);
-    await page.getByLabel('Password', { exact: true }).fill('Secret123!');
-    await page.getByRole('button', { name: 'Log in' }).click();
-    await expect(page.getByText('Email or password is incorrect.')).toBeVisible();
-    void uniqueEmail;
+    await expect(page.getByRole('button', { name: 'Export' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Delete account' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Log out', exact: true }).last().click();
+    await page.waitForURL('**/login');
   });
 });

@@ -93,7 +93,7 @@ export function DashboardPage() {
             <Icon name="calendar" size={16} style={{ color: 'var(--accent-text)' }} />
             Plan my day
           </button>
-          <button type="button" className="btn btn-primary" onClick={ui.openNewProject}>
+          <button type="button" className="btn btn-primary" onClick={ui.openNewProject} data-tour="new-project">
             <Icon name="plus" size={16} stroke={2.2} />
             New project
           </button>

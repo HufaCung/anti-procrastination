@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Segmented, useDocumentTitle } from '../components/ui';
+import { DatePicker } from '../components/DatePicker';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
 import type { Priority } from '../data/types';
@@ -44,6 +45,7 @@ export function OnboardingPage() {
     s.updateSettings({ dailyGoalMin: goal, defaultTaskMin: size });
     const p = s.createProject({ name: project, dueDate: due, priority: prio, description: desc });
     s.markOnboarded();
+    try { sessionStorage.setItem('tinydo:welcome-tour', JSON.stringify({ userId: s.user!.id, kind: 'project' })); } catch { /* storage unavailable */ }
     toast({ tone: 'ok', title: `Created ${p.name}`, body: 'Add a few 10–15 minute tasks to get started.' });
     navigate(`/projects/${p.id}`, { replace: true });
   };
@@ -51,6 +53,7 @@ export function OnboardingPage() {
   const skip = () => {
     s.updateSettings({ dailyGoalMin: goal, defaultTaskMin: size });
     s.markOnboarded();
+    try { sessionStorage.setItem('tinydo:welcome-tour', JSON.stringify({ userId: s.user!.id, kind: 'dashboard' })); } catch { /* storage unavailable */ }
     navigate('/', { replace: true });
   };
 
@@ -102,9 +105,7 @@ export function OnboardingPage() {
               </div>
               <div className="row wrap" style={{ gap: 12, alignItems: 'flex-start' }}>
                 <div className="field" style={{ flex: '1 1 200px' }}>
-                  <label htmlFor="ob-due">Deadline</label>
-                  <input id="ob-due" type="date" className={`input lg ${errors.due ? 'err' : ''}`} value={due} min={dayKey(new Date())} onChange={(e) => { setDue(e.target.value); setErrors((x) => ({ ...x, due: '' })); }} aria-invalid={!!errors.due} />
-                  {errors.due && <span role="alert" className="err-text">{errors.due}</span>}
+                  <DatePicker id="ob-due" label="Deadline" value={due} min={dayKey(new Date())} onChange={(value) => { setDue(value); setErrors((x) => ({ ...x, due: '' })); }} error={errors.due} />
                 </div>
                 <div className="field" style={{ flex: '1 1 200px' }}>
                   <span className="field-label">Priority</span>

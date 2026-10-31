@@ -6,11 +6,11 @@ import { signToken, getJwtSecret } from './middleware/auth.js';
 import type { AppData, Project, Task, User } from './types.js';
 
 describe('SQLite Database & Operations', () => {
-  const testEmail = `test_${Date.now()}@example.com`;
+  const testUsername = `test_${Date.now()}@example.com`;
   const testUser: User = {
     id: `u_test_${Date.now()}`,
     name: 'Test Hoang',
-    email: testEmail,
+    username: testUsername,
     passwordHash: 'dummyhash123',
     createdAt: new Date().toISOString(),
   };
@@ -19,15 +19,15 @@ describe('SQLite Database & Operations', () => {
     initDb();
   });
 
-  it('creates and finds a user by id and email', () => {
+  it('creates and finds a user by id and username', () => {
     usersDb.create(testUser);
     const foundById = usersDb.findById(testUser.id);
     expect(foundById).not.toBeNull();
     expect(foundById?.name).toBe('Test Hoang');
 
-    const foundByEmail = usersDb.findByEmail(testEmail);
-    expect(foundByEmail).not.toBeNull();
-    expect(foundByEmail?.id).toBe(testUser.id);
+    const foundByUsername = usersDb.findByUsername(testUsername);
+    expect(foundByUsername).not.toBeNull();
+    expect(foundByUsername?.id).toBe(testUser.id);
   });
 
   it('saves and fetches projects and tasks', () => {
@@ -88,6 +88,9 @@ describe('SQLite Database & Operations', () => {
           status: 'todo',
           order: 0,
           createdAt: new Date().toISOString(),
+          dueDate: '2027-04-01',
+          scheduledFor: '2027-03-30T09:00:00.000Z',
+          subtasks: [{ id: 'st_bulk_1', title: 'Gather sources', done: true }, { id: 'st_bulk_2', title: 'Outline', done: false }],
         },
       ],
       sessions: [],
@@ -119,6 +122,9 @@ describe('SQLite Database & Operations', () => {
     expect(retrieved.projects[0].name).toBe('Bulk Project');
     expect(retrieved.tasks).toHaveLength(1);
     expect(retrieved.tasks[0].title).toBe('Bulk Task');
+    expect(retrieved.tasks[0].subtasks).toEqual(bulkData.tasks[0].subtasks);
+    expect(retrieved.tasks[0].dueDate).toBe(bulkData.tasks[0].dueDate);
+    expect(retrieved.tasks[0].scheduledFor).toBe(bulkData.tasks[0].scheduledFor);
     expect(retrieved.settings.theme).toBe('dark');
     expect(retrieved.meta.onboarded).toBe(true);
   });
@@ -132,7 +138,7 @@ describe('SQLite Database & Operations', () => {
     const rawUser: User = {
       id: 'u_safe_test',
       name: 'Safe User',
-      email: 'safe@example.com',
+      username: 'safe@example.com',
       passwordHash: 'secret_hash_value_123',
       createdAt: new Date().toISOString(),
       avatar: 'https://example.com/avatar.png',
@@ -141,7 +147,7 @@ describe('SQLite Database & Operations', () => {
     const sanitized = sanitizeUser(rawUser);
     expect((sanitized as Record<string, unknown>).passwordHash).toBeUndefined();
     expect(sanitized.id).toBe(rawUser.id);
-    expect(sanitized.email).toBe(rawUser.email);
+    expect(sanitized.username).toBe(rawUser.username);
     expect(sanitized.name).toBe(rawUser.name);
   });
 
@@ -183,32 +189,46 @@ describe('API security and synchronization', () => {
   });
   afterAll(async () => { await new Promise<void>((resolve, reject) => server.close((err) => err ? reject(err) : resolve())); });
 
-  const signup = async (name: string, email: string, password = 'password1') => {
-    return call('/api/auth/signup', 'POST', { name, email, password });
+  const signup = async (name: string, username: string, password = 'password1') => {
+    return call('/api/auth/signup', 'POST', { name, username, password });
   };
 
   it('creates accounts immediately and does not let the client choose an existing id', async () => {
-    const email = 'victim@example.com';
-    const first = await call('/api/auth/signup', 'POST', { id: 'victim', name: 'Victim', email, password: 'password1' });
+    const username = 'victim@example.com';
+    const first = await call('/api/auth/signup', 'POST', { id: 'victim', name: 'Victim', username, password: 'password1' });
     expect(first.status).toBe(201);
     expect(first.body.user.id).not.toBe('victim');
-    const second = await call('/api/auth/signup', 'POST', { id: first.body.user.id, name: 'Attacker', email: 'attacker@example.com', password: 'password2' });
+    const second = await call('/api/auth/signup', 'POST', { id: first.body.user.id, name: 'Attacker', username: 'attacker@example.com', password: 'password2' });
     expect(second.body.user.id).not.toBe(first.body.user.id);
-    expect((await call('/api/auth/login', 'POST', { email, password: 'password1' })).body.token).toBeTruthy();
-    expect((await call('/api/auth/forgot-password', 'POST', { email, newPassword: 'password2' })).status).toBe(503);
+    expect((await call('/api/auth/login', 'POST', { username, password: 'password1' })).body.token).toBeTruthy();
+    expect((await call('/api/auth/forgot-password', 'POST', { username, newPassword: 'password2' })).status).toBe(503);
   });
 
-  it('persists email changes and rejects an email already in use', async () => {
+  it('registers and authenticates with a case-insensitive username', async () => {
+    const created = await call('/api/auth/signup', 'POST', { username: 'NewUser', password: 'password1' });
+    expect(created.status).toBe(201);
+    expect(created.body.user.username).toBe('newuser');
+    expect((await call('/api/auth/signup', 'POST', { username: 'NEWUSER', password: 'password1' })).status).toBe(409);
+    expect((await call('/api/auth/login', 'POST', { username: 'NEWUSER', password: 'password1' })).body.token).toBeTruthy();
+    expect((await call('/api/auth/login', 'POST', { username: 'newuser', password: 'wrong' })).body.token).toBeUndefined();
+  });
+
+  it('keeps username fixed while allowing display name changes', async () => {
     const a = await signup('Alice', 'a@example.com');
-    await signup('Bob', 'b@example.com');
-    expect((await call('/api/auth/profile', 'PATCH', { email: 'b@example.com' }, a.body.token)).status).toBe(409);
-    expect((await call('/api/auth/profile', 'PATCH', { email: 'new@example.com' }, a.body.token)).status).toBe(200);
-    expect((await call('/api/auth/login', 'POST', { email: 'new@example.com', password: 'password1' })).body.token).toBeTruthy();
+    const attempt = await call('/api/auth/profile', 'PATCH', { username: 'unused-new-name', name: 'New name' }, a.body.token);
+    expect(attempt.status).toBe(400);
+    expect((await call('/api/auth/me', 'GET', undefined, a.body.token)).body.user.username).toBe('a@example.com');
+    const updated = await call('/api/auth/profile', 'PATCH', { name: 'New name' }, a.body.token);
+    expect(updated.status).toBe(200);
+    expect(updated.body.user.name).toBe('New name');
+    expect(updated.body.user.username).toBe('a@example.com');
+    expect((await call('/api/auth/login', 'POST', { username: 'a@example.com', password: 'password1' })).body.token).toBeTruthy();
+    expect((await call('/api/auth/login', 'POST', { username: 'unused-new-name', password: 'password1' })).body.token).toBeUndefined();
   });
 
   it('rejects stale snapshots and cross-user record ownership changes', () => {
-    const a: User = { id: 'sync-a', name: 'A', email: 'sync-a@example.com', passwordHash: 'x', createdAt: new Date().toISOString() };
-    const b: User = { ...a, id: 'sync-b', email: 'sync-b@example.com' };
+    const a: User = { id: 'sync-a', name: 'A', username: 'sync-a@example.com', passwordHash: 'x', createdAt: new Date().toISOString() };
+    const b: User = { ...a, id: 'sync-b', username: 'sync-b@example.com' };
     usersDb.create(a); usersDb.create(b);
     const project: Project = { id: 'private-project', userId: a.id, name: 'Private', color: '#000', priority: 'low', dueDate: '2027-01-01', createdAt: new Date().toISOString() };
     projectsDb.save(project);
@@ -223,5 +243,15 @@ describe('API security and synchronization', () => {
     expect(() => syncAppData(b.id, bData, getDataRevision(b.id))).toThrow(/another user/);
     expect(getAppData(a.id).projects[0].name).toBe('Updated elsewhere');
     expect(getAppData(b.id).projects).toHaveLength(0);
+  });
+
+  it('rejects malformed subtasks without changing the saved task', () => {
+    const data = getAppData('sync-a');
+    data.tasks = [{ id: 'sync-task', userId: 'sync-a', projectId: 'private-project', section: 'Inbox', title: 'Task', estimateMin: 15, status: 'todo', order: 0, createdAt: new Date().toISOString(), subtasks: [{ id: 'sub-1', title: 'Step', done: false }] }];
+    expect(syncAppData('sync-a', data, getDataRevision('sync-a'))).not.toBeNull();
+    const invalid = getAppData('sync-a');
+    invalid.tasks[0].subtasks = [{ id: 'sub-1', title: '', done: false }];
+    expect(() => syncAppData('sync-a', invalid, getDataRevision('sync-a'))).toThrow(/Invalid subtasks/);
+    expect(getAppData('sync-a').tasks[0].subtasks?.[0].title).toBe('Step');
   });
 });

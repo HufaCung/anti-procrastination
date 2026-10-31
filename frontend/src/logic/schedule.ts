@@ -45,8 +45,8 @@ export function sortForScheduling(tasks: Task[], projects: Project[], allTasks: 
   return [...tasks].sort((a, b) => {
     const pa = byId.get(a.projectId);
     const pb = byId.get(b.projectId);
-    const da = pa ? pa.dueDate : '9999-12-31';
-    const db = pb ? pb.dueDate : '9999-12-31';
+    const da = [pa?.dueDate, a.dueDate].filter(Boolean).sort()[0] ?? '9999-12-31';
+    const db = [pb?.dueDate, b.dueDate].filter(Boolean).sort()[0] ?? '9999-12-31';
     if (da !== db) return da < db ? -1 : 1;
     const ra = pa ? PRIORITY_RANK[pa.priority] : 3;
     const rb = pb ? PRIORITY_RANK[pb.priority] : 3;
@@ -99,13 +99,17 @@ export function schedule(
 
   for (const task of ordered) {
     const project = projectById.get(task.projectId);
+    if (!opts.ignoreDeadline && task.dueDate && parseDay(task.dueDate).getTime() < (opts.onlyDay ? startOfDay(opts.onlyDay) : today).getTime()) {
+      unplaced.push(task.id);
+      continue;
+    }
     let lastDay: Date;
     if (opts.onlyDay) {
       lastDay = startOfDay(opts.onlyDay);
     } else if (!project || opts.ignoreDeadline) {
       lastDay = addDays(today, MAX_DAYS);
     } else {
-      const due = parseDay(project.dueDate);
+      const due = parseDay(task.dueDate && task.dueDate < project.dueDate ? task.dueDate : project.dueDate);
       lastDay = due.getTime() < today.getTime() ? today : due;
     }
     const firstDay = opts.onlyDay ? startOfDay(opts.onlyDay) : today;

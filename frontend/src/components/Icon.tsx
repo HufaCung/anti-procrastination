@@ -36,6 +36,7 @@ const PATHS: Record<string, string[]> = {
   target: [],
   upload: ['M12 21V9', 'm7 14 5-5 5 5', 'M5 3h14'],
   note: ['M14 3v5h5', 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'],
+  more: ['M12 5h.01M12 12h.01M12 19h.01'],
 };
 
 export type IconName = keyof typeof PATHS | 'play' | 'pause' | 'priority';

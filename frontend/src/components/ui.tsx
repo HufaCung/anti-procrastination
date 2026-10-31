@@ -243,6 +243,7 @@ export function Modal({
     }, 20);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        if ((e.target as HTMLElement).closest('[data-calendar-open="true"]')) return;
         e.stopPropagation();
         onCloseRef.current();
         return;

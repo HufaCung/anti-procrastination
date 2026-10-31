@@ -132,6 +132,16 @@ describe('scheduling', () => {
     expect(res.placements).toHaveLength(4);
     expect(res.unplaced).toHaveLength(2);
   });
+  it('prioritizes task deadlines and does not schedule after one', () => {
+    const p = project({ dueDate: dayKey(addDays(NOW, 5)) });
+    const urgent = task({ dueDate: dayKey(NOW), estimateMin: 15 });
+    const later = task({ estimateMin: 15 });
+    const placed = schedule([later, urgent], { dailyGoalMin: 15 }, [later, urgent], [p], new Date(2026, 9, 22, 8));
+    expect(placed.placements[0].taskId).toBe(urgent.id);
+    expect(dayKey(new Date(placed.placements[0].to!))).toBe(urgent.dueDate);
+    const overdue = task({ dueDate: dayKey(addDays(NOW, -1)) });
+    expect(schedule([overdue], settings, [overdue], [p], NOW).unplaced).toContain(overdue.id);
+  });
   it('starts no earlier than now on today', () => {
     const ts = [task()];
     const res = schedule(ts, settings, ts, [project()], new Date(2026, 9, 22, 13, 2));

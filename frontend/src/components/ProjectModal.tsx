@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Priority, Project } from '../data/types';
 import { ConfirmModal, Modal, Segmented, TextField } from './ui';
+import { DatePicker } from './DatePicker';
 import { PROJECT_COLORS } from '../data/colors';
 import { pickColor, useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
@@ -77,9 +78,7 @@ export function ProjectModal({ open, onClose, project }: { open: boolean; onClos
             <TextField label="Project name" value={name} onChange={(v) => { setName(v); setErrors((x) => ({ ...x, name: '' })); }} error={errors.name} placeholder="e.g. Final report for Data Structures" inputRef={nameRef} />
             <div className="row wrap" style={{ gap: 12, alignItems: 'flex-start' }}>
               <div className="field" style={{ flex: '1 1 180px' }}>
-                <label htmlFor="pm-due">Deadline</label>
-                <input id="pm-due" type="date" className={`input lg ${errors.due ? 'err' : ''}`} value={due} onChange={(e) => { setDue(e.target.value); setErrors((x) => ({ ...x, due: '' })); }} aria-invalid={!!errors.due} />
-                {errors.due && <span role="alert" className="err-text">{errors.due}</span>}
+                <DatePicker id="pm-due" label="Deadline" value={due} onChange={(value) => { setDue(value); setErrors((x) => ({ ...x, due: '' })); }} min={editing ? undefined : dayKey(new Date())} error={errors.due} />
               </div>
               <div className="field" style={{ flex: '1 1 220px' }}>
                 <span className="field-label" id="pm-prio">Priority</span>

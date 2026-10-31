@@ -7,7 +7,7 @@ export type Theme = 'light' | 'dark';
 export interface User {
   id: ID;
   name: string;
-  email: string;
+  username: string;
   passwordHash: string;
   createdAt: string;
   avatar?: string;
@@ -50,10 +50,18 @@ export interface Task {
   estimateMin: number;
   status: TaskStatus;
   order: number;
+  dueDate?: string; // Optional task deadline (YYYY-MM-DD)
   scheduledFor?: string;
   completedAt?: string;
   createdAt: string;
   replannedFrom?: string;
+  subtasks?: Subtask[];
+}
+
+export interface Subtask {
+  id: ID;
+  title: string;
+  done: boolean;
 }
 
 export interface FocusSession {

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, useRef, useState, type ReactNode } from 'react';
-import type { AppData, FocusSession, Priority, Project, Settings, Task, TaskStatus, Theme, User } from '../data/types';
+import type { AppData, FocusSession, Priority, Project, Settings, Subtask, Task, TaskStatus, Theme, User } from '../data/types';
 import * as auth from '../data/auth';
 import { THEME_KEY, hasUserData, loadUserData, saveUserData, usersRepo } from '../data/storage';
 import { api } from '../data/api';
@@ -53,7 +53,7 @@ function finalizeProjects(d: AppData): AppData {
       const last = Math.max(...own.map((t) => (t.completedAt ? new Date(t.completedAt).getTime() : Date.now())));
       return { ...p, completedAt: new Date(last).toISOString() };
     }
-    if (!allDone && p.completedAt && own.length > 0) {
+    if (!allDone && p.completedAt) {
       changed = true;
       const { completedAt: _c, ...rest } = p;
       void _c;
@@ -93,7 +93,6 @@ export interface AppStore {
   logIn: typeof auth.logIn;
   logOut: () => void;
   refreshUser: () => void;
-  deleteAccount: () => void;
   // settings
   setTheme: (t: Theme) => void;
   updateSettings: (patch: Partial<Settings>) => void;
@@ -102,8 +101,9 @@ export interface AppStore {
   updateProject: (id: string, patch: Partial<Project>) => void;
   deleteProject: (id: string) => void;
   // tasks
-  addTask: (input: { projectId: string; title: string; estimateMin: number; section?: string; scheduledFor?: string }) => Task;
+  addTask: (input: { projectId: string; title: string; estimateMin: number; section?: string; scheduledFor?: string; dueDate?: string }) => Task;
   updateTask: (id: string, patch: Partial<Task>) => void;
+  updateSubtasks: (id: string, fn: (subtasks: Subtask[]) => Subtask[]) => void;
   deleteTask: (id: string) => void;
   restoreTask: (task: Task) => void;
   moveTask: (id: string, dir: -1 | 1) => void;
@@ -206,7 +206,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!dirty) {
         try { localStorage.setItem(key, JSON.stringify({ revision: remote.revision, synced })); } catch { /* local storage unavailable */ }
       }
-      if (conflict) toast({ tone: 'danger', title: 'Sync conflict', body: 'Your local changes were kept. Export them before resolving the data on another device.', duration: 20000 });
+      if (conflict) toast({ tone: 'danger', title: 'Sync conflict', body: 'Your local changes were kept on this device. Sync is paused because the server has newer data.', duration: 20000 });
       dispatch({ type: 'load', data: selected });
       setLoadedFor(user.id);
     });
@@ -230,7 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (syncRef.current !== sync) return;
         if (!result || result === 'conflict') {
           sync.blocked = true;
-          toast({ tone: 'danger', title: result === 'conflict' ? 'Sync conflict' : 'Sync failed', body: 'Your local changes were kept. Export them before reloading or changing devices.', duration: 20000 });
+          toast({ tone: 'danger', title: result === 'conflict' ? 'Sync conflict' : 'Sync failed', body: 'Your local changes were kept on this device. Sync is paused.', duration: 20000 });
           break;
         }
         sync.revision = result.revision;
@@ -347,18 +347,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (userRef.current) setUser(usersRepo.byId(userRef.current.id) ?? null);
   }, []);
 
-  const deleteAccount = useCallback(() => {
-    if (!userRef.current) return;
-    auth.deleteAccount(userRef.current.id);
-    try {
-      sessionStorage.setItem('nt-after-delete', '1');
-    } catch {
-      /* ignore */
-    }
-    setUser(null);
-    dispatch({ type: 'load', data: null });
-  }, []);
-
   // ---------- Settings ----------
   const setTheme = useCallback((t: Theme) => {
     applyTheme(t, true);
@@ -406,6 +394,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       title: input.title.trim(), estimateMin: Math.min(30, Math.max(5, input.estimateMin)), status: 'todo',
       order: own.length ? Math.max(...own.map((x) => x.order)) + 1 : 0, createdAt: new Date().toISOString(),
       ...(input.scheduledFor ? { scheduledFor: input.scheduledFor } : {}),
+      ...(input.dueDate ? { dueDate: input.dueDate } : {}),
     };
     update((x) => ({ ...x, tasks: [...x.tasks, t] }));
     return t;
@@ -421,6 +410,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return n;
       }),
     }));
+  }, [update]);
+
+  const updateSubtasks = useCallback((id: string, fn: (subtasks: Subtask[]) => Subtask[]) => {
+    update((d) => ({ ...d, tasks: d.tasks.map((task) => task.id === id ? { ...task, subtasks: fn(task.subtasks ?? []) } : task) }));
   }, [update]);
 
   const deleteTask = useCallback((id: string) => {
@@ -553,10 +546,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   }, [update]);
 
-  const timerSetLength = useCallback((min: number) => setTimer((t) => (t.running ? t : T.setLength(t, min))), [setTimer]);
+  const timerSetLength = useCallback((min: number) => setTimer((t) => (T.isPristine(t) ? T.setLength(t, min) : t)), [setTimer]);
   const timerSelectTask = useCallback((taskId: string | undefined) => {
     setTimer((t, d) => {
       if (t.taskId === taskId) return t;
+      if (t.running || !T.isPristine(t)) return t;
       const task = d.tasks.find((x) => x.id === taskId);
       const len = task ? (task.estimateMin >= 20 ? 25 : task.estimateMin <= 10 ? 10 : 15) : t.lengthMs / 60_000;
       return { ...T.newTimer(len, taskId) };
@@ -700,10 +694,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     todayFocusMin: derived.todayFocusMin,
     todaySessions: derived.todaySessions,
     replanPreview: derived.replanPreview,
-    signUp, logIn, logOut, refreshUser, deleteAccount,
+    signUp, logIn, logOut, refreshUser,
     setTheme, updateSettings,
     createProject, updateProject, deleteProject,
-    addTask, updateTask, deleteTask, restoreTask, moveTask, cycleStatus, toggleTaskDone, setStatus,
+    addTask, updateTask, updateSubtasks, deleteTask, restoreTask, moveTask, cycleStatus, toggleTaskDone, setStatus,
     planMyDay, applyReplan, undoReplan, replanProject, replanProjectToToday, pullIntoDay, snoozeAlert, markOnboarded,
     timerSetLength, timerSelectTask, timerStart, timerPause, timerReset, timerExtend, timerComplete,
     addParking, removeParking,
