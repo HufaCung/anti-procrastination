@@ -253,7 +253,7 @@ describe('alerts', () => {
   it('does not repeat shown alerts', () => {
     const p = project({ dueDate: dayKey(addDays(NOW, -1)) });
     expect(pendingAlerts([p], [task()], [], NOW)).toHaveLength(1);
-    expect(pendingAlerts([p], [task()], ['p1:overdue'], NOW)).toHaveLength(0);
+    expect(pendingAlerts([p], [task()], [`p1:${p.dueDate}:overdue`], NOW)).toHaveLength(0);
   });
 });
 

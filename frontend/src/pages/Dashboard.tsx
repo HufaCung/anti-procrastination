@@ -84,14 +84,14 @@ export function DashboardPage() {
               const r = s.planMyDay();
               toast({
                 tone: r.placed ? 'ok' : 'info',
-                title: r.placed ? `Planned ${r.placed} ${r.placed === 1 ? 'task' : 'tasks'}` : 'Everything is already scheduled',
-                body: r.unplaced ? `${r.unplaced} didn’t fit before their deadlines.` : r.placed ? 'Filled free slots within your daily goal.' : 'Add tasks or raise your daily goal to plan more.',
+                title: r.placed ? `Planned ${r.placed} ${r.placed === 1 ? 'task' : 'tasks'}` : r.unplaced ? 'No tasks fit before their deadlines' : 'Everything is already scheduled',
+                body: r.unplaced ? `${r.unplaced} didn’t fit before their deadlines.` : r.placed ? 'Scheduled from today onward within your daily goal (09:00–22:00, local time).' : 'Add tasks or raise your daily goal to plan more.',
                 action: r.placed ? { label: 'Undo', onClick: () => s.undoReplan() } : undefined,
               });
             }}
           >
             <Icon name="calendar" size={16} style={{ color: 'var(--accent-text)' }} />
-            Plan my day
+            Plan tasks
           </button>
           <button type="button" className="btn btn-primary" onClick={ui.openNewProject} data-tour="new-project">
             <Icon name="plus" size={16} stroke={2.2} />

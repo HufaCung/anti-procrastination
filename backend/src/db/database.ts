@@ -101,6 +101,7 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS data_revisions (user_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0);
   `);
   const userColumns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+  if (!userColumns.some((column) => column.name === 'role')) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin'))");
   if (!userColumns.some((column) => column.name === 'username')) db.exec('ALTER TABLE users RENAME COLUMN email TO username');
   const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
   if (!taskColumns.some((column) => column.name === 'due_date')) db.exec('ALTER TABLE tasks ADD COLUMN due_date TEXT');
@@ -132,13 +133,14 @@ initDb();
 export const usersDb = {
   create(user: User): void {
     const stmt = db.prepare(`
-      INSERT INTO users (id, name, username, password_hash, created_at, avatar, password_changed_at)
-      VALUES (@id, @name, @username, @passwordHash, @createdAt, @avatar, @passwordChangedAt)
+      INSERT INTO users (id, name, username, password_hash, created_at, avatar, password_changed_at, role)
+      VALUES (@id, @name, @username, @passwordHash, @createdAt, @avatar, @passwordChangedAt, @role)
     `);
     stmt.run({
       id: user.id,
       name: user.name,
       username: user.username.toLowerCase().trim(),
+      role: user.role ?? 'user',
       passwordHash: user.passwordHash,
       createdAt: user.createdAt,
       avatar: user.avatar || null,
@@ -153,6 +155,7 @@ export const usersDb = {
       id: row.id,
       name: row.name,
       username: row.username,
+      role: row.role,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       avatar: row.avatar || undefined,
@@ -167,6 +170,7 @@ export const usersDb = {
       id: row.id,
       name: row.name,
       username: row.username,
+      role: row.role,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       avatar: row.avatar || undefined,

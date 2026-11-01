@@ -163,6 +163,7 @@ function ProjectView({ projectId }: { projectId: string }) {
             <span className="muted tnum">{st.done} of {st.total} tasks</span>
           </div>
           <ProgressBar pct={st.pct} color={project.color} height={8} label={`${project.name} progress`} />
+          <span className="muted" style={{ fontSize: 12 }}>Progress counts completed tasks, regardless of their size. Forecasts use remaining task estimates and logged focus time, not time spent outside the timer.</span>
         </div>
         <div className="col stat" style={{ gap: 2 }}><span className="k">Needed per day</span><span className="v">{st.remainingMin ? `${Math.round(st.neededPerDay)} min` : '—'}</span></div>
         <div className="col stat" style={{ gap: 2 }}><span className="k">Your recent pace</span><span className="v">{Math.round(st.pace)} min / day{st.paceIsFallback ? '*' : ''}</span></div>

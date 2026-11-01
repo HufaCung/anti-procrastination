@@ -465,7 +465,7 @@ test.describe('6 · focus mode', () => {
     await expect(page.getByTestId('kpi-focus')).not.toHaveText(focusBefore);
   });
 
-  test('a session that ends while away completes on return', async ({ page, errors }) => {
+  test('a session that ends while away logs on return without completing the task', async ({ page, errors }) => {
     void errors;
     await signUpAndOnboard(page, { sample: true });
     await page.goto('/focus');
@@ -484,9 +484,10 @@ test.describe('6 · focus mode', () => {
       localStorage.setItem(key, JSON.stringify(all));
     });
     await page.reload();
-    await expect(page.getByText(`Done: ${title}`)).toBeVisible();
+    await expect(page.getByText('Session complete', { exact: true })).toBeVisible();
     await page.goto('/focus');
-    await expect(page.locator('.queue-row .t.done', { hasText: title })).toBeVisible();
+    await expect(page.locator('.queue-row.current .t', { hasText: title })).toBeVisible();
+    await expect(page.locator('.queue-row .t.done', { hasText: title })).toHaveCount(0);
     await expect(page.getByTestId('focus-today')).toContainText('7 sessions');
   });
 
@@ -583,7 +584,7 @@ test.describe('7–9 · overdue, replan, calendar, progress', () => {
     expect(after).toEqual(before);
 
     // auto-replan switch persists
-    const sw = page.getByRole('switch', { name: 'Auto-replan nightly at 22:00' });
+    const sw = page.getByRole('switch', { name: 'Auto-replan after 22:00 or when you return' });
     await expect(sw).toHaveAttribute('aria-checked', 'true');
     await sw.click();
     await expect(sw).toHaveAttribute('aria-checked', 'false');
