@@ -101,6 +101,7 @@ export function initDb() {
     CREATE TABLE IF NOT EXISTS data_revisions (user_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0);
   `);
   const userColumns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
+  if (!userColumns.some((column) => column.name === 'auth_version')) db.exec('ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0 CHECK (auth_version >= 0)');
   if (!userColumns.some((column) => column.name === 'role')) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin'))");
   if (!userColumns.some((column) => column.name === 'username')) db.exec('ALTER TABLE users RENAME COLUMN email TO username');
   const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
@@ -115,6 +116,15 @@ export function initDb() {
         END`);
     }
   }
+  // Preserve legacy focus history while removing references that could not pass
+  // the ownership checks now enforced on every session write.
+  db.exec(`UPDATE focus_sessions SET task_id = NULL
+    WHERE task_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM tasks t WHERE t.id = focus_sessions.task_id AND t.user_id = focus_sessions.user_id
+      AND (focus_sessions.project_id IS NULL OR t.project_id = focus_sessions.project_id));
+    UPDATE focus_sessions SET project_id = NULL
+    WHERE project_id IS NOT NULL AND NOT EXISTS (
+      SELECT 1 FROM projects p WHERE p.id = focus_sessions.project_id AND p.user_id = focus_sessions.user_id);`);
   // Existing databases predate revision tracking. Mark their persisted workspaces
   // as initialized so an old local cache cannot replace them as an empty revision.
   db.exec(`INSERT OR IGNORE INTO data_revisions (user_id, revision)
@@ -156,6 +166,7 @@ export const usersDb = {
       name: row.name,
       username: row.username,
       role: row.role,
+      authVersion: row.auth_version,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       avatar: row.avatar || undefined,
@@ -171,6 +182,7 @@ export const usersDb = {
       name: row.name,
       username: row.username,
       role: row.role,
+      authVersion: row.auth_version,
       passwordHash: row.password_hash,
       createdAt: row.created_at,
       avatar: row.avatar || undefined,
@@ -195,6 +207,17 @@ export const usersDb = {
       passwordChangedAt: updated.passwordChangedAt || null,
     });
     return updated;
+  },
+
+  upgradePasswordHash(id: string, expected: string, hash: string): User | null {
+    const info = db.prepare('UPDATE users SET password_hash = ? WHERE id = ? AND password_hash = ?').run(hash, id, expected);
+    return info.changes ? usersDb.findById(id) : null;
+  },
+
+  changePassword(id: string, expected: string, hash: string): User | null {
+    const info = db.prepare('UPDATE users SET password_hash = ?, password_changed_at = ?, auth_version = auth_version + 1 WHERE id = ? AND password_hash = ?')
+      .run(hash, new Date().toISOString(), id, expected);
+    return info.changes ? usersDb.findById(id) : null;
   },
 
   delete(id: string): boolean {
@@ -359,8 +382,11 @@ export const projectsDb = {
   },
 
   delete(id: string, userId: string): boolean {
-    const info = db.prepare('DELETE FROM projects WHERE id = ? AND user_id = ?').run(id, userId);
-    return info.changes > 0;
+    return db.transaction(() => {
+      db.prepare('UPDATE focus_sessions SET task_id = NULL, project_id = NULL WHERE user_id = ? AND (project_id = ? OR task_id IN (SELECT id FROM tasks WHERE project_id = ? AND user_id = ?))').run(userId, id, id, userId);
+      const info = db.prepare('DELETE FROM projects WHERE id = ? AND user_id = ?').run(id, userId);
+      return info.changes > 0;
+    })();
   },
 };
 
@@ -427,8 +453,11 @@ export const tasksDb = {
   },
 
   delete(id: string, userId: string): boolean {
-    const info = db.prepare('DELETE FROM tasks WHERE id = ? AND user_id = ?').run(id, userId);
-    return info.changes > 0;
+    return db.transaction(() => {
+      db.prepare('UPDATE focus_sessions SET task_id = NULL WHERE user_id = ? AND task_id = ?').run(userId, id);
+      const info = db.prepare('DELETE FROM tasks WHERE id = ? AND user_id = ?').run(id, userId);
+      return info.changes > 0;
+    })();
   },
 };
 
@@ -449,29 +478,37 @@ export const sessionsDb = {
   },
 
   save(s: FocusSession): void {
-    assertOwner('focus_sessions', s.id, s.userId);
-    const stmt = db.prepare(`
-      INSERT INTO focus_sessions (id, user_id, task_id, project_id, started_at, ended_at, minutes, completed_task)
-      VALUES (@id, @userId, @taskId, @projectId, @startedAt, @endedAt, @minutes, @completedTask)
-      ON CONFLICT(id) DO UPDATE SET
-        user_id = excluded.user_id,
-        task_id = excluded.task_id,
-        project_id = excluded.project_id,
-        started_at = excluded.started_at,
-        ended_at = excluded.ended_at,
-        minutes = excluded.minutes,
-        completed_task = excluded.completed_task
-    `);
-    stmt.run({
-      id: s.id,
-      userId: s.userId,
-      taskId: s.taskId || null,
-      projectId: s.projectId || null,
-      startedAt: s.startedAt,
-      endedAt: s.endedAt,
-      minutes: s.minutes,
-      completedTask: s.completedTask ? 1 : 0,
-    });
+    db.transaction(() => {
+      assertOwner('focus_sessions', s.id, s.userId);
+      if ((s.taskId !== undefined && (typeof s.taskId !== 'string' || !s.taskId)) || (s.projectId !== undefined && (typeof s.projectId !== 'string' || !s.projectId))) throw new Error('Invalid session references');
+      if (s.projectId && !db.prepare('SELECT 1 FROM projects WHERE id = ? AND user_id = ?').get(s.projectId, s.userId)) throw new Error('Session project does not belong to user');
+      if (s.taskId) {
+        const task = db.prepare('SELECT project_id FROM tasks WHERE id = ? AND user_id = ?').get(s.taskId, s.userId) as { project_id: string } | undefined;
+        if (!task || (s.projectId && task.project_id !== s.projectId)) throw new Error('Invalid session task or project');
+      }
+      const stmt = db.prepare(`
+        INSERT INTO focus_sessions (id, user_id, task_id, project_id, started_at, ended_at, minutes, completed_task)
+        VALUES (@id, @userId, @taskId, @projectId, @startedAt, @endedAt, @minutes, @completedTask)
+        ON CONFLICT(id) DO UPDATE SET
+          user_id = excluded.user_id,
+          task_id = excluded.task_id,
+          project_id = excluded.project_id,
+          started_at = excluded.started_at,
+          ended_at = excluded.ended_at,
+          minutes = excluded.minutes,
+          completed_task = excluded.completed_task
+      `);
+      stmt.run({
+        id: s.id,
+        userId: s.userId,
+        taskId: s.taskId || null,
+        projectId: s.projectId || null,
+        startedAt: s.startedAt,
+        endedAt: s.endedAt,
+        minutes: s.minutes,
+        completedTask: s.completedTask ? 1 : 0,
+      });
+    })();
   },
 
   delete(id: string, userId: string): boolean {

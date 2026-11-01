@@ -18,6 +18,9 @@ git commit -m "feat: improve features and prepare shared test deployment"
 git push -u origin huudat
 ```
 
+After pushing, open a pull request from `huudat` into `main`, review and merge it.
+Render deploys `main`; ongoing development remains on `huudat`.
+
 ## 2. Create one web service
 
 Open https://dashboard.render.com, connect GitHub, choose **New > Web Service**, then
@@ -27,7 +30,7 @@ select the repository containing the pushed changes.
 | --- | --- |
 | Name | A unique service name, e.g. tinydo-test |
 | Region | Singapore, if available |
-| Branch | huudat |
+| Branch | main |
 | Runtime | Node |
 | Root Directory | Leave blank (repository root) |
 | Build Command | `npm ci --include=dev && npm run build` |
@@ -122,3 +125,22 @@ the main `.db` file.
 
 Official references: https://render.com/docs/web-services,
 https://render.com/docs/disks, https://render.com/docs/node-version.
+
+## Authentication rollout
+
+Startup adds `users.auth_version` (default 0) without changing existing usernames
+or passwords. New passwords use scrypt; legacy SHA-256 hashes are upgraded only
+when the correct password is supplied at login. A wrong password never upgrades a
+hash. Admin provisioning uses the same verifier and never resets existing passwords.
+
+Password changes revoke previously issued JWTs immediately, including old-format
+JWTs, and return a replacement token to the initiating browser. Legacy JWTs without
+a version are accepted only while the account's version is still 0. Deploy backend
+and frontend together. Old clients sending password hashes must reload/update.
+Do not roll back to the SHA-256-only application after accounts have been upgraded:
+it cannot authenticate scrypt hashes. Back up SQLite before rollout.
+
+Legacy focus-session records retain their duration/history but startup detaches
+missing, foreign-user or mismatched resource references. New writes reject such
+references. Deleting a task/project detaches historical session references without
+deleting logged focus time.
