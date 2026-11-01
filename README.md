@@ -265,3 +265,18 @@ their passwords; existing regular users are never promoted automatically. With
 Render Free's temporary SQLite filesystem, keep the bootstrap configuration so a
 lost database can recreate the admin. Other lost users/data are not restored.
 See [the Render Free instructions](docs/DEPLOY_RENDER.md#render-free-create-admin-without-shell).
+
+## Dependency security maintenance
+
+Use Node 22.12+ (Node 22 is selected by .node-version on Render) and npm ci to
+install the reviewed lockfile. The security update uses React Router 7.18.5,
+Vite 7.3.7, React plugin 5.2.0 and Vitest 4.1.12; React stays on 18 and Express
+on 4. The lockfile includes body-parser 1.20.9. Router v6 future flags were removed
+because those behaviors are enabled in v7. Backend Vitest discovers only src
+TypeScript tests, avoiding duplicate execution of compiled dist tests.
+
+Run npm audit (including development dependencies) when reviewing updates, then
+npm run test:features, npm run test:postgres, npm run test:seed and npm run test:deploy.
+Audit findings depend on the current advisory database; a clean report does not
+replace tests or guarantee that future advisories will remain empty. Prefer
+reviewed targeted upgrades over npm audit fix --force.
