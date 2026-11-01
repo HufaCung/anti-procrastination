@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { usersDb } from '../db/database.js';
 import { signToken, authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
 import type { User, SafeUser } from '../types.js';
+import { hashPassword } from '../security/password.js';
 
 export const authRouter = Router();
 
@@ -13,10 +14,6 @@ export function sanitizeUser(user: User | null): SafeUser | null {
   if (!user) return null;
   const { passwordHash: _discard, ...safeUser } = user;
   return safeUser;
-}
-
-function hashPassword(userId: string, password: string): string {
-  return crypto.createHash('sha256').update(`nt:${userId}:${password}`).digest('hex');
 }
 
 // POST /api/auth/signup
@@ -41,6 +38,7 @@ authRouter.post('/signup', (req, res: Response) => {
     id: userId,
     name: username.trim(),
     username: normalized,
+    role: 'user',
     passwordHash: hashPassword(userId, password),
     createdAt: new Date().toISOString(),
   };

@@ -13,6 +13,7 @@ import { FocusPage } from './pages/Focus';
 import { ProgressPage } from './pages/Progress';
 import { ProfilePage } from './pages/Profile';
 import { NotFoundPage } from './pages/NotFound';
+import { AdminPage } from './pages/Admin';
 
 function RequireAuth() {
   const s = useStore();
@@ -30,7 +31,7 @@ function PublicOnly() {
   if (!s.ready) return <main>Loading your workspace...</main>;
   if (s.user && s.data) {
     const from = (loc.state as { from?: string } | null)?.from;
-    const to = s.data.meta.onboarded === false ? '/onboarding' : from && from !== '/login' ? from : '/';
+    const to = s.data.meta.onboarded === false ? '/onboarding' : from && from !== '/login' ? from : s.user.role === 'admin' ? '/admin' : '/';
     return <Navigate to={to} replace />;
   }
   return <Outlet />;
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/progress" element={<ProgressPage />} />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Route>

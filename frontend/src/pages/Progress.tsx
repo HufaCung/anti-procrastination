@@ -166,7 +166,7 @@ export function ProgressPage() {
       </div>
 
       <section aria-labelledby="pp-h" className="card clip">
-        <div className="card-head"><h2 id="pp-h" className="section-title">Project progress &amp; deadline risk</h2></div>
+        <div className="card-head col" style={{ alignItems: 'flex-start', gap: 6 }}><h2 id="pp-h" className="section-title">Project progress &amp; deadline risk</h2><p className="muted" style={{ fontSize: 12.5 }}>Progress counts completed tasks, regardless of their size. Forecasts use remaining estimates and a 7-day average of logged focus time; without history, your daily goal is shared across active projects. Forecasts are estimates, not guarantees.</p></div>
         {rows.length === 0 ? (
           <EmptyState icon="folder" title="No projects yet" body="Progress and risk show up here once you add a project." />
         ) : (
@@ -175,7 +175,7 @@ export function ProgressPage() {
               <thead>
                 <tr>
                   <th scope="col">Project</th>
-                  <th scope="col" style={{ width: 220 }}>Progress</th>
+                  <th scope="col" style={{ width: 220 }}>Tasks completed</th>
                   <th scope="col">Tasks</th>
                   <th scope="col">Focus</th>
                   <th scope="col">Deadline</th>
@@ -224,8 +224,8 @@ export function ProgressPage() {
             </span>
           </div>
           <label className="row" style={{ gap: 10, fontSize: 13, cursor: 'pointer' }}>
-            <Switch checked={data.settings.autoReplan} onChange={(v) => s.updateSettings({ autoReplan: v })} label="Auto-replan nightly at 22:00" />
-            <span aria-hidden="true">Auto-replan nightly at 22:00</span>
+            <Switch checked={data.settings.autoReplan} onChange={(v) => s.updateSettings({ autoReplan: v })} label="Auto-replan after 22:00 or when you return" />
+            <span aria-hidden="true">Auto-replan after 22:00 or when you return</span>
           </label>
         </div>
         {shownRows.length === 0 ? (

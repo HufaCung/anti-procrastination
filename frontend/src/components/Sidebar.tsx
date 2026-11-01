@@ -42,6 +42,10 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
       </div>
 
       <div className="col nav-list" style={{ gap: 2 }}>
+        {s.user?.role === 'admin' && <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <Icon name="chart" size={17} stroke={1.9} />
+          <span style={{ flex: 1 }}>Admin users</span>
+        </NavLink>}
         <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="dashboard" size={17} stroke={1.9} />
           <span style={{ flex: 1 }}>Dashboard</span>
