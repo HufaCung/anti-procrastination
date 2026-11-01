@@ -126,7 +126,7 @@ export interface AppStore {
   timerPause: () => void;
   timerReset: () => void;
   timerExtend: () => void;
-  timerComplete: (byTimer?: boolean) => void;
+  timerComplete: (byTimer?: boolean, completeTask?: boolean) => void;
   addParking: (text: string) => void;
   removeParking: (id: string) => void;
 }
@@ -570,7 +570,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const timerExtend = useCallback(() => setTimer((t) => T.extend(t, Date.now())), [setTimer]);
 
   const completedRef = useRef('');
-  const timerComplete = useCallback((byTimer = false) => {
+  const timerComplete = useCallback((byTimer = false, completeTask = !byTimer) => {
     const d = dataRef.current;
     if (!d) return;
     const n = Date.now();
@@ -589,7 +589,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const queue = d.tasks
       .filter((t) => t.scheduledFor && dayKey(new Date(t.scheduledFor)) === todayKey && t.status !== 'done' && t.id !== task?.id)
       .sort((a, b) => a.scheduledFor!.localeCompare(b.scheduledFor!));
-    const next = queue[0];
+    const next = !completeTask && task ? task : queue[0];
 
     update((x) => {
       const sessions: FocusSession[] = [...x.sessions];
@@ -597,10 +597,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const startedAt = cur.firstStartedAt ? new Date(cur.firstStartedAt) : new Date(n - elapsed);
         sessions.push({
           id: uid('s_'), userId: x.settings.userId, taskId: task?.id, projectId: task?.projectId,
-          startedAt: startedAt.toISOString(), endedAt: nowDate.toISOString(), minutes: Math.max(1, minutes), completedTask: !!task,
+          startedAt: startedAt.toISOString(), endedAt: nowDate.toISOString(), minutes: Math.max(1, minutes), completedTask: !!task && completeTask,
         });
       }
-      const tasks = task ? x.tasks.map((t) => (t.id === task.id ? withStatus(t, 'done', nowDate) : t)) : x.tasks;
+      const tasks = task && completeTask ? x.tasks.map((t) => (t.id === task.id ? withStatus(t, 'done', nowDate) : t)) : x.tasks;
       const len = next ? (next.estimateMin >= 20 ? 25 : next.estimateMin <= 10 ? 10 : 15) : cur.lengthMs / 60_000;
       return { ...x, sessions, tasks, meta: { ...x.meta, timer: T.newTimer(Math.min(25, Math.max(10, len)), next?.id) } };
     });
@@ -608,8 +608,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (d.settings.focusSound && byTimer) chime();
     toast({
       tone: 'ok',
-      title: task ? `Done: ${task.title}` : 'Session complete',
-      body: [elapsed >= 30_000 ? `${Math.max(1, minutes)} min logged` : 'Under a minute, not logged', next ? `Up next: ${next.title}` : 'Queue is clear'].join(' · '),
+      title: task && completeTask ? `Done: ${task.title}` : 'Session complete',
+      body: [elapsed >= 30_000 ? `${Math.max(1, minutes)} min logged` : 'Under a minute, not logged', !completeTask && task ? 'Task stays open. Continue focusing or mark it done when finished.' : next ? `Up next: ${next.title}` : 'Queue is clear'].join(' · '),
     });
   }, [update, toast]);
 
@@ -665,9 +665,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     // Deadline alerts: 3 days, 1 day, 2 hours before, plus overdue. Each one once.
     if (d.settings.deadlineAlerts) {
       const active = d.projects.filter((p) => !p.completedAt);
-      const pending = pendingAlerts(active, d.tasks, d.meta.shownAlerts, now);
+      const pending = pendingAlerts(active, d.tasks, d.meta.shownAlerts, now).slice(0, 3);
       if (pending.length) {
-        pending.slice(0, 3).forEach((a) => {
+        pending.forEach((a) => {
           toast({ tone: a.tone, title: a.title, body: a.body });
           try {
             if ('Notification' in window && Notification.permission === 'granted' && document.visibilityState !== 'visible') {

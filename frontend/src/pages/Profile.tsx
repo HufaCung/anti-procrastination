@@ -91,7 +91,7 @@ export function ProfilePage() {
   const pwLabel = pwAge == null ? 'Set when you signed up.' : pwAge === 0 ? 'Last changed today.' : `Last changed ${pwAge} ${pwAge === 1 ? 'day' : 'days'} ago.`;
 
   const toggles: [keyof Settings, string, string][] = [
-    ['autoReplan', 'Auto-replan unfinished tasks', 'Every night at 22:00, move leftovers into free slots.'],
+    ['autoReplan', 'Auto-replan unfinished tasks', 'Move leftovers after 22:00 while the app is open, or when you return. Uses this device’s local time.'],
     ['deadlineAlerts', 'Deadline alerts', 'Warn 3 days, 1 day and 2 hours before a deadline.'],
     ['focusSound', 'Focus Mode end sound', 'Play a soft chime when a session ends.'],
   ];

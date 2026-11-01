@@ -139,7 +139,7 @@ export function FocusPage() {
             ))}
           </div>
           <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', maxWidth: 420 }}>
-            {current ? 'Choose a session length before starting. When the timer ends, this task is marked done; its subtasks stay as you checked them.' : 'Choose a session length before starting. This session won’t be linked to a task.'} {!pristine && 'Finish or reset the session to change its length or task.'}
+            {current ? 'Choose a session length before starting. When the timer ends, focus time is logged and this task stays open. Mark done only when the work is finished; subtasks keep their own status.' : 'Choose a session length before starting. This session won’t be linked to a task.'} {!pristine && 'Finish or reset the session to change its length or task.'}
           </p>
 
           <div className="row wrap" style={{ gap: 10, justifyContent: 'center' }}>
@@ -151,6 +151,7 @@ export function FocusPage() {
               {timer.running ? 'Pause' : pristine ? 'Start' : 'Resume'}
             </button>
             <button type="button" className="btn btn-secondary pill-btn" onClick={s.timerExtend}>+5 min</button>
+            {current && <button type="button" className="btn btn-secondary pill-btn" onClick={() => s.timerComplete(false, false)} disabled={pristine}>Log session</button>}
             <button type="button" className="btn btn-ok pill-btn" onClick={() => s.timerComplete(false)} disabled={!current && pristine}>
               <Icon name="check" size={15} stroke={2.4} />
               {current ? 'Mark done' : 'Log session'}

@@ -7,7 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "build": "tsc",
     "start": "node dist/server.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "admin:create": "tsx src/scripts/create-admin.ts",
+    "admin:create:prod": "node dist/scripts/create-admin.js"
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
