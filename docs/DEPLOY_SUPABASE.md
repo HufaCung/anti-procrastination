@@ -133,3 +133,16 @@ Official references:
 - https://supabase.com/docs/guides/database/postgres/row-level-security
 - https://supabase.com/pricing
 - https://render.com/docs/free
+
+### Startup database diagnostics
+
+Startup errors include only a static safe explanation, never the driver message,
+connection URI, SQL detail or password. Examples:
+
+- Network unreachable: switch from Direct to Session pooler (IPv4).
+- Authentication failed: verify pooler username and percent-encoded database password.
+- TLS chain untrusted: set DATABASE_CA_CERT to the Supabase CA certificate PEM.
+- Migration/table conflict: use a fresh project or inspect existing schema before proceeding.
+
+If startup still fails, share the new static error text, not DATABASE_URL. Do not
+set rejectUnauthorized=false or disable TLS verification to bypass certificate errors.
