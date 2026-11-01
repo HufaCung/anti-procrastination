@@ -1,3 +1,5 @@
+import { isDataValidationError } from '../db/errors.js';
+import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
 import crypto from 'node:crypto';
 import { usersDb } from '../db/database.js';
@@ -17,7 +19,7 @@ export function sanitizeUser(user: User | null): SafeUser | null {
 }
 
 // POST /api/auth/signup
-authRouter.post('/signup', async (req, res: Response, next) => {
+authRouter.post('/signup', asyncHandler(async (req, res: Response, next) => {
   try {
     const { username, password } = req.body;
     if (typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 100 || /\s/.test(username.trim())) {
@@ -29,7 +31,7 @@ authRouter.post('/signup', async (req, res: Response, next) => {
       return;
     }
     const normalized = username.trim().toLowerCase();
-    if (usersDb.findByUsername(normalized)) {
+    if (await usersDb.findByUsername(normalized)) {
       res.status(409).json({ error: 'An account with this username already exists' });
       return;
     }
@@ -45,16 +47,17 @@ authRouter.post('/signup', async (req, res: Response, next) => {
     };
 
     try {
-      usersDb.create(newUser);
+      await usersDb.create(newUser);
       res.status(201).json({ token: signToken(newUser.id), user: sanitizeUser(newUser) });
-    } catch {
+    } catch (error) {
+      if (!isDataValidationError(error)) throw error;
       res.status(409).json({ error: 'Account already exists' });
     }
   } catch (error) { next(error); }
-});
+}));
 
 // POST /api/auth/login
-authRouter.post('/login', async (req, res: Response, next) => {
+authRouter.post('/login', asyncHandler(async (req, res: Response, next) => {
   try {
     const { username, password } = req.body;
 
@@ -63,7 +66,7 @@ authRouter.post('/login', async (req, res: Response, next) => {
       return;
     }
 
-    let user = usersDb.findByUsername(username);
+    let user = await usersDb.findByUsername(username);
     if (!user) {
       res.status(200).json({ error: 'Username or password is incorrect' });
       return;
@@ -77,34 +80,34 @@ authRouter.post('/login', async (req, res: Response, next) => {
     const verifiedHash = user.passwordHash;
     if (isLegacyPasswordHash(verifiedHash)) {
       const id = user.id;
-      user = usersDb.upgradePasswordHash(id, verifiedHash, await hashPassword(password));
+      user = await usersDb.upgradePasswordHash(id, verifiedHash, await hashPassword(password));
       if (!user) {
-        const current = usersDb.findById(id);
+        const current = await usersDb.findById(id);
         if (current && await verifyPassword(id, password, current.passwordHash)) user = current;
       }
     } else {
-      user = usersDb.findById(user.id);
+      user = await usersDb.findById(user.id);
       if (user?.passwordHash !== verifiedHash) user = null;
     }
     if (!user) {
       res.status(200).json({ error: 'Username or password is incorrect' });
       return;
     }
-    const token = signToken(user.id);
+    const token = signToken(user.id, user.authVersion ?? 0);
     res.json({
       token,
       user: sanitizeUser(user),
     });
   } catch (error) { next(error); }
-});
+}));
 
 // GET /api/auth/me
-authRouter.get('/me', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+authRouter.get('/me', authMiddleware, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   res.json({ user: sanitizeUser(req.user!) });
-});
+}));
 
 // PATCH /api/auth/profile
-authRouter.patch('/profile', authMiddleware, (req: AuthenticatedRequest, res: Response) => {
+authRouter.patch('/profile', authMiddleware, asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   const { name, username, avatar } = req.body;
 
@@ -116,12 +119,12 @@ authRouter.patch('/profile', authMiddleware, (req: AuthenticatedRequest, res: Re
   }
   if (avatar !== undefined) patch.avatar = avatar;
 
-  const updated = usersDb.update(user.id, patch);
+  const updated = await usersDb.update(user.id, patch);
   res.json({ user: sanitizeUser(updated) });
-});
+}));
 
 // POST /api/auth/change-password
-authRouter.post('/change-password', authMiddleware, async (req: AuthenticatedRequest, res: Response, next) => {
+authRouter.post('/change-password', authMiddleware, asyncHandler(async (req: AuthenticatedRequest, res: Response, next) => {
   try {
     const user = req.user!;
     if ('oldPasswordHash' in req.body || 'newPasswordHash' in req.body) {
@@ -137,16 +140,16 @@ authRouter.post('/change-password', authMiddleware, async (req: AuthenticatedReq
       res.status(400).json({ error: 'Current password does not match' });
       return;
     }
-    const updated = usersDb.changePassword(user.id, user.passwordHash, await hashPassword(newPassword));
+    const updated = await usersDb.changePassword(user.id, user.passwordHash, await hashPassword(newPassword));
     if (!updated) {
       res.status(409).json({ error: 'Password changed concurrently. Sign in again.' });
       return;
     }
     // All previously issued tokens are revoked; only this replacement token stays valid.
-    res.json({ token: signToken(updated.id), user: sanitizeUser(updated) });
+    res.json({ token: signToken(updated.id, updated.authVersion ?? 0), user: sanitizeUser(updated) });
   } catch (error) { next(error); }
-});
+}));
 
-authRouter.post('/forgot-password', (_req, res: Response) => {
+authRouter.post('/forgot-password', asyncHandler(async (_req, res: Response) => {
   res.status(503).json({ error: 'Password reset is not available yet' });
-});
+}));

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
 import { bootstrapAdmin } from './services/admin-bootstrap.js';
-import { usersDb, metaDb } from './db/database.js';
+import { usersDb, metaDb } from './db/sqlite.js';
 import { hashPassword, verifyPassword } from './security/password.js';
 
 describe('server-configured admin bootstrap', () => {

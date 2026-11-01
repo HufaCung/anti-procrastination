@@ -2,7 +2,7 @@ import { beforeAll, afterAll, describe, it, expect } from 'vitest';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { app } from './server.js';
-import { db, initDb, usersDb, projectsDb, tasksDb, sessionsDb, getAppData, getDataRevision } from './db/database.js';
+import { db, initDb, usersDb, projectsDb, tasksDb, sessionsDb, getAppData, getDataRevision } from './db/sqlite.js';
 import { hashPassword, verifyPassword } from './security/password.js';
 import { signToken, getJwtSecret } from './middleware/auth.js';
 import type { Project } from './types.js';
