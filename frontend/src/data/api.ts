@@ -1,5 +1,7 @@
 import type { AppData, FocusSession, Project, Settings, Task, User } from './types';
 
+export type SyncResult = { kind: 'success'; revision: number } | { kind: 'conflict' } | { kind: 'retryable' } | { kind: 'rejected'; status: number };
+
 export const TOKEN_KEY = 'nt:v1:token';
 
 export function getAuthToken(): string | null {
@@ -64,7 +66,7 @@ export const api = {
     return res;
   },
 
-  async logIn(payload: { username: string; password?: string; passwordHash?: string; remember?: boolean }) {
+  async logIn(payload: { username: string; password: string; remember?: boolean }) {
     const res = await request<{ token: string; user: User }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify(payload),
@@ -86,25 +88,47 @@ export const api = {
     });
   },
 
-  async changePassword(payload: { oldPassword: string; newPassword: string }) {
-    return request<{ user: User }>('/api/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+  async changePassword(payload: { oldPassword: string; newPassword: string }): Promise<{ token?: string; user?: User; error?: string } | null> {
+    let remember = true;
+    try { remember = localStorage.getItem(TOKEN_KEY) !== null; } catch { /* storage unavailable */ }
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify(payload),
+      });
+      const result = await response.json() as { token?: string; user?: User; error?: string };
+      if (!response.ok) return { error: typeof result.error === 'string' ? result.error : 'Could not update password.' };
+      if (result.token) setAuthToken(result.token, remember);
+      return result;
+    } catch { return null; }
   },
 
   // AppData bulk sync
-  async fetchAppData(): Promise<{ data: AppData; revision: number } | null> {
-    return request<{ data: AppData; revision: number }>('/api/data');
-  },
-
-  async syncAppData(data: AppData, revision: number): Promise<{ revision: number } | 'conflict' | null> {
+  async fetchAppData(): Promise<{ data: AppData; revision: number } | 'rejected' | null> {
     try {
       const token = getAuthToken();
-      const res = await fetch('/api/data', { method: 'PUT', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, body: JSON.stringify({ data, revision }) });
-      if (res.status === 409) return 'conflict';
-      return res.ok ? await res.json() as { revision: number } : null;
+      const response = await fetch('/api/data', { signal: AbortSignal.timeout(15_000), headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (response.status === 408 || response.status === 429 || response.status >= 500) return null;
+      if (!response.ok) return 'rejected';
+      return await response.json() as { data: AppData; revision: number };
     } catch { return null; }
+  },
+
+  async syncAppData(data: AppData, revision: number): Promise<SyncResult> {
+    try {
+      const token = getAuthToken();
+      const response = await fetch('/api/data', {
+        method: 'PUT', signal: AbortSignal.timeout(15_000),
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ data, revision }),
+      });
+      if (response.status === 409) return { kind: 'conflict' };
+      if (response.status >= 500 || response.status === 429 || response.status === 408) return { kind: 'retryable' };
+      if (!response.ok) return { kind: 'rejected', status: response.status };
+      const result: unknown = await response.json();
+      if (!result || typeof result !== 'object' || !('revision' in result) || !Number.isSafeInteger(result.revision) || Number(result.revision) < 0) return { kind: 'rejected', status: 502 };
+      return { kind: 'success', revision: Number(result.revision) };
+    } catch { return { kind: 'retryable' }; }
   },
 
   // Granular project / task / session APIs
