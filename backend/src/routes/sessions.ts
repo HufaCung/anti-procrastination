@@ -35,6 +35,9 @@ sessionsRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
     completedTask: Boolean(completedTask),
   };
 
-  sessionsDb.save(session);
+  try { sessionsDb.save(session); } catch {
+    res.status(400).json({ error: 'Invalid session or related resource' });
+    return;
+  }
   res.status(201).json({ session });
 });

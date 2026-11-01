@@ -75,6 +75,8 @@ export interface NewProjectInput {
 
 export interface AppStore {
   ready: boolean;
+  syncStatus: 'loading' | 'synced' | 'syncing' | 'retrying' | 'error' | 'conflict';
+  retrySync: () => void;
   user: User | null;
   data: AppData | null;
   now: Date;
@@ -171,76 +173,144 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user);
   userRef.current = user;
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
-  const syncRef = useRef<{ userId: string; revision: number; synced: string; running: boolean; blocked: boolean } | null>(null);
+  const syncRef = useRef<{ userId: string; revision: number; synced: string; running: boolean; blocked: 'conflict' | 'rejected' | null; attempts: number; exhausted: boolean; timer?: number } | null>(null);
+  const [syncStatus, setSyncStatus] = useState<AppStore['syncStatus']>('loading');
+  const [syncTick, setSyncTick] = useState(0);
+  const initialRetryRef = useRef<() => void>(() => {});
+  const retrySync = useCallback(() => {
+    const sync = syncRef.current;
+    if (!sync) { initialRetryRef.current(); return; }
+    if (sync.blocked === 'conflict') return;
+    if (sync.timer !== undefined) window.clearTimeout(sync.timer);
+    sync.timer = undefined;
+    sync.attempts = 0;
+    sync.exhausted = false;
+    sync.blocked = null;
+    setSyncTick(value => value + 1);
+  }, []);
+  useEffect(() => {
+    window.addEventListener('online', retrySync);
+    return () => window.removeEventListener('online', retrySync);
+  }, [retrySync]);
 
   // Keep a local copy even when the server is unavailable or reports a conflict.
   useEffect(() => {
     if (user && data && loadedFor === user.id) saveUserData(user.id, data);
   }, [user, data, loadedFor]);
 
-  // Read the server before enabling writes. Remember the last synchronized snapshot
-  // so local changes survive reloads and can never silently overwrite newer data.
+  // Read before writing. Retry transient initial-load failures without hiding the local workspace.
   useEffect(() => {
     setLoadedFor(null);
+    if (syncRef.current?.timer !== undefined) window.clearTimeout(syncRef.current.timer);
     syncRef.current = null;
+    setSyncStatus('loading');
     if (!user) return;
     let cancelled = false;
+    let running = false;
+    let attempts = 0;
+    let timer: number | undefined;
     const key = `nt:sync:${user.id}`;
-    api.fetchAppData().then((remote) => {
+    const load = async () => {
+      if (cancelled || running) return;
+      running = true;
+      const remote = await api.fetchAppData();
+      running = false;
       if (cancelled) return;
+      if (remote === 'rejected') {
+        setLoadedFor(user.id);
+        setSyncStatus('error');
+        toast({ tone: 'danger', title: 'Server access rejected', body: 'Sign in again or correct the server error before retrying. Your local copy is kept.', duration: 15000 });
+        return;
+      }
+      if (!remote) {
+        setLoadedFor(user.id);
+        if (attempts < 3) {
+          setSyncStatus('retrying');
+          timer = window.setTimeout(() => { timer = undefined; void load(); }, 1000 * 2 ** attempts++);
+        } else {
+          setSyncStatus('error');
+          toast({ tone: 'danger', title: 'Could not load server data', body: 'Your local copy is kept. Use Retry sync or reconnect to try again.', duration: 15000 });
+        }
+        return;
+      }
       const local = loadUserData(user.id);
       let previous: { revision: number; synced: string } | null = null;
       try { previous = JSON.parse(localStorage.getItem(key) || 'null'); } catch { /* no snapshot */ }
-      if (!remote) {
-        toast({ tone: 'danger', title: 'Could not load your data from the server', body: 'Your local copy is available, but changes will not sync. Reload when connected.', duration: 15000 });
-        setLoadedFor(user.id);
-        return;
-      }
       const localText = JSON.stringify(local);
-      const hasLegacyData = !previous && hasUserData(user.id);
-      const dirty = previous ? localText !== previous.synced : hasLegacyData;
+      const dirty = previous ? localText !== previous.synced : hasUserData(user.id);
       const conflict = dirty && (previous ? previous.revision !== remote.revision : remote.revision !== 0);
       const selected = dirty ? local : remote.data;
       const synced = dirty ? (previous?.synced ?? '') : JSON.stringify(remote.data);
-      syncRef.current = { userId: user.id, revision: dirty && previous ? previous.revision : remote.revision, synced, running: false, blocked: conflict };
+      syncRef.current = { userId: user.id, revision: dirty && previous ? previous.revision : remote.revision, synced, running: false, blocked: conflict ? 'conflict' : null, attempts: 0, exhausted: false };
       if (!dirty) {
-        try { localStorage.setItem(key, JSON.stringify({ revision: remote.revision, synced })); } catch { /* local storage unavailable */ }
+        try { localStorage.setItem(key, JSON.stringify({ revision: remote.revision, synced })); } catch { /* storage unavailable */ }
       }
-      if (conflict) toast({ tone: 'danger', title: 'Sync conflict', body: 'Your local changes were kept on this device. Sync is paused because the server has newer data.', duration: 20000 });
+      setSyncStatus(conflict ? 'conflict' : dirty ? 'syncing' : 'synced');
+      if (conflict) toast({ tone: 'danger', title: 'Sync conflict', body: 'Your local changes were kept. Sync is paused because the server has newer data.', duration: 20000 });
       dispatch({ type: 'load', data: selected });
       setLoadedFor(user.id);
-    });
+    };
+    const retryInitial = () => {
+      if (syncRef.current) return;
+      if (timer !== undefined) window.clearTimeout(timer);
+      attempts = 0;
+      void load();
+    };
+    initialRetryRef.current = retryInitial;
+    void load();
     return () => {
       cancelled = true;
+      if (timer !== undefined) window.clearTimeout(timer);
+      if (syncRef.current?.timer !== undefined) window.clearTimeout(syncRef.current.timer);
+      if (initialRetryRef.current === retryInitial) initialRetryRef.current = () => {};
     };
   }, [user?.id]);
 
   useEffect(() => {
     const sync = syncRef.current;
-    if (!user || !data || loadedFor !== user.id || !sync || sync.userId !== user.id || sync.running || sync.blocked) return;
-    if (JSON.stringify(data) === sync.synced) return;
+    if (!user || !data || loadedFor !== user.id || !sync || sync.userId !== user.id || sync.running || sync.blocked || sync.exhausted || sync.timer !== undefined) return;
+    if (JSON.stringify(data) === sync.synced) { setSyncStatus('synced'); return; }
     sync.running = true;
+    setSyncStatus('syncing');
     const run = async () => {
-      while (syncRef.current === sync && userRef.current?.id === sync.userId) {
-        const current = dataRef.current;
-        if (!current) break;
-        const snapshot = JSON.stringify(current);
-        if (snapshot === sync.synced) break;
-        const result = await api.syncAppData(current, sync.revision);
-        if (syncRef.current !== sync) return;
-        if (!result || result === 'conflict') {
-          sync.blocked = true;
-          toast({ tone: 'danger', title: result === 'conflict' ? 'Sync conflict' : 'Sync failed', body: 'Your local changes were kept on this device. Sync is paused.', duration: 20000 });
-          break;
+      try {
+        while (syncRef.current === sync && userRef.current?.id === sync.userId) {
+          const current = dataRef.current;
+          if (!current) break;
+          const snapshot = JSON.stringify(current);
+          if (snapshot === sync.synced) break;
+          const result = await api.syncAppData(current, sync.revision);
+          if (syncRef.current !== sync) return;
+          if (result.kind === 'retryable') {
+            if (sync.attempts < 3) {
+              setSyncStatus('retrying');
+              sync.timer = window.setTimeout(() => { sync.timer = undefined; setSyncTick(value => value + 1); }, 1000 * 2 ** sync.attempts++);
+            } else {
+              sync.exhausted = true;
+              setSyncStatus('error');
+              toast({ tone: 'danger', title: 'Sync failed', body: 'Your local changes are kept. Use Retry sync or reconnect to try again.', duration: 15000 });
+            }
+            return;
+          }
+          if (result.kind === 'conflict' || result.kind === 'rejected') {
+            sync.blocked = result.kind === 'conflict' ? 'conflict' : 'rejected';
+            setSyncStatus(result.kind === 'conflict' ? 'conflict' : 'error');
+            toast({ tone: 'danger', title: result.kind === 'conflict' ? 'Sync conflict' : 'Sync rejected', body: result.kind === 'conflict' ? 'Newer server data was not overwritten. Your local changes are kept; resolve the conflict before syncing.' : result.status === 401 ? 'Sign in again to sync. Your local changes are kept.' : 'The server rejected the data. Your local changes are kept; correct the problem before retrying.', duration: 20000 });
+            return;
+          }
+          sync.attempts = 0;
+          sync.revision = result.revision;
+          sync.synced = snapshot;
+          try { localStorage.setItem(`nt:sync:${sync.userId}`, JSON.stringify({ revision: sync.revision, synced: snapshot })); } catch { /* storage unavailable */ }
         }
-        sync.revision = result.revision;
-        sync.synced = snapshot;
-        try { localStorage.setItem(`nt:sync:${sync.userId}`, JSON.stringify({ revision: sync.revision, synced: snapshot })); } catch { /* local storage unavailable */ }
+        setSyncStatus('synced');
+      } finally {
+        sync.running = false;
+        if (syncRef.current === sync && !sync.blocked && !sync.exhausted && sync.timer === undefined && dataRef.current && JSON.stringify(dataRef.current) !== sync.synced) setSyncTick(value => value + 1);
       }
-      sync.running = false;
     };
     void run();
-  }, [user, data, loadedFor, toast]);
+  }, [user, data, loadedFor, toast, syncTick]);
 
   // Keep theme in sync with the user's settings on login.
   useEffect(() => {
@@ -420,6 +490,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     update((d) => ({
       ...d,
       tasks: d.tasks.filter((t) => t.id !== id),
+      sessions: d.sessions.map((s) => s.taskId === id ? { ...s, taskId: undefined } : s),
       meta: d.meta.timer?.taskId === id ? { ...d.meta, timer: { ...d.meta.timer, taskId: undefined } } : d.meta,
     }));
   }, [update]);
@@ -685,6 +756,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const store: AppStore = {
     ready: !user || loadedFor === user.id,
+    syncStatus, retrySync,
     user, data, now, theme,
     activeProjects: derived.activeProjects,
     stats: derived.stats,

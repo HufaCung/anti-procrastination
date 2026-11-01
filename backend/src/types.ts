@@ -9,13 +9,14 @@ export interface User {
   name: string;
   username: string;
   role?: 'user' | 'admin';
+  authVersion?: number;
   passwordHash: string;
   createdAt: string;
   avatar?: string;
   passwordChangedAt?: string;
 }
 
-export type SafeUser = Omit<User, 'passwordHash'>;
+export type SafeUser = Omit<User, 'passwordHash' | 'authVersion'>;
 
 export interface Settings {
   userId: ID;

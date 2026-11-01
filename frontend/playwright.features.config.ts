@@ -6,7 +6,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 if (!process.env.TINYDO_TEST_DATABASE) throw new Error('Run npm run test:features from the repository root.');
 export default defineConfig({
   testDir: './tests/e2e',
-  testMatch: ['features.spec.ts', 'admin.spec.ts'],
+  testMatch: ['features.spec.ts', 'admin.spec.ts', 'security.spec.ts'],
   timeout: 60_000,
   workers: 1,
   reporter: [['list'], ['html', { outputFolder: 'playwright-report/features', open: 'never' }]],

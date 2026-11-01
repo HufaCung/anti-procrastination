@@ -1,5 +1,9 @@
 # TinyDo: Handoff to Claude Code
 
+> This file includes historical design requirements. The current authentication,
+> security, sync and deployment contracts are documented in README.md and
+> docs/DEPLOY_RENDER.md and verified by the implementation and regression tests.
+
 You are building the working MVP of **TinyDo**, a productivity web app with three core features: Deadline Manager, Smart Task Breakdown (with Focus Mode) and Progress Tracker. The UI design is finished. It lives in `design/` as interactive prototype screens. Your job is to turn that design into a real, running app with persistent data, then test it and fix any errors.
 
 Read this whole file before writing code. Open the `design/*.dc.html` files when you build each screen. They are the source of truth for layout, copy, spacing and colors.
@@ -48,7 +52,7 @@ There is no existing codebase. Use:
 - **React 18 + Vite + TypeScript**
 - **React Router** for routes
 - Plain CSS with CSS custom properties (copy the token block in §3), or CSS Modules. **No** Tailwind or UI kit; the design is custom and token-based.
-- **No backend for the MVP.** Persist everything in `localStorage` behind a small repository layer (`src/data/storage.ts`), so a real API (e.g. Supabase) can replace it later without touching the UI.
+- **Current persistence:** Express + SQLite is authoritative. `src/data/storage.ts` keeps per-user local caches; revision-guarded API sync preserves local changes during failures and conflicts.
 - Font: **Inter** from Google Fonts (400/500/600/700).
 - Icons: inline stroke SVGs as in the design (Lucide-style, 24px viewBox, stroke-width ≈ 2). `lucide-react` is fine if you want it; it's the only icon dependency allowed.
 - Charts: plain divs/SVG as in the design. Don't add a chart library.
@@ -145,7 +149,7 @@ type TaskStatus = 'todo' | 'in_progress' | 'done';
 type Risk = 'on_track' | 'at_risk' | 'overdue' | 'done';
 
 interface User {
-  id: ID; name: string; email: string; passwordHash: string; // mock auth: SHA-256 via SubtleCrypto
+  id: ID; name: string; username: string; role?: 'user' | 'admin'; // safe client profile, no credentials
   createdAt: string;
 }
 interface Settings {
@@ -235,23 +239,26 @@ All functions take `now: Date` as a parameter. Never call `new Date()` inside th
 
 ---
 
-## 7. Auth (mock, client-side)
+## 7. Auth (current, server-verified)
 
-- Users live in localStorage. Hash passwords with SHA-256 (`crypto.subtle`), and keep the session in `nt:v1:session`. "Keep me logged in" means localStorage; without it, use sessionStorage.
-- Validation:
-  - Email matches `/^\S+@\S+\.\S+$/`.
-  - Password is at least 8 characters.
-  - Name is at least 2 characters.
-  - Terms must be accepted.
-  - Duplicate email shows "An account with this email already exists."
-  - A wrong password shows "Email or password is incorrect."
-- The password strength score (0–4) gets +1 each for: length ≥ 8; upper + lower case; a digit; a symbol or length ≥ 14.
-- Forgot password: validate the email and show the "Check your inbox" state. No email is actually sent. Show a dev-only note in the console.
-- Log out clears the session and returns to `/login`. Delete account removes the user and all their data after the confirm modal.
-- Isolate data by `userId`.
-- Make the boundary obvious (`src/data/auth.ts`) so a real auth provider can replace it.
+- Users authenticate with an immutable, case-insensitive username and password via
+  Express. Password hashing and verification run only on the server.
+- New passwords use asynchronous scrypt with random salts. Existing user-ID-salted
+  SHA-256 hashes are recognized only for verification and upgraded after correct login.
+- The browser caches safe profile fields, never passwords or password hashes.
+  Existing cached password hashes are removed by a storage migration.
+- Password changes require the current plaintext password and a new password of
+  8–1024 characters. Client-supplied hashes are rejected. A database auth version
+  immediately revokes old JWTs; the successful response supplies a replacement JWT.
+- Public signup always creates a regular user. Admin provisioning is a server-side
+  command; read-only admin routes require a JWT and the current database admin role.
+- JWT/session storage follows the remember choice. Log out clears the token/session
+  while retaining workspace caches. Forgot-password remains unavailable (HTTP 503).
+- Focus-session task/project references must belong to the authenticated user and
+  match each other. Bulk sync enforces the same checks in a transaction.
+- Sync retries transient failures three times (1/2/4 seconds). Reconnect/manual retry
+  can resume it; revision conflicts stay paused without overwriting newer server data.
 
----
 
 ## 8. Acceptance checklist (test these, then fix until all pass)
 
