@@ -22,7 +22,7 @@ export default defineConfig({
     {
       command: 'npm run admin:create --workspace=backend && node backend/dist/server.js', cwd: root,
       url: 'http://127.0.0.1:3002/api/health', reuseExistingServer: false,
-      env: { PORT: '3002', NODE_ENV: 'development', DATABASE_PATH: process.env.TINYDO_TEST_DATABASE, ADMIN_USERNAME: 'admin-e2e', ADMIN_PASSWORD: process.env.TINYDO_TEST_ADMIN_PASSWORD || '' },
+      env: { DATABASE_URL: '', REQUIRE_DATABASE_URL: 'false', PORT: '3002', NODE_ENV: 'development', DATABASE_PATH: process.env.TINYDO_TEST_DATABASE, ADMIN_USERNAME: 'admin-e2e', ADMIN_PASSWORD: process.env.TINYDO_TEST_ADMIN_PASSWORD || '' },
     },
     {
       command: 'npx vite preview --host 127.0.0.1 --port 4174 --strictPort', cwd: path.join(root, 'frontend'),

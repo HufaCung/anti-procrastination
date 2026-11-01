@@ -21,7 +21,7 @@ test('production serves React and API together, and retains SQLite data across r
   };
   const start = () => new Promise((resolve, reject) => {
     child = spawn(process.execPath, ['backend/dist/server.js'], { cwd: root, windowsHide: true, env: {
-      ...process.env, NODE_ENV: 'production', PORT: '0', JWT_SECRET: jwtSecret,
+      ...process.env, DATABASE_URL: '', REQUIRE_DATABASE_URL: 'false', NODE_ENV: 'production', PORT: '0', JWT_SECRET: jwtSecret,
       DATA_DIR: directory, DATABASE_PATH: path.join(directory, 'smoke.db'),
       BOOTSTRAP_ADMIN: 'true', ADMIN_USERNAME: 'bootstrap-smoke-admin', ADMIN_PASSWORD: adminPassword,
     }, stdio: ['ignore', 'pipe', 'pipe'] });

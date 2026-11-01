@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
 import { app } from './server.js';
 import { createAdmin } from './services/admin-account.js';
-import { db, usersDb, projectsDb, tasksDb, sessionsDb, metaDb, defaultMeta } from './db/database.js';
+import { db, usersDb, projectsDb, tasksDb, sessionsDb, metaDb, defaultMeta } from './db/sqlite.js';
 import { signToken } from './middleware/auth.js';
 
 describe('admin account and read-only users API', () => {

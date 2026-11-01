@@ -1,5 +1,7 @@
 # Deploy TinyDo to Render
 
+**For durable shared data on Free plans, follow [Render + Supabase](DEPLOY_SUPABASE.md). The SQLite instructions below describe the older local/temporary or paid-disk option.**
+
 This deploys React and Express together as one public web service. SQLite stays on
 a persistent disk attached to that service. No local users or database files are
 uploaded automatically. Database migration/import and seeding can be done after
@@ -35,8 +37,7 @@ DATABASE_PATH=/opt/render/project/src/backend/data/tinydo.db
 Free services cannot attach persistent disks. SQLite users and work can disappear
 on idle shutdown, restart or redeploy. Keeping bootstrap enabled and its private
 password in Render Environment recreates the admin on an empty database, but does
-not restore other users or data. For durable free shared data, a separate free
-PostgreSQL service requires a backend migration; this SQLite setup is temporary.
+not restore other users or data. For durable free shared data, use the supported Supabase PostgreSQL adapter and guide above; this SQLite setup is temporary.
 With persistent storage, bootstrap can be disabled after creating the account.
 
 ## 1. Publish the prepared branch

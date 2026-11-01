@@ -20,7 +20,10 @@
     "admin:create": "npm run admin:create --workspace=backend",
     "admin:create:prod": "npm run admin:create:prod --workspace=backend",
     "start": "npm run start --workspace=backend",
-    "test:deploy": "npm run build && node --test scripts/deployment.test.mjs"
+    "test:deploy": "npm run build && node --test scripts/deployment.test.mjs",
+    "test:postgres": "npm run build && node --test scripts/postgres.test.mjs",
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:import:sqlite": "node scripts/import-sqlite.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"
