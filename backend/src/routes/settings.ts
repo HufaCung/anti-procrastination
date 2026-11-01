@@ -1,3 +1,4 @@
+import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
 import { settingsDb, defaultSettings } from '../db/database.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
@@ -8,22 +9,22 @@ export const settingsRouter = Router();
 settingsRouter.use(authMiddleware);
 
 // GET /api/settings
-settingsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
+settingsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const settings = settingsDb.get(user.id);
+  const settings = await settingsDb.get(user.id);
   res.json({ settings });
-});
+}));
 
 // PATCH /api/settings
-settingsRouter.patch('/', (req: AuthenticatedRequest, res: Response) => {
+settingsRouter.patch('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const current = settingsDb.get(user.id);
+  const current = await settingsDb.get(user.id);
   const updated: Settings = {
     ...current,
     ...req.body,
     userId: user.id,
   };
 
-  settingsDb.save(updated);
+  await settingsDb.save(updated);
   res.json({ settings: updated });
-});
+}));

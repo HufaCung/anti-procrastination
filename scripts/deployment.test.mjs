@@ -12,6 +12,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 test('production serves React and API together, and retains SQLite data across restart', { timeout: 30000 }, async () => {
   const directory = await mkdtemp(path.join(tmpdir(), 'tinydo-deploy-'));
   const jwtSecret = randomUUID();
+  const adminPassword = randomUUID();
   let child;
   let exited;
   const stop = async () => {
@@ -20,8 +21,9 @@ test('production serves React and API together, and retains SQLite data across r
   };
   const start = () => new Promise((resolve, reject) => {
     child = spawn(process.execPath, ['backend/dist/server.js'], { cwd: root, windowsHide: true, env: {
-      ...process.env, NODE_ENV: 'production', PORT: '0', JWT_SECRET: jwtSecret,
+      ...process.env, DATABASE_URL: '', REQUIRE_DATABASE_URL: 'false', NODE_ENV: 'production', PORT: '0', JWT_SECRET: jwtSecret,
       DATA_DIR: directory, DATABASE_PATH: path.join(directory, 'smoke.db'),
+      BOOTSTRAP_ADMIN: 'true', ADMIN_USERNAME: 'bootstrap-smoke-admin', ADMIN_PASSWORD: adminPassword,
     }, stdio: ['ignore', 'pipe', 'pipe'] });
     exited = new Promise(resolveExit => child.once('exit', resolveExit));
     const timeout = setTimeout(() => reject(new Error('Production server startup timed out')), 10000);
@@ -36,6 +38,10 @@ test('production serves React and API together, and retains SQLite data across r
   });
   try {
     let base = await start();
+    const adminLogin = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: 'bootstrap-smoke-admin', password: adminPassword }) });
+    const admin = await adminLogin.json();
+    assert.equal(admin.user.role, 'admin');
+    assert.equal((await fetch(base + '/api/admin/users', { headers: { Authorization: `Bearer ${admin.token}` } })).status, 200);
     for (const route of ['/', '/login', '/admin', '/projects/example']) {
       const response = await fetch(base + route);
       assert.equal(response.status, 200);
@@ -57,6 +63,7 @@ test('production serves React and API together, and retains SQLite data across r
     const registered = await response.json();
     await stop();
     base = await start();
+    assert.equal((await fetch(base + '/api/admin/users', { headers: { Authorization: `Bearer ${admin.token}` } })).status, 200);
     const login = await fetch(base + '/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password }) });
     assert.equal((await login.json()).user.id, registered.user.id);
     assert.equal((await fetch(base + '/api/auth/me', { headers: { Authorization: `Bearer ${registered.token}` } })).status, 200);

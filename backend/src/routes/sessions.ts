@@ -1,3 +1,5 @@
+import { isDataValidationError } from '../db/errors.js';
+import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
 import { sessionsDb } from '../db/database.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
@@ -8,14 +10,14 @@ export const sessionsRouter = Router();
 sessionsRouter.use(authMiddleware);
 
 // GET /api/sessions
-sessionsRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
+sessionsRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const sessions = sessionsDb.getByUser(user.id);
+  const sessions = await sessionsDb.getByUser(user.id);
   res.json({ sessions });
-});
+}));
 
 // POST /api/sessions
-sessionsRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
+sessionsRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   const { id, taskId, projectId, startedAt, endedAt, minutes, completedTask } = req.body;
 
@@ -35,6 +37,9 @@ sessionsRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
     completedTask: Boolean(completedTask),
   };
 
-  sessionsDb.save(session);
+  try { await sessionsDb.save(session); } catch {
+    res.status(400).json({ error: 'Invalid session or related resource' });
+    return;
+  }
   res.status(201).json({ session });
-});
+}));

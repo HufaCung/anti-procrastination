@@ -1,4 +1,5 @@
-import express from 'express';
+import express, { type ErrorRequestHandler } from 'express';
+import { databaseKind } from './db/database.js';
 import cors from 'cors';
 import 'dotenv/config';
 import path from 'node:path';
@@ -12,6 +13,7 @@ import { tasksRouter } from './routes/tasks.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { settingsRouter } from './routes/settings.js';
 import { adminRouter } from './routes/admin.js';
+import { bootstrapAdmin } from './services/admin-bootstrap.js';
 
 
 export const app = express();
@@ -53,8 +55,17 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+const handleError: ErrorRequestHandler = (_error, _req, res, _next) => {
+  console.error('[backend] Request failed');
+  res.status(500).json({ error: 'Internal server error' });
+};
+app.use(handleError);
+
 // Start server when run directly
 if (process.env.NODE_ENV !== 'test') {
+  console.log(`[backend] Database: ${databaseKind}`);
+  const bootstrap = await bootstrapAdmin();
+  if (bootstrap !== 'disabled') console.log(`[backend] Admin bootstrap: ${bootstrap}`);
   const server = app.listen(Number(PORT), '0.0.0.0', () => {
     const address = server.address();
     console.log(`[backend] TinyDo running on http://localhost:${typeof address === 'object' && address ? address.port : PORT}`);

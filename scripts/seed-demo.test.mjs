@@ -10,6 +10,8 @@ const username = `seed-test-${randomUUID()}`;
 const now = new Date(2026, 10, 1, 8);
 before(async () => {
   process.env.NODE_ENV = 'test';
+  process.env.DATABASE_URL = '';
+  process.env.REQUIRE_DATABASE_URL = 'false';
   process.env.DATABASE_PATH = ':memory:';
   const { app } = await import('../backend/dist/server.js');
   server = await new Promise(resolve => {
@@ -19,7 +21,7 @@ before(async () => {
 });
 after(async () => {
   if (server) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-  const { db } = await import('../backend/dist/db/database.js');
+  const { db } = await import('../backend/dist/db/sqlite.js');
   db.close();
 });
 

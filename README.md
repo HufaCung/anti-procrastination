@@ -4,7 +4,11 @@ A productivity web app with three core features: **Deadline Manager**, **Task br
 
 This repository is organized as a monorepo containing:
 - **`frontend/`**: React 18, TypeScript, Vite, Tailwind/tokens CSS.
-- **`backend/`**: Node.js, Express, TypeScript, SQLite (`better-sqlite3`), JWT authentication.
+- **`backend/`**: Node.js, Express, TypeScript, PostgreSQL (`pg`) or local SQLite (`better-sqlite3`), JWT authentication.
+
+## Free shared deployment
+
+Use **Render Free + Supabase PostgreSQL Free**: [deployment guide](docs/DEPLOY_SUPABASE.md). Set DATABASE_URL on the backend; all users then share durable PostgreSQL data. Without it, local development uses SQLite.
 
 ## Quick Start
 
@@ -31,9 +35,12 @@ npm run dev:backend
 |---|---|
 | `npm run dev` | Runs both backend and frontend concurrently |
 | `npm run dev:frontend` | Runs the Vite development server (`http://localhost:5173`) |
-| `npm run dev:backend` | Runs the Express + SQLite backend with tsx watch (`http://localhost:3001`) |
+| `npm run dev:backend` | Runs the Express backend (PostgreSQL or local SQLite) with tsx watch (`http://localhost:3001`) |
 | `npm run build` | Compiles both backend and frontend |
 | `npm test` | Runs unit tests for both frontend and backend |
+| `npm run test:postgres` | Builds and tests a temporary real PostgreSQL database |
+| `npm run db:migrate` | Applies migrations to the configured database after building |
+| `npm run db:import:sqlite` | Imports a read-only SQLite source into an empty PostgreSQL database |
 
 ## Project Structure
 
@@ -50,9 +57,9 @@ tinydo/
 │   ├── tests/                    # Playwright e2e & fixtures
 │   └── package.json
 │
-├── backend/                      # Express + SQLite API server
+├── backend/                      # Express API server
 │   ├── src/
-│   │   ├── db/                   # SQLite database connection & schema (better-sqlite3)
+│   │   ├── db/                   # PostgreSQL/SQLite adapters and schema migrations
 │   │   ├── middleware/           # Auth & JWT verification middleware
 │   │   ├── routes/               # REST API endpoints (auth, projects, tasks, sessions, data)
 │   │   ├── server.ts             # Express app setup
@@ -65,7 +72,7 @@ tinydo/
 └── README.md
 ```
 
-## Backend API Endpoints (SQLite)
+## Backend API Endpoints
 
 - **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`, `/api/auth/account`
 - **Data Sync**: `/api/data` (GET all user data, PUT sync/replace data)
@@ -85,7 +92,7 @@ npm run test:features:headed
 ```
 
 The script runs frontend/backend unit tests, builds both workspaces, installs the
-Playwright Chromium browser if needed, and runs eight browser feature scenarios.
+Playwright Chromium browser if needed, and runs fourteen browser feature scenarios.
 The first browser installation needs internet access. Existing dependencies must
 already be installed with `npm install`.
 
@@ -124,7 +131,7 @@ replan/undo, and deadline alert batching and deadline changes.
 ## Persistent demo data (100 records)
 
 Unlike browser test fixtures, this command keeps demo records in the running app's
-SQLite database so you can explore them manually. Start the app in one terminal:
+configured backend database (SQLite locally by default, PostgreSQL when DATABASE_URL is set) so you can explore them manually. Start the app in one terminal:
 
 ```powershell
 npm run dev
@@ -216,3 +223,45 @@ npm run test:deploy
 This builds the app and runs an isolated production smoke test, including SPA deep
 links, static assets, API routing and SQLite/JWT persistence across a server restart.
 It does not create any hosting resources or deploy the app.
+
+## Authentication and sync contracts
+
+- The browser stores profile fields and the session token, never a password or
+  password hash. A local-storage migration removes old cached hashes while keeping
+  profiles, tasks and settings.
+- New signup/admin/password-change hashes use Node.js asynchronous scrypt with a
+  random 16-byte salt (`N=32768`, `r=8`, `p=3`, 64-byte key). The stored format is
+  `scrypt$32768$8$3$<salt-hex>$<key-hex>`.
+- Correct login upgrades legacy user-ID-salted SHA-256 hashes in place. Passwords
+  themselves do not change. Concurrent legacy logins are supported.
+- `POST /api/auth/change-password` accepts only `oldPassword` and `newPassword`
+  (new password: 8–1024 characters). `oldPasswordHash`/`newPasswordHash` are rejected
+  with HTTP 400. Successful responses include `{ user, token }`; all previous JWTs
+  become invalid immediately. The client preserves the chosen token storage mode.
+- Focus sessions may be free sessions or reference owned tasks/projects. Unknown,
+  cross-user and mismatched task/project references return HTTP 400 through both
+  granular writes and bulk sync. Bulk failures roll back atomically. Historical
+  duration is retained when related resources are deleted.
+- Network errors, timeouts, HTTP 408/429 and 5xx sync failures get at most three
+  automatic retries after 1, 2 and 4 seconds. Reconnecting or **Retry sync** starts
+  a new attempt cycle. Initial data fetches also retry without discarding local work.
+- HTTP 409 revision conflicts pause sync and preserve both local work and newer
+  server data. Other 4xx responses do not trigger automatic retries. The sidebar
+  displays sync status. A lost response after an accepted write can produce a 409
+  on retry; it remains paused rather than guessing which copy should win.
+
+Run `npm run test:features` for unit/API and browser regressions, `npm run test:seed`
+for persistent demo-data compatibility, and `npm run test:deploy` for production
+routing and database/JWT persistence across restarts.
+
+Scrypt parameters follow the [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt).
+
+## Admin creation on hosting without Shell
+
+Set `BOOTSTRAP_ADMIN=true`, `ADMIN_USERNAME=admin`, and a private `ADMIN_PASSWORD`
+(8–1024 characters) in the hosting environment, then redeploy the updated code.
+The backend creates the account before listening for traffic. Existing admins keep
+their passwords; existing regular users are never promoted automatically. With
+Render Free's temporary SQLite filesystem, keep the bootstrap configuration so a
+lost database can recreate the admin. Other lost users/data are not restored.
+See [the Render Free instructions](docs/DEPLOY_RENDER.md#render-free-create-admin-without-shell).

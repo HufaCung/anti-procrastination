@@ -1,3 +1,4 @@
+import { asyncHandler } from './async-handler.js';
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
@@ -20,21 +21,24 @@ export interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
-export function signToken(userId: string): string {
-  return jwt.sign({ userId }, getJwtSecret(), { expiresIn: '30d' });
+export function signToken(userId: string, authVersion = 0): string {
+  return jwt.sign({ userId, authVersion }, getJwtSecret(), { expiresIn: '30d', algorithm: 'HS256' });
 }
 
-export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export const authMiddleware = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const devUserId = req.headers['x-user-id'] as string | undefined;
 
   let userId: string | null = null;
+  let tokenVersion: number | null = null;
 
   if (authHeader && authHeader.startsWith('Bearer ')) {
     const token = authHeader.slice(7).trim();
     try {
-      const decoded = jwt.verify(token, getJwtSecret()) as { userId: string };
+      const decoded = jwt.verify(token, getJwtSecret(), { algorithms: ['HS256'] });
+      if (typeof decoded === 'string' || typeof decoded.userId !== 'string' || (decoded.authVersion !== undefined && (!Number.isSafeInteger(decoded.authVersion) || decoded.authVersion < 0))) throw new Error('Invalid token claims');
       userId = decoded.userId;
+      tokenVersion = decoded.authVersion ?? 0;
     } catch {
       res.status(401).json({ error: 'Invalid or expired token' });
       return;
@@ -48,12 +52,17 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     return;
   }
 
-  const user = usersDb.findById(userId);
+  const user = await usersDb.findById(userId);
   if (!user) {
     res.status(401).json({ error: 'User not found' });
     return;
   }
 
+  if (tokenVersion !== null && tokenVersion !== (user.authVersion ?? 0)) {
+    res.status(401).json({ error: 'Session revoked. Sign in again.' });
+    return;
+  }
+
   req.user = user;
   next();
-}
+});

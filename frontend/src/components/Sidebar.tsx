@@ -41,6 +41,11 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
         </button>
       </div>
 
+      <div className="col" style={{ gap: 4, padding: '4px 0', fontSize: 12, color: 'var(--muted)' }}>
+        <span role="status" data-testid="sync-status">{s.syncStatus === 'synced' ? 'All changes synced' : s.syncStatus === 'syncing' ? 'Syncing...' : s.syncStatus === 'retrying' ? 'Connection interrupted. Retrying sync...' : s.syncStatus === 'conflict' ? 'Sync paused: server has newer data. Local changes kept.' : s.syncStatus === 'error' ? 'Sync paused. Local changes kept.' : 'Loading server data...'}</span>
+        {s.syncStatus === 'error' && <button type="button" className="btn btn-secondary btn-sm" onClick={s.retrySync}>Retry sync</button>}
+      </div>
+
       <div className="col nav-list" style={{ gap: 2 }}>
         {s.user?.role === 'admin' && <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="chart" size={17} stroke={1.9} />

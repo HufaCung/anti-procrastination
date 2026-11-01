@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import crypto from 'node:crypto';
 import { app } from './server.js';
 import { createAdmin } from './services/admin-account.js';
-import { db, usersDb, projectsDb, tasksDb, sessionsDb, metaDb, defaultMeta } from './db/database.js';
+import { db, usersDb, projectsDb, tasksDb, sessionsDb, metaDb, defaultMeta } from './db/sqlite.js';
 import { signToken } from './middleware/auth.js';
 
 describe('admin account and read-only users API', () => {
@@ -16,15 +16,15 @@ describe('admin account and read-only users API', () => {
     return { status: response.status, cache: response.headers.get('cache-control'), body: await response.json() };
   };
   beforeAll(async () => {
-    adminId = createAdmin(adminName, password).userId;
+    adminId = (await createAdmin(adminName, password)).userId;
     server = await new Promise(resolve => { const instance = app.listen(0, '127.0.0.1', () => resolve(instance)); });
     base = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
   });
   afterAll(async () => { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); });
 
   it('provisions once, logs in normally, and never resets an existing password', async () => {
-    expect(createAdmin(adminName, password)).toEqual({ created: false, userId: adminId });
-    expect(() => createAdmin(adminName, 'different-password')).toThrow(/different password/);
+    expect(await createAdmin(adminName, password)).toEqual({ created: false, userId: adminId });
+    await expect(createAdmin(adminName, 'different-password')).rejects.toThrow(/different password/);
     const login = await call('/api/auth/login', undefined, { username: adminName, password });
     expect(login.body.user.role).toBe('admin');
     expect(login.body.token).toBeTruthy();
@@ -42,7 +42,7 @@ describe('admin account and read-only users API', () => {
     const signup = await call('/api/auth/signup', undefined, { username, password, role: 'admin', isAdmin: true });
     expect(signup.body.user.role).toBe('user');
     expect((await call('/api/admin/users', signup.body.token)).status).toBe(403);
-    expect(() => createAdmin(username, password)).toThrow(/regular user/);
+    await expect(createAdmin(username, password)).rejects.toThrow(/regular user/);
     expect(usersDb.findById(signup.body.user.id)?.role).toBe('user');
   });
 
@@ -80,7 +80,7 @@ describe('admin account and read-only users API', () => {
   });
 
   it('checks the current database role even with an already issued token', async () => {
-    const created = createAdmin(`revoke-${crypto.randomUUID()}`, password);
+    const created = await createAdmin(`revoke-${crypto.randomUUID()}`, password);
     const token = signToken(created.userId);
     expect((await call('/api/admin/users', token)).status).toBe(200);
     db.prepare("UPDATE users SET role = 'user' WHERE id = ?").run(created.userId);
