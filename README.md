@@ -248,3 +248,13 @@ for persistent demo-data compatibility, and `npm run test:deploy` for production
 routing and database/JWT persistence across restarts.
 
 Scrypt parameters follow the [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt).
+
+## Admin creation on hosting without Shell
+
+Set `BOOTSTRAP_ADMIN=true`, `ADMIN_USERNAME=admin`, and a private `ADMIN_PASSWORD`
+(8–1024 characters) in the hosting environment, then redeploy the updated code.
+The backend creates the account before listening for traffic. Existing admins keep
+their passwords; existing regular users are never promoted automatically. With
+Render Free's temporary SQLite filesystem, keep the bootstrap configuration so a
+lost database can recreate the admin. Other lost users/data are not restored.
+See [the Render Free instructions](docs/DEPLOY_RENDER.md#render-free-create-admin-without-shell).

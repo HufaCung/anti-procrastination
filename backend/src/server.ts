@@ -12,6 +12,7 @@ import { tasksRouter } from './routes/tasks.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { settingsRouter } from './routes/settings.js';
 import { adminRouter } from './routes/admin.js';
+import { bootstrapAdmin } from './services/admin-bootstrap.js';
 
 
 export const app = express();
@@ -55,6 +56,8 @@ if (process.env.NODE_ENV === 'production') {
 
 // Start server when run directly
 if (process.env.NODE_ENV !== 'test') {
+  const bootstrap = await bootstrapAdmin();
+  if (bootstrap !== 'disabled') console.log(`[backend] Admin bootstrap: ${bootstrap}`);
   const server = app.listen(Number(PORT), '0.0.0.0', () => {
     const address = server.address();
     console.log(`[backend] TinyDo running on http://localhost:${typeof address === 'object' && address ? address.port : PORT}`);
