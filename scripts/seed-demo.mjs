@@ -75,11 +75,13 @@ export function buildDemoData(userId, count = 100, now = new Date()) {
   return { projects, tasks, sessions };
 }
 
-export async function seedDemo({ baseUrl = 'http://localhost:3001', username = 'tinydo-demo', password, count = 100, now = new Date() }) {
+export async function seedDemo({ baseUrl = 'http://localhost:3001', username = 'tinydo-demo', password, count = 100, now = new Date(), allowRemote = false }) {
   validateCount(count);
   const url = new URL(baseUrl);
-  if (url.protocol !== 'http:' || !['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
-    throw new Error('Use a local API origin, e.g. http://localhost:3001.');
+  const local = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  const remote = allowRemote === true && url.protocol === 'https:';
+  if ((!local && !remote) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+    throw new Error('Use a local API origin, or explicitly enable TINYDO_SEED_ALLOW_REMOTE=true for an HTTPS origin.');
   }
   if (typeof password !== 'string' || password.length < 8 || password.length > 1024) throw new Error('Set TINYDO_SEED_PASSWORD to a password of 8–1024 characters.');
   if (typeof username !== 'string' || !/^\S{2,100}$/.test(username)) throw new Error('Username must be 2–100 characters without spaces.');
@@ -87,17 +89,17 @@ export async function seedDemo({ baseUrl = 'http://localhost:3001', username = '
     let response;
     try {
       response = await fetch(`${url.origin}${route}`, {
-        method, redirect: 'error', signal: AbortSignal.timeout(15_000),
+        method, redirect: 'error', signal: AbortSignal.timeout(remote && route === '/api/health' ? 60_000 : 15_000),
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         ...(body ? { body: JSON.stringify(body) } : {}),
       });
-    } catch { throw new Error(`Cannot reach local API at ${url.origin}. Start npm run dev first.`); }
+    } catch { throw new Error(`Cannot reach API at ${url.origin}. Check that the server is awake and available.`); }
     let data;
     try { data = await response.json(); } catch { throw new Error(`${route}: API did not return JSON.`); }
     return { status: response.status, data };
   };
   const health = await request('/api/health');
-  if (health.status !== 200 || health.data.status !== 'ok') throw new Error('Local API health check failed.');
+  if (health.status !== 200 || health.data.status !== 'ok') throw new Error('API health check failed.');
   let auth = await request('/api/auth/signup', { method: 'POST', body: { username, password } });
   const createdAccount = auth.status === 201;
   if (auth.status === 409) auth = await request('/api/auth/login', { method: 'POST', body: { username, password } });
@@ -142,17 +144,18 @@ export async function seedDemo({ baseUrl = 'http://localhost:3001', username = '
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   try {
     const args = process.argv.slice(2);
-    if (args.length && (args.length !== 2 || args[0] !== '--count')) throw new Error('Usage: npm run seed:demo -- [--count 100]');
+    if (args.length && !((args.length === 2 && args[0] === '--count') || (args.length === 1 && /^\d+$/.test(args[0])))) throw new Error('Usage: node scripts/seed-demo.mjs --count 100 (or run npm run seed:demo for 100 records).');
     const result = await seedDemo({
       baseUrl: process.env.TINYDO_SEED_URL || 'http://localhost:3001',
       username: process.env.TINYDO_SEED_USERNAME || 'tinydo-demo',
       password: process.env.TINYDO_SEED_PASSWORD,
-      count: args.length ? Number(args[1]) : 100,
+      count: args.length ? Number(args.at(-1)) : 100,
+      allowRemote: process.env.TINYDO_SEED_ALLOW_REMOTE === 'true',
     });
     console.log(`Demo data verified. Username: ${result.username}`);
     console.log(`Added: ${result.added.projects} projects, ${result.added.tasks} tasks, ${result.added.sessions} sessions.`);
     console.log(`Workspace totals: ${result.totals.projects} projects, ${result.totals.tasks} tasks, ${result.totals.sessions} sessions.`);
-    console.log('Open http://localhost:5173 and sign in using this username and the password you supplied.');
+    console.log(process.env.TINYDO_SEED_ALLOW_REMOTE === 'true' ? 'Sign in on the configured deployed app using this username and your supplied password.' : 'Open http://localhost:5173 and sign in using this username and your supplied password.');
     console.log('Data remains in the app database. Reruns preserve existing records, including your edits.');
   } catch (error) {
     console.error(error.message);
