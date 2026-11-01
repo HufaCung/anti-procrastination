@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createAdmin } from '../services/admin-account.js';
-import { db } from '../db/database.js';
+import { closeDatabase } from '../db/database.js';
 
 try {
   const password = process.env.ADMIN_PASSWORD;
@@ -12,5 +12,5 @@ try {
   console.error(error instanceof Error ? error.message : 'Could not create admin account.');
   process.exitCode = 1;
 } finally {
-  db.close();
+  await closeDatabase();
 }

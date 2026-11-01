@@ -1,3 +1,4 @@
+import { asyncHandler } from './async-handler.js';
 import type { Request, Response, NextFunction } from 'express';
 import crypto from 'node:crypto';
 import jwt from 'jsonwebtoken';
@@ -20,12 +21,11 @@ export interface AuthenticatedRequest extends Request {
   user?: User;
 }
 
-export function signToken(userId: string): string {
-  const authVersion = usersDb.findById(userId)?.authVersion ?? 0;
+export function signToken(userId: string, authVersion = 0): string {
   return jwt.sign({ userId, authVersion }, getJwtSecret(), { expiresIn: '30d', algorithm: 'HS256' });
 }
 
-export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
+export const authMiddleware = asyncHandler(async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const devUserId = req.headers['x-user-id'] as string | undefined;
 
@@ -52,7 +52,7 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
     return;
   }
 
-  const user = usersDb.findById(userId);
+  const user = await usersDb.findById(userId);
   if (!user) {
     res.status(401).json({ error: 'User not found' });
     return;
@@ -65,4 +65,4 @@ export function authMiddleware(req: AuthenticatedRequest, res: Response, next: N
 
   req.user = user;
   next();
-}
+});

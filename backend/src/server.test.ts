@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from './server.js';
-import { usersDb, projectsDb, tasksDb, sessionsDb, settingsDb, metaDb, getAppData, saveAppData, initDb, getDataRevision, syncAppData } from './db/database.js';
+import { usersDb, projectsDb, tasksDb, sessionsDb, settingsDb, metaDb, getAppData, saveAppData, initDb, getDataRevision, syncAppData } from './db/sqlite.js';
 import { sanitizeUser } from './routes/auth.js';
 import { signToken, getJwtSecret } from './middleware/auth.js';
 import type { AppData, Project, Task, User } from './types.js';

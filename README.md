@@ -4,7 +4,11 @@ A productivity web app with three core features: **Deadline Manager**, **Task br
 
 This repository is organized as a monorepo containing:
 - **`frontend/`**: React 18, TypeScript, Vite, Tailwind/tokens CSS.
-- **`backend/`**: Node.js, Express, TypeScript, SQLite (`better-sqlite3`), JWT authentication.
+- **`backend/`**: Node.js, Express, TypeScript, PostgreSQL (`pg`) or local SQLite (`better-sqlite3`), JWT authentication.
+
+## Free shared deployment
+
+Use **Render Free + Supabase PostgreSQL Free**: [deployment guide](docs/DEPLOY_SUPABASE.md). Set DATABASE_URL on the backend; all users then share durable PostgreSQL data. Without it, local development uses SQLite.
 
 ## Quick Start
 
@@ -31,9 +35,12 @@ npm run dev:backend
 |---|---|
 | `npm run dev` | Runs both backend and frontend concurrently |
 | `npm run dev:frontend` | Runs the Vite development server (`http://localhost:5173`) |
-| `npm run dev:backend` | Runs the Express + SQLite backend with tsx watch (`http://localhost:3001`) |
+| `npm run dev:backend` | Runs the Express backend (PostgreSQL or local SQLite) with tsx watch (`http://localhost:3001`) |
 | `npm run build` | Compiles both backend and frontend |
 | `npm test` | Runs unit tests for both frontend and backend |
+| `npm run test:postgres` | Builds and tests a temporary real PostgreSQL database |
+| `npm run db:migrate` | Applies migrations to the configured database after building |
+| `npm run db:import:sqlite` | Imports a read-only SQLite source into an empty PostgreSQL database |
 
 ## Project Structure
 
@@ -50,9 +57,9 @@ tinydo/
 │   ├── tests/                    # Playwright e2e & fixtures
 │   └── package.json
 │
-├── backend/                      # Express + SQLite API server
+├── backend/                      # Express API server
 │   ├── src/
-│   │   ├── db/                   # SQLite database connection & schema (better-sqlite3)
+│   │   ├── db/                   # PostgreSQL/SQLite adapters and schema migrations
 │   │   ├── middleware/           # Auth & JWT verification middleware
 │   │   ├── routes/               # REST API endpoints (auth, projects, tasks, sessions, data)
 │   │   ├── server.ts             # Express app setup
@@ -65,7 +72,7 @@ tinydo/
 └── README.md
 ```
 
-## Backend API Endpoints (SQLite)
+## Backend API Endpoints
 
 - **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`, `/api/auth/account`
 - **Data Sync**: `/api/data` (GET all user data, PUT sync/replace data)
@@ -124,7 +131,7 @@ replan/undo, and deadline alert batching and deadline changes.
 ## Persistent demo data (100 records)
 
 Unlike browser test fixtures, this command keeps demo records in the running app's
-SQLite database so you can explore them manually. Start the app in one terminal:
+configured backend database (SQLite locally by default, PostgreSQL when DATABASE_URL is set) so you can explore them manually. Start the app in one terminal:
 
 ```powershell
 npm run dev

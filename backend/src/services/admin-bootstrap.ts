@@ -6,7 +6,7 @@ export async function bootstrapAdmin(environment: NodeJS.ProcessEnv = process.en
   if (environment.BOOTSTRAP_ADMIN !== 'true') return 'disabled';
   const username = environment.ADMIN_USERNAME || 'admin';
   if (!/^\S{2,100}$/.test(username)) throw new Error('Invalid ADMIN_USERNAME for admin bootstrap.');
-  const existing = usersDb.findByUsername(username);
+  const existing = await usersDb.findByUsername(username);
   if (existing) {
     if (existing.role !== 'admin') throw new Error('Admin bootstrap username belongs to a regular user. Choose a different ADMIN_USERNAME.');
     // A later password change must survive restarts even if the bootstrap secret is stale.
