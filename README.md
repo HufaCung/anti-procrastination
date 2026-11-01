@@ -155,8 +155,7 @@ and upcoming projects, completed work, tasks scheduled today, slipped work,
 unscheduled work, and historical focus sessions.
 
 The script uses signup/login and revision-guarded `/api/data`, then reads records
-back to verify the persisted content. It accepts only local HTTP API origins,
-does not print passwords/tokens, and never overwrites existing project/task/session
+back to verify the persisted content. By default it accepts local HTTP API origins; deployed HTTPS seeding requires the explicit opt-in documented below. It does not print passwords/tokens, and never overwrites existing project/task/session
 IDs. Repeating the same command for the same account adds only missing records and
 preserves your edits and unrelated data. Keep the count unchanged for a stable
 fixture. A fresh account starts with auto-replan disabled so slipped tasks remain
@@ -280,3 +279,32 @@ npm run test:features, npm run test:postgres, npm run test:seed and npm run test
 Audit findings depend on the current advisory database; a clean report does not
 replace tests or guarantee that future advisories will remain empty. Prefer
 reviewed targeted upgrades over npm audit fix --force.
+
+### Seed a deployed HTTPS server directly
+
+No local backend or Supabase connection URI is needed for this option. Start the
+Render app in a browser first and wait for it to wake, then run from the repo root:
+
+```powershell
+$env:TINYDO_SEED_URL = 'https://anti-procrastination-7jwr.onrender.com'
+$env:TINYDO_SEED_ALLOW_REMOTE = 'true'
+$env:TINYDO_SEED_USERNAME = 'test100'
+$demoPassword = Read-Host 'Demo password (at least 8 characters)' -AsSecureString
+$env:TINYDO_SEED_PASSWORD = [System.Net.NetworkCredential]::new('', $demoPassword).Password
+try {
+    npm run seed:demo
+} finally {
+    Remove-Item Env:TINYDO_SEED_PASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:TINYDO_SEED_ALLOW_REMOTE -ErrorAction SilentlyContinue
+    Remove-Item Env:TINYDO_SEED_URL -ErrorAction SilentlyContinue
+}
+```
+
+Remote writes require the explicit environment opt-in and HTTPS. The script uses
+the same signup/login and revision-guarded sync API as the app; no admin secret or
+database password is needed. It creates one account with 100 domain records by
+default, preserves existing edits on rerun, rejects embedded credentials and URL
+paths/queries/fragments, does not follow redirects, and waits up to 60 seconds for
+the remote health check. Keep the demo password private. Existing local-only usage
+continues to work without the opt-in. To set a custom count without npm/PowerShell
+argument forwarding issues: node scripts/seed-demo.mjs --count 100.
