@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { databaseStartupDiagnostic } from './startup-diagnostic.js';
 import type * as SQLite from './sqlite.js';
 export { defaultSettings, defaultMeta } from './defaults.js';
 export { DataValidationError, isDataValidationError } from './errors.js';
@@ -9,7 +10,9 @@ const provider = await (async () => {
   try {
     if (databaseKind === 'postgres') { const store = await import('./postgres.js'); await store.initDb(); return store; }
     return await import('./sqlite.js');
-  } catch { throw new Error('Database initialization failed. Check database configuration, connectivity and migration permissions.'); }
+  } catch (error) {
+    throw new Error('Database initialization failed. ' + databaseStartupDiagnostic(error));
+  }
 })();
 
 export const usersDb = {
