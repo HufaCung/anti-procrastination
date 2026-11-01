@@ -12,7 +12,15 @@
     "dev:backend": "npm run dev --workspace=backend",
     "build": "npm run build --workspace=backend && npm run build --workspace=frontend",
     "test": "npm run test --workspace=frontend && npm run test --workspace=backend",
-    "test:e2e": "npm run e2e --workspace=frontend"
+    "test:e2e": "npm run e2e --workspace=frontend",
+    "test:features": "node scripts/test-features.mjs",
+    "test:features:headed": "node scripts/test-features.mjs --headed",
+    "seed:demo": "node scripts/seed-demo.mjs",
+    "test:seed": "npm run build --workspace=backend && node --test scripts/seed-demo.test.mjs",
+    "admin:create": "npm run admin:create --workspace=backend",
+    "admin:create:prod": "npm run admin:create:prod --workspace=backend",
+    "start": "npm run start --workspace=backend",
+    "test:deploy": "npm run build && node --test scripts/deployment.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

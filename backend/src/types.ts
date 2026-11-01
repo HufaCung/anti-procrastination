@@ -8,6 +8,7 @@ export interface User {
   id: ID;
   name: string;
   username: string;
+  role?: 'user' | 'admin';
   passwordHash: string;
   createdAt: string;
   avatar?: string;

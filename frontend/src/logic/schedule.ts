@@ -20,7 +20,7 @@ export interface ScheduleResult {
 
 interface DayState {
   used: number; // minutes already scheduled that day
-  lastEnd: number; // minutes since midnight of the latest slot end
+  slots: { start: number; end: number }[];
 }
 
 function minutesOfDay(d: Date): number {
@@ -68,7 +68,7 @@ export interface ScheduleOptions {
 /**
  * Places `toPlace` tasks into daily capacity (dailyGoalMin minus already-scheduled minutes),
  * starting today. Never after the project's due date (overdue projects may use today only).
- * Slots start at 09:00 and are packed back-to-back with 5-minute gaps.
+ * Slots start at 09:00 and fill available gaps with 5-minute buffers.
  */
 export function schedule(
   toPlace: Task[],
@@ -84,9 +84,9 @@ export function schedule(
     if (!t.scheduledFor || placingIds.has(t.id)) continue;
     const s = new Date(t.scheduledFor);
     const k = dayKey(s);
-    const st = days.get(k) ?? { used: 0, lastEnd: 0 };
+    const st = days.get(k) ?? { used: 0, slots: [] };
     st.used += t.estimateMin;
-    st.lastEnd = Math.max(st.lastEnd, minutesOfDay(s) + t.estimateMin);
+    st.slots.push({ start: minutesOfDay(s), end: minutesOfDay(s) + t.estimateMin });
     days.set(k, st);
   }
 
@@ -122,16 +122,20 @@ export function schedule(
     for (let i = 0; i <= span; i++) {
       const day = addDays(firstDay, i);
       const k = dayKey(day);
-      const st = days.get(k) ?? { used: 0, lastEnd: 0 };
+      const st = days.get(k) ?? { used: 0, slots: [] };
       if (st.used + task.estimateMin > settings.dailyGoalMin) continue;
-      let start = Math.max(DAY_START_MIN, st.lastEnd > 0 ? st.lastEnd + GAP_MIN : 0);
+      let start = DAY_START_MIN;
       if (daysBetween(today, day) === 0) start = Math.max(start, nowMin);
       start = roundUp5(start);
+      for (const slot of [...st.slots].sort((a, b) => a.start - b.start)) {
+        if (start + task.estimateMin + GAP_MIN <= slot.start) break;
+        if (start < slot.end + GAP_MIN) start = roundUp5(slot.end + GAP_MIN);
+      }
       if (start + task.estimateMin > DAY_END_MIN) continue;
       const when = new Date(day);
       when.setHours(0, start, 0, 0);
       st.used += task.estimateMin;
-      st.lastEnd = start + task.estimateMin;
+      st.slots.push({ start, end: start + task.estimateMin });
       days.set(k, st);
       placements.push({ taskId: task.id, from: task.scheduledFor, to: when.toISOString() });
       placed = true;

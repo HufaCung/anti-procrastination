@@ -8,6 +8,7 @@ export interface User {
   id: ID;
   name: string;
   username: string;
+  role?: 'user' | 'admin';
   passwordHash?: string; // mock auth: SHA-256 via SubtleCrypto
   createdAt: string;
   avatar?: string; // data URL
