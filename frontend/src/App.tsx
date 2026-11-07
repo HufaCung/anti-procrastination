@@ -14,11 +14,13 @@ import { ProgressPage } from './pages/Progress';
 import { ProfilePage } from './pages/Profile';
 import { NotFoundPage } from './pages/NotFound';
 import { AdminPage } from './pages/Admin';
+import { useLanguage } from './i18n/LanguageContext';
 
 function RequireAuth() {
   const s = useStore();
+  const { t } = useLanguage();
   const loc = useLocation();
-  if (!s.ready) return <main>Loading your workspace...</main>;
+  if (!s.ready) return <main>{t('loadingWorkspace')}</main>;
   if (!s.user || !s.data) {
     return <Navigate to="/login" replace state={{ from: loc.pathname + loc.search }} />;
   }
@@ -27,8 +29,9 @@ function RequireAuth() {
 
 function PublicOnly() {
   const s = useStore();
+  const { t } = useLanguage();
   const loc = useLocation();
-  if (!s.ready) return <main>Loading your workspace...</main>;
+  if (!s.ready) return <main>{t('loadingWorkspace')}</main>;
   if (s.user && s.data) {
     const from = (loc.state as { from?: string } | null)?.from;
     const to = s.data.meta.onboarded === false ? '/onboarding' : from && from !== '/login' ? from : s.user.role === 'admin' ? '/admin' : '/';

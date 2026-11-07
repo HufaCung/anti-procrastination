@@ -5,12 +5,13 @@ import { PasswordField, TextField, useDocumentTitle } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { useStore } from '../store/AppStore';
 import { passwordScore } from '../data/auth';
+import { useLanguage } from '../i18n/LanguageContext';
 
-const LABELS = ['Use 8+ characters with a mix of letters, numbers and symbols.', 'Weak', 'Fair', 'Good', 'Strong'];
 const COLORS = ['var(--track)', 'var(--danger-text)', '#E07B00', 'var(--accent)', 'var(--ok-strong)'];
 
 export function SignUpPage() {
-  useDocumentTitle('Create account');
+  const { t } = useLanguage();
+  useDocumentTitle(t('createTitle'));
   const s = useStore();
   const [username, setUsername] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -41,32 +42,32 @@ export function SignUpPage() {
   return (
     <div className="auth">
       <main className="auth-main">
-        <AuthHeader right={<span style={{ fontSize: 13, color: 'var(--muted)' }} className="hide-xs">Have an account? <Link to="/login" style={{ fontWeight: 600, textDecoration: 'none' }}>Log in</Link></span>} />
+        <AuthHeader right={<span style={{ fontSize: 13, color: 'var(--muted)' }} className="hide-xs">{t('haveAccount')} <Link to="/login" style={{ fontWeight: 600, textDecoration: 'none' }}>{t('login')}</Link></span>} />
         <div className="auth-center">
           <div className="auth-form page-enter">
             <div className="col" style={{ gap: 6 }}>
-              <h1>Create your workspace</h1>
-              <p className="lead">Free for personal use. Set up takes about a minute.</p>
+              <h1>{t('createWorkspace')}</h1>
+              <p className="lead">{t('createLead')}</p>
             </div>
             <form onSubmit={submit} noValidate className="col" style={{ gap: 16 }}>
               {errors.form && <div role="alert" className="status-bad">{errors.form}</div>}
-              <TextField label="Username" autoComplete="username" placeholder="Your username" value={username} inputRef={refs.username} onChange={(v) => { setUsername(v); clear('username'); clear('form'); }} error={errors.username} />
-              <PasswordField label="Password" autoComplete="new-password" value={pw} inputRef={refs.password} onChange={(v) => { setPw(v); clear('password'); }} error={errors.password}>
+              <TextField label={t('username')} autoComplete="username" placeholder={t('yourUsername')} value={username} inputRef={refs.username} onChange={(v) => { setUsername(v); clear('username'); clear('form'); }} error={errors.username} />
+              <PasswordField label={t('password')} autoComplete="new-password" value={pw} inputRef={refs.password} onChange={(v) => { setPw(v); clear('password'); }} error={errors.password}>
                 <div className="meter" aria-hidden="true">
                   {[0, 1, 2, 3].map((i) => <span key={i} style={{ background: pw && i < score ? COLORS[score] : undefined }} />)}
                 </div>
                 <span style={{ fontSize: 12.5, color: pw && score > 0 ? 'var(--text2)' : 'var(--muted)', fontWeight: pw && score > 0 ? 500 : 400 }} aria-live="polite">
-                  {pw ? `Password strength: ${LABELS[score] === LABELS[0] ? 'Weak' : LABELS[score]}` : LABELS[0]}
+                  {pw ? `${t('passwordStrength')}: ${[t('passwordHint'), t('weak'), t('fair'), t('good'), t('strong')][score] === t('passwordHint') ? t('weak') : [t('passwordHint'), t('weak'), t('fair'), t('good'), t('strong')][score]}` : t('passwordHint')}
                 </span>
               </PasswordField>
-              <PasswordField label="Confirm password" autoComplete="new-password" value={confirmPassword} inputRef={refs.confirmPassword} onChange={(v) => { setConfirmPassword(v); clear('confirmPassword'); }} error={errors.confirmPassword} />
+              <PasswordField label={t('confirmPassword')} autoComplete="new-password" value={confirmPassword} inputRef={refs.confirmPassword} onChange={(v) => { setConfirmPassword(v); clear('confirmPassword'); }} error={errors.confirmPassword} />
               <button type="submit" className={`btn btn-primary btn-lg btn-block ${loading ? 'loading' : ''}`} disabled={loading}>
                 {loading && <span className="spinner" aria-hidden="true" />}
-                {loading ? 'Creating account…' : 'Create account'}
+                {loading ? t('creatingAccount') : t('createAccount')}
               </button>
             </form>
             <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
-              Already have an account? <Link to="/login" style={{ fontWeight: 600, textDecoration: 'none' }}>Log in</Link>
+              {t('alreadyAccount')} <Link to="/login" style={{ fontWeight: 600, textDecoration: 'none' }}>{t('login')}</Link>
             </p>
           </div>
         </div>
@@ -74,10 +75,10 @@ export function SignUpPage() {
       </main>
       <aside className="auth-aside" aria-hidden="true">
         <div className="inner" style={{ gap: 22, maxWidth: 440 }}>
-          <p className="quote">Everything you need to finish on time.</p>
-          <Feature icon="calendar" title="Deadline Manager" body="Priorities, a calendar and warnings before anything slips." />
-          <Feature icon="focus" title="Focus Mode" body="Work through 10–15 minute tasks with a timer that keeps your place." />
-          <Feature icon="chart" title="Progress Tracker" body="See focus time and deadline risk, and replan unfinished work automatically." />
+          <p className="quote">{t('finishOnTime')}</p>
+          <Feature icon="calendar" title={t('deadlineManager')} body={t('deadlineBody')} />
+          <Feature icon="focus" title={t('focusMode')} body={t('focusBody')} />
+          <Feature icon="chart" title={t('progressTracker')} body={t('progressBody')} />
         </div>
       </aside>
     </div>

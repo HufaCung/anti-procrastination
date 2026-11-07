@@ -6,15 +6,18 @@ import './styles/app.css';
 import App from './App';
 import { AppProvider } from './store/AppStore';
 import { ToastProvider } from './store/toast';
+import { LanguageProvider } from './i18n/LanguageContext';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <ToastProvider>
-        <AppProvider>
-          <App />
-        </AppProvider>
-      </ToastProvider>
+      <LanguageProvider>
+        <ToastProvider>
+          <AppProvider>
+            <App />
+          </AppProvider>
+        </ToastProvider>
+      </LanguageProvider>
     </BrowserRouter>
   </StrictMode>,
 );

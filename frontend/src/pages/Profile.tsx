@@ -9,8 +9,10 @@ import { useToast } from '../store/toast';
 import { changePassword, updateProfile } from '../data/auth';
 import { daysBetween, fmt, fmtMinutes } from '../logic/dates';
 import type { Settings } from '../data/types';
+import { LanguageToggle, useLanguage } from '../i18n/LanguageContext';
 
 export function ProfilePage() {
+  const { t } = useLanguage();
   useDocumentTitle('Profile & settings');
   const s = useStore();
   const toast = useToast();
@@ -148,6 +150,10 @@ export function ProfilePage() {
       <section aria-labelledby="fp-h" className="card clip">
         <div className="card-head" style={{ padding: '14px 20px' }}><h2 id="fp-h" className="section-title">Focus &amp; planning</h2></div>
         <div className="col">
+          <div className="set-row">
+            <div className="col" style={{ gap: 2 }}><span className="k">{t('appLanguage')}</span><span className="h">{t('appLanguageHint')}</span></div>
+            <LanguageToggle />
+          </div>
           <div className="set-row">
             <div className="col" style={{ gap: 2 }}><span className="k">Appearance</span><span className="h">Applies to every screen, including Focus Mode.</span></div>
             <Segmented label="Appearance" value={s.theme} onChange={(t) => s.setTheme(t)} options={[{ value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }]} />
