@@ -27,6 +27,8 @@ const legacyVi: Record<string, string> = {
   'Apply replan': 'Áp dụng lịch mới', 'Undo replan': 'Hoàn tác lịch mới', 'Unscheduled': 'Chưa xếp lịch',
   'No free slot today': 'Hôm nay không còn khung giờ trống', 'No slot before deadline': 'Không còn khung giờ trước hạn chót',
   'Dashboard': 'Tổng quan', 'Plan tasks': 'Lên lịch công việc', 'New project': 'Dự án mới',
+  'Start with one project': 'Bắt đầu với một dự án',
+  'Add something with a deadline, split it into 10–15 minute tasks, and Plan my day places them in your week.': 'Thêm một dự án có hạn chót, chia thành các công việc 10–15 phút và dùng Lên lịch công việc để sắp xếp chúng trong tuần.',
   'Due this week': 'Đến hạn tuần này', 'Overdue': 'Quá hạn', 'Focus today': 'Tập trung hôm nay',
   'Today’s plan': 'Kế hoạch hôm nay', 'Today · 10–15 min tasks': 'Hôm nay · công việc 10–15 phút',
   'Start focus →': 'Bắt đầu tập trung →', 'Upcoming deadlines': 'Hạn chót sắp tới', 'Calendar →': 'Xem lịch →',
@@ -34,8 +36,21 @@ const legacyVi: Record<string, string> = {
   'No unfinished tasks from earlier days, and every project’s pace covers its deadline.': 'Không còn việc chưa xong từ những ngày trước và tiến độ của các dự án đều đáp ứng hạn chót.',
   'Review': 'Xem lại', 'Snooze': 'Nhắc lại sau', 'Replan to today': 'Xếp lại vào hôm nay',
   'Projects': 'Dự án', 'Active projects': 'Dự án đang thực hiện', 'Completed projects': 'Dự án đã hoàn thành',
+  'No projects': 'Chưa có dự án',
+  'Create a project with a deadline, then add the 10–15 minute tasks it takes to finish.': 'Tạo một dự án có hạn chót, sau đó thêm các công việc 10–15 phút cần thiết để hoàn thành.',
   'Calendar': 'Lịch', 'Today': 'Hôm nay', 'Tomorrow': 'Ngày mai', 'Yesterday': 'Hôm qua',
+  'Scheduled tasks': 'Công việc đã xếp lịch', 'Nothing scheduled. A good day to get ahead.': 'Chưa có lịch làm việc. Đây là lúc phù hợp để chuẩn bị trước.',
+  'Pull tasks from at-risk projects': 'Lấy việc từ các dự án có nguy cơ trễ', 'Next deadlines': 'Hạn chót tiếp theo',
+  'No upcoming deadlines.': 'Không có hạn chót sắp tới.',
   'Focus Mode': 'Chế độ tập trung', 'Start': 'Bắt đầu', 'Pause': 'Tạm dừng', 'Resume': 'Tiếp tục',
+  'No task selected': 'Chưa chọn công việc', 'Pick a task from the queue, or just focus': 'Chọn một công việc trong hàng đợi hoặc bắt đầu tập trung',
+  'Exit': 'Thoát', 'Up next': 'Tiếp theo', 'Nothing scheduled today': 'Hôm nay chưa có công việc được xếp lịch',
+  'Plan your day on the dashboard, or start a free session.': 'Lên kế hoạch trong trang Tổng quan hoặc bắt đầu một phiên tự do.',
+  'Go to dashboard': 'Về trang Tổng quan', 'Parking lot': 'Ghi chú tạm',
+  'Jot a distraction, deal with it later': 'Ghi lại điều gây xao nhãng để xử lý sau',
+  'Free session · no task selected': 'Phiên tự do · chưa chọn công việc',
+  'Choose a session length before starting. This session won’t be linked to a task.': 'Chọn thời lượng trước khi bắt đầu. Phiên này sẽ không được liên kết với công việc nào.',
+  'Log session': 'Lưu phiên tập trung',
   'Complete task': 'Hoàn thành công việc', 'Skip': 'Bỏ qua', 'Reset': 'Đặt lại',
   'Profile & settings': 'Hồ sơ & cài đặt', 'Account': 'Tài khoản', 'Preferences': 'Tùy chọn',
   'Save changes': 'Lưu thay đổi', 'Cancel': 'Hủy', 'Delete': 'Xóa', 'Edit': 'Chỉnh sửa',
@@ -48,6 +63,7 @@ const legacyVi: Record<string, string> = {
 };
 
 const viTokens: Record<string, string> = {
+  Today: 'Hôm nay', Tomorrow: 'Ngày mai', Yesterday: 'Hôm qua',
   Sunday: 'Chủ nhật', Monday: 'Thứ hai', Tuesday: 'Thứ ba', Wednesday: 'Thứ tư', Thursday: 'Thứ năm', Friday: 'Thứ sáu', Saturday: 'Thứ bảy',
   Sun: 'CN', Mon: 'Th 2', Tue: 'Th 3', Wed: 'Th 4', Thu: 'Th 5', Fri: 'Th 6', Sat: 'Th 7',
   January: 'Tháng 1', February: 'Tháng 2', March: 'Tháng 3', April: 'Tháng 4', May: 'Tháng 5', June: 'Tháng 6',
@@ -62,8 +78,17 @@ function translateLegacyText(input: string): string {
   if (!text) return input;
   text = legacyVi[text] ?? text;
   text = text
+    .replace(/Good morning, (.+)/g, 'Chào buổi sáng, $1')
+    .replace(/Good afternoon, (.+)/g, 'Chào buổi chiều, $1')
+    .replace(/Good evening, (.+)/g, 'Chào buổi tối, $1')
+    .replace(/(.+)[’']s workspace/g, 'Không gian làm việc của $1')
+    .replace(/(\d+) active · (\d+) completed/g, '$1 đang thực hiện · $2 đã hoàn thành')
     .replace(/Goal (\d+h(?: \d+m)?) · dashed line/g, 'Mục tiêu $1 · đường nét đứt')
     .replace(/(\d+) sessions? · target 10–15 min/g, '$1 phiên · mục tiêu 10–15 phút')
+    .replace(/(\d+) min left/g, 'Còn $1 phút')
+    .replace(/\+(\d+) min/g, '+$1 phút')
+    .replace(/(\d+) min\b/g, '$1 phút')
+    .replace(/(\d+)m\b/g, '$1 phút')
     .replace(/(\d+)-day streak/g, 'Chuỗi $1 ngày')
     .replace(/(\d+) tasks? done/g, '$1 công việc đã xong')
     .replace(/(\d+) tasks?/g, '$1 công việc')
@@ -71,6 +96,10 @@ function translateLegacyText(input: string): string {
     .replace(/In (\d+) days/g, 'Còn $1 ngày')
     .replace(/(\d+) days ago/g, '$1 ngày trước');
   for (const [from, to] of Object.entries(viTokens)) text = text.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+  text = text
+    .replace(/(Chủ nhật|Thứ (?:hai|ba|tư|năm|sáu|bảy)), Tháng (\d+) (\d+)/g, '$1, ngày $3 tháng $2')
+    .replace(/(Chủ nhật|Thứ (?:hai|ba|tư|năm|sáu|bảy)), Thg (\d+) (\d+)/g, '$1, ngày $3 tháng $2')
+    .replace(/(CN|Th \d), Thg (\d+) (\d+)/g, '$1, ngày $3 tháng $2');
   return leading + text + trailing;
 }
 
