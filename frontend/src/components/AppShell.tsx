@@ -50,10 +50,10 @@ export function AppShell() {
 }
 
 /** Main content wrapper with page enter animation keyed by route. */
-export function Page({ children, narrow, label }: { children: ReactNode; narrow?: boolean; label?: string }) {
+export function Page({ children, narrow, label, className = '' }: { children: ReactNode; narrow?: boolean; label?: string; className?: string }) {
   const loc = useLocation();
   return (
-    <main id="main" tabIndex={-1} aria-label={label} key={loc.pathname} className={`shell-main page-enter ${narrow ? 'narrow' : ''}`}>
+    <main id="main" tabIndex={-1} aria-label={label} key={loc.pathname} className={`shell-main page-enter ${narrow ? 'narrow' : ''} ${className}`.trim()}>
       {children}
     </main>
   );

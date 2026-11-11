@@ -69,7 +69,7 @@ export function DashboardPage() {
   const isEmpty = data.projects.length === 0;
 
   return (
-    <Page label="Dashboard">
+    <Page label="Dashboard" className="dashboard-page">
       <header className="page-head">
         <div className="col" style={{ gap: 4 }}>
           <span className="meta">{fmt.longDate(now)}</span>
