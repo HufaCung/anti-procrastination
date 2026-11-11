@@ -4,6 +4,78 @@ export type Language = 'en' | 'vi';
 
 const LANGUAGE_KEY = 'tinydo:language';
 
+// Legacy screens predate the language provider and still contain English copy.
+// Keep their visible UI localized while they are progressively migrated to t().
+const legacyVi: Record<string, string> = {
+  'Progress': 'Tiến độ', 'Last 7 days': '7 ngày qua', 'Last 30 days': '30 ngày qua',
+  'Tasks completed': 'Công việc đã hoàn thành', 'Focus time': 'Thời gian tập trung',
+  'Avg. session': 'Phiên trung bình', 'On-time rate': 'Tỷ lệ đúng hạn',
+  'None last week either': 'Tuần trước cũng chưa có', 'Same as last week': 'Không đổi so với tuần trước',
+  'No deadlines in this range': 'Không có hạn chót trong khoảng này',
+  'Focus time per day': 'Thời gian tập trung mỗi ngày', 'Daily activity · 12 weeks': 'Hoạt động hằng ngày · 12 tuần',
+  'No streak yet': 'Chưa có chuỗi ngày', 'Less': 'Ít', 'More': 'Nhiều',
+  'Project progress & deadline risk': 'Tiến độ dự án & nguy cơ trễ hạn',
+  'Progress counts completed tasks, regardless of their size. Forecasts use remaining estimates and a 7-day average of logged focus time; without history, your daily goal is shared across active projects. Forecasts are estimates, not guarantees.': 'Tiến độ được tính theo số công việc đã hoàn thành, không phụ thuộc vào độ lớn. Dự báo sử dụng thời gian ước tính còn lại và mức tập trung trung bình trong 7 ngày; khi chưa có lịch sử, mục tiêu hằng ngày được chia cho các dự án đang hoạt động. Dự báo chỉ mang tính tham khảo.',
+  'Project': 'Dự án', 'Tasks': 'Công việc', 'Focus': 'Tập trung', 'Deadline': 'Hạn chót',
+  'Projected': 'Dự kiến', 'Risk': 'Rủi ro',
+  'No projects yet': 'Chưa có dự án', 'Progress and risk show up here once you add a project.': 'Tiến độ và rủi ro sẽ xuất hiện sau khi bạn thêm dự án.',
+  'Replan unfinished tasks': 'Lên lịch lại công việc chưa xong',
+  'Nothing slipped. Unfinished tasks from earlier days show up here.': 'Không có công việc bị trễ. Việc chưa xong từ những ngày trước sẽ xuất hiện tại đây.',
+  'Auto-replan after 22:00 or when you return': 'Tự động lên lịch lại sau 22:00 hoặc khi bạn quay lại',
+  'You’re all caught up': 'Bạn đã hoàn thành mọi việc',
+  'When a scheduled task slips past its day, you’ll be able to move it here in one click.': 'Khi một công việc bị trễ ngày, bạn có thể chuyển lịch tại đây chỉ với một lần bấm.',
+  'Apply replan': 'Áp dụng lịch mới', 'Undo replan': 'Hoàn tác lịch mới', 'Unscheduled': 'Chưa xếp lịch',
+  'No free slot today': 'Hôm nay không còn khung giờ trống', 'No slot before deadline': 'Không còn khung giờ trước hạn chót',
+  'Dashboard': 'Tổng quan', 'Plan tasks': 'Lên lịch công việc', 'New project': 'Dự án mới',
+  'Due this week': 'Đến hạn tuần này', 'Overdue': 'Quá hạn', 'Focus today': 'Tập trung hôm nay',
+  'Today’s plan': 'Kế hoạch hôm nay', 'Today · 10–15 min tasks': 'Hôm nay · công việc 10–15 phút',
+  'Start focus →': 'Bắt đầu tập trung →', 'Upcoming deadlines': 'Hạn chót sắp tới', 'Calendar →': 'Xem lịch →',
+  'Focus this week': 'Tập trung tuần này', 'Auto-replan': 'Tự động xếp lại', 'You’re caught up': 'Bạn đã theo kịp kế hoạch',
+  'No unfinished tasks from earlier days, and every project’s pace covers its deadline.': 'Không còn việc chưa xong từ những ngày trước và tiến độ của các dự án đều đáp ứng hạn chót.',
+  'Review': 'Xem lại', 'Snooze': 'Nhắc lại sau', 'Replan to today': 'Xếp lại vào hôm nay',
+  'Projects': 'Dự án', 'Active projects': 'Dự án đang thực hiện', 'Completed projects': 'Dự án đã hoàn thành',
+  'Calendar': 'Lịch', 'Today': 'Hôm nay', 'Tomorrow': 'Ngày mai', 'Yesterday': 'Hôm qua',
+  'Focus Mode': 'Chế độ tập trung', 'Start': 'Bắt đầu', 'Pause': 'Tạm dừng', 'Resume': 'Tiếp tục',
+  'Complete task': 'Hoàn thành công việc', 'Skip': 'Bỏ qua', 'Reset': 'Đặt lại',
+  'Profile & settings': 'Hồ sơ & cài đặt', 'Account': 'Tài khoản', 'Preferences': 'Tùy chọn',
+  'Save changes': 'Lưu thay đổi', 'Cancel': 'Hủy', 'Delete': 'Xóa', 'Edit': 'Chỉnh sửa',
+  'Create project': 'Tạo dự án', 'Add task': 'Thêm công việc', 'Task name': 'Tên công việc',
+  'Priority': 'Mức ưu tiên', 'High': 'Cao', 'Medium': 'Trung bình', 'Low': 'Thấp',
+  'Status': 'Trạng thái', 'To do': 'Cần làm', 'In progress': 'Đang thực hiện', 'Done': 'Hoàn thành',
+  'Description': 'Mô tả', 'Due date': 'Hạn chót', 'Estimate': 'Ước tính',
+  'Admin users': 'Quản lý người dùng', 'Users': 'Người dùng', 'Role': 'Vai trò',
+  'Light': 'Sáng', 'Dark': 'Tối', 'Theme': 'Giao diện', 'Language': 'Ngôn ngữ',
+};
+
+const viTokens: Record<string, string> = {
+  Sunday: 'Chủ nhật', Monday: 'Thứ hai', Tuesday: 'Thứ ba', Wednesday: 'Thứ tư', Thursday: 'Thứ năm', Friday: 'Thứ sáu', Saturday: 'Thứ bảy',
+  Sun: 'CN', Mon: 'Th 2', Tue: 'Th 3', Wed: 'Th 4', Thu: 'Th 5', Fri: 'Th 6', Sat: 'Th 7',
+  January: 'Tháng 1', February: 'Tháng 2', March: 'Tháng 3', April: 'Tháng 4', May: 'Tháng 5', June: 'Tháng 6',
+  July: 'Tháng 7', August: 'Tháng 8', September: 'Tháng 9', October: 'Tháng 10', November: 'Tháng 11', December: 'Tháng 12',
+  Jan: 'Thg 1', Feb: 'Thg 2', Mar: 'Thg 3', Apr: 'Thg 4', Jun: 'Thg 6', Jul: 'Thg 7', Aug: 'Thg 8', Sep: 'Thg 9', Oct: 'Thg 10', Nov: 'Thg 11', Dec: 'Thg 12',
+};
+
+function translateLegacyText(input: string): string {
+  const leading = input.match(/^\s*/)?.[0] ?? '';
+  const trailing = input.match(/\s*$/)?.[0] ?? '';
+  let text = input.trim();
+  if (!text) return input;
+  text = legacyVi[text] ?? text;
+  text = text
+    .replace(/Goal (\d+h(?: \d+m)?) · dashed line/g, 'Mục tiêu $1 · đường nét đứt')
+    .replace(/(\d+) sessions? · target 10–15 min/g, '$1 phiên · mục tiêu 10–15 phút')
+    .replace(/(\d+)-day streak/g, 'Chuỗi $1 ngày')
+    .replace(/(\d+) tasks? done/g, '$1 công việc đã xong')
+    .replace(/(\d+) tasks?/g, '$1 công việc')
+    .replace(/(\d+) sessions?/g, '$1 phiên')
+    .replace(/In (\d+) days/g, 'Còn $1 ngày')
+    .replace(/(\d+) days ago/g, '$1 ngày trước');
+  for (const [from, to] of Object.entries(viTokens)) text = text.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+  return leading + text + trailing;
+}
+
+const legacyOriginalText = new WeakMap<Text, string>();
+
 const messages = {
   en: {
     language: 'Language', english: 'English', vietnamese: 'Tiếng Việt',
@@ -61,7 +133,60 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     setLanguageState(next);
     try { localStorage.setItem(LANGUAGE_KEY, next); } catch { /* storage unavailable */ }
   };
-  useEffect(() => { document.documentElement.lang = language; }, [language]);
+  useEffect(() => {
+    document.documentElement.lang = language;
+    const attributeNames = ['placeholder', 'title', 'aria-label'] as const;
+
+    const localize = (root: Node) => {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      const nodes: Text[] = [];
+      if (root.nodeType === Node.TEXT_NODE) nodes.push(root as Text);
+      while (walker.nextNode()) nodes.push(walker.currentNode as Text);
+      for (const node of nodes) {
+        const parent = node.parentElement;
+        if (!parent || parent.closest('script, style')) continue;
+        if (language === 'vi') {
+          const translated = translateLegacyText(node.data);
+          if (translated !== node.data) {
+            if (!legacyOriginalText.has(node)) legacyOriginalText.set(node, node.data);
+            node.data = translated;
+          }
+        } else {
+          const original = legacyOriginalText.get(node);
+          if (original != null) node.data = original;
+        }
+      }
+      const elements = root.nodeType === Node.ELEMENT_NODE
+        ? [root as Element, ...(root as Element).querySelectorAll('*')]
+        : [];
+      for (const el of elements) {
+        for (const attr of attributeNames) {
+          const value = el.getAttribute(attr);
+          const backup = `data-i18n-${attr.replace('aria-', '')}`;
+          if (language === 'vi' && value) {
+            const translated = translateLegacyText(value);
+            if (translated !== value) {
+              if (!el.hasAttribute(backup)) el.setAttribute(backup, value);
+              el.setAttribute(attr, translated);
+            }
+          } else if (language === 'en' && el.hasAttribute(backup)) {
+            el.setAttribute(attr, el.getAttribute(backup)!);
+            el.removeAttribute(backup);
+          }
+        }
+      }
+    };
+
+    localize(document.documentElement);
+    const observer = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        if (mutation.type === 'characterData') localize(mutation.target);
+        for (const node of mutation.addedNodes) localize(node);
+      }
+    });
+    observer.observe(document.documentElement, { subtree: true, childList: true, characterData: true });
+    return () => observer.disconnect();
+  }, [language]);
   const value = useMemo<LanguageValue>(() => ({ language, setLanguage, t: (key) => messages[language][key] }), [language]);
   return <LanguageCtx.Provider value={value}>{children}</LanguageCtx.Provider>;
 }
