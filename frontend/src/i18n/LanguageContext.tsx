@@ -53,8 +53,27 @@ const legacyVi: Record<string, string> = {
   'Log session': 'Lưu phiên tập trung',
   'Complete task': 'Hoàn thành công việc', 'Skip': 'Bỏ qua', 'Reset': 'Đặt lại',
   'Profile & settings': 'Hồ sơ & cài đặt', 'Account': 'Tài khoản', 'Preferences': 'Tùy chọn',
+  'Manage your account, focus preferences and notifications.': 'Quản lý tài khoản, tùy chọn tập trung và thông báo.',
+  'Profile': 'Hồ sơ', 'Upload photo': 'Tải ảnh lên', 'Remove': 'Xóa ảnh', 'PNG or JPG, up to 2 MB.': 'Ảnh PNG hoặc JPG, tối đa 2 MB.',
+  'Display name': 'Tên hiển thị', 'Username': 'Tên đăng nhập', 'Username cannot be changed.': 'Không thể thay đổi tên đăng nhập.',
+  'Week starts on': 'Tuần bắt đầu vào', 'Monday': 'Thứ hai', 'Sunday': 'Chủ nhật', 'Saved': 'Đã lưu',
+  'Focus & planning': 'Tập trung & lập kế hoạch', 'Appearance': 'Giao diện',
+  'Applies to every screen, including Focus Mode.': 'Áp dụng cho mọi màn hình, bao gồm Chế độ tập trung.',
+  'Daily focus goal': 'Mục tiêu tập trung hằng ngày', 'Used for deadline risk and replanning.': 'Dùng để tính nguy cơ trễ hạn và xếp lại lịch.',
+  'Default task size': 'Thời lượng công việc mặc định', 'Pre-selected estimate when you add a task.': 'Thời lượng được chọn sẵn khi thêm công việc.',
+  'Auto-replan unfinished tasks': 'Tự động xếp lại việc chưa xong',
+  'Move leftovers after 22:00 while the app is open, or when you return. Uses this device’s local time.': 'Chuyển việc còn lại sau 22:00 khi ứng dụng đang mở hoặc khi bạn quay lại. Sử dụng giờ địa phương của thiết bị.',
+  'Deadline alerts': 'Cảnh báo hạn chót', 'Warn 3 days, 1 day and 2 hours before a deadline.': 'Cảnh báo trước hạn chót 3 ngày, 1 ngày và 2 giờ.',
+  'Focus Mode end sound': 'Âm báo kết thúc tập trung', 'Play a soft chime when a session ends.': 'Phát âm báo nhẹ khi phiên tập trung kết thúc.',
+  'Password': 'Mật khẩu', 'Set when you signed up.': 'Được thiết lập khi đăng ký.', 'Change password': 'Đổi mật khẩu',
+  'Log out': 'Đăng xuất', 'Current password': 'Mật khẩu hiện tại', 'New password': 'Mật khẩu mới',
+  'Password reset is unavailable.': 'Hiện chưa hỗ trợ đặt lại mật khẩu.', 'Update password': 'Cập nhật mật khẩu',
   'Save changes': 'Lưu thay đổi', 'Cancel': 'Hủy', 'Delete': 'Xóa', 'Edit': 'Chỉnh sửa',
   'Create project': 'Tạo dự án', 'Add task': 'Thêm công việc', 'Task name': 'Tên công việc',
+  'Project name': 'Tên dự án', 'e.g. Final report for Data Structures': 'Ví dụ: Báo cáo cuối kỳ môn Cấu trúc dữ liệu',
+  'Color': 'Màu sắc', 'Project color': 'Màu dự án', 'Notes': 'Ghi chú', '(optional)': '(không bắt buộc)',
+  'Scope, links, anything worth remembering': 'Phạm vi, liên kết hoặc thông tin cần ghi nhớ',
+  'Edit project': 'Chỉnh sửa dự án', 'Delete project': 'Xóa dự án', 'Delete this project?': 'Xóa dự án này?',
   'Priority': 'Mức ưu tiên', 'High': 'Cao', 'Medium': 'Trung bình', 'Low': 'Thấp',
   'Status': 'Trạng thái', 'To do': 'Cần làm', 'In progress': 'Đang thực hiện', 'Done': 'Hoàn thành',
   'Description': 'Mô tả', 'Due date': 'Hạn chót', 'Estimate': 'Ước tính',
@@ -83,6 +102,8 @@ function translateLegacyText(input: string): string {
     .replace(/Good evening, (.+)/g, 'Chào buổi tối, $1')
     .replace(/(.+)[’']s workspace/g, 'Không gian làm việc của $1')
     .replace(/(\d+) active · (\d+) completed/g, '$1 đang thực hiện · $2 đã hoàn thành')
+    .replace(/Member since (.+)/g, 'Thành viên từ $1')
+    .replace(/(\d+h(?: \d+m)?) \/ day/g, '$1 / ngày')
     .replace(/Goal (\d+h(?: \d+m)?) · dashed line/g, 'Mục tiêu $1 · đường nét đứt')
     .replace(/(\d+) sessions? · target 10–15 min/g, '$1 phiên · mục tiêu 10–15 phút')
     .replace(/(\d+) min left/g, 'Còn $1 phút')

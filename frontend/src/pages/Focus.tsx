@@ -6,10 +6,12 @@ import { useNow, useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
 import * as T from '../logic/timer';
 import { fmtMinutesPadded } from '../logic/dates';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const CIRC = 2 * Math.PI * 130; // 816.8
 
 export function FocusPage() {
+  const { language } = useLanguage();
   const s = useStore();
   const toast = useToast();
   const navigate = useNavigate();
@@ -134,7 +136,7 @@ export function FocusPage() {
           <div role="radiogroup" aria-label="Session length" className="seg tall" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 6 }}>
             {T.PRESETS_MIN.map((p) => (
               <button key={p} type="button" role="radio" aria-checked={lengthMin === p} disabled={!pristine} onClick={() => s.timerSetLength(p)}>
-                {p} min
+                {p} {language === 'vi' ? 'phút' : 'min'}
               </button>
             ))}
           </div>
