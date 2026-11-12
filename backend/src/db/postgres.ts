@@ -50,18 +50,29 @@ async function write<T>(userId: string, fn: () => Promise<T>): Promise<T> {
   });
 }
 export async function initDb(): Promise<void> {
-  await transaction(async () => {
-    await query('SELECT pg_advisory_xact_lock(874321,1)');
-    await query('CREATE TABLE IF NOT EXISTS tinydo_schema_migrations(version TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
-    for (const version of ['001','002']) {
-      const migration = await readFile(new URL(`./migrations/${version}-${version === '001' ? 'initial' : 'teams'}.sql`, import.meta.url), 'utf8');
-      const checksum = crypto.createHash('sha256').update(migration).digest('hex');
-      const found = (await query('SELECT checksum FROM tinydo_schema_migrations WHERE version=$1', [version])).rows[0];
-      if (found) { if (found.checksum !== checksum) throw new Error('Database migration checksum mismatch'); continue; }
-      await query(migration);
-      await query('INSERT INTO tinydo_schema_migrations(version,checksum) VALUES($1,$2)', [version, checksum]);
-    }
-  });
+  const stage = async <T>(code: string, fn: () => Promise<T>): Promise<T> => {
+    try { return await fn(); }
+    catch (cause) { const error = new Error(code, { cause }); Object.assign(error, { code }); throw error; }
+  };
+  try {
+    await transaction(async () => {
+      await stage('APP_DB_LOCK', () => query('SELECT pg_advisory_xact_lock(874321,1)'));
+      await stage('APP_DB_MIGRATION_TABLE', () => query('CREATE TABLE IF NOT EXISTS tinydo_schema_migrations(version TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())'));
+      for (const version of ['001','002']) {
+        await stage(`APP_DB_MIGRATION_${version}`, async () => {
+          const migration = await readFile(new URL(`./migrations/${version}-${version === '001' ? 'initial' : 'teams'}.sql`, import.meta.url), 'utf8');
+          const checksum = crypto.createHash('sha256').update(migration).digest('hex');
+          const found = (await query('SELECT checksum FROM tinydo_schema_migrations WHERE version=$1', [version])).rows[0];
+          if (found) { if (found.checksum !== checksum) throw new Error('Database migration checksum mismatch'); return; }
+          await query(migration);
+          await query('INSERT INTO tinydo_schema_migrations(version,checksum) VALUES($1,$2)', [version, checksum]);
+        });
+      }
+    });
+  } catch (error) {
+    if (error && typeof error === 'object' && 'code' in error && typeof error.code === 'string' && error.code.startsWith('APP_DB_')) throw error;
+    const wrapped = new Error('APP_DB_CONNECT', { cause: error }); Object.assign(wrapped, { code: 'APP_DB_CONNECT' }); throw wrapped;
+  }
 }
 const optional = (value: unknown): string | undefined => value == null || value === '' ? undefined : String(value);
 const json = <T>(value: unknown, fallback: T): T => value == null ? fallback : typeof value === 'string' ? JSON.parse(value) as T : value as T;

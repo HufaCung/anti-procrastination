@@ -23,6 +23,11 @@ const hints: Record<string, string> = {
   CERT_HAS_EXPIRED: 'TLS certificate has expired. Check the certificate and database endpoint.',
   ERR_INVALID_URL: 'DATABASE_URL is not a valid URL. Percent-encode reserved characters in the password.',
   ENOENT: 'A database or migration file is missing. Check the build and local database directory.',
+  APP_DB_CONNECT: 'Database connection or transaction setup failed.',
+  APP_DB_LOCK: 'Database migration lock failed.',
+  APP_DB_MIGRATION_TABLE: 'Database migration tracking table failed.',
+  APP_DB_MIGRATION_001: 'Database migration 001 failed.',
+  APP_DB_MIGRATION_002: 'Database migration 002 failed.',
 };
 
 export function databaseStartupDiagnostic(error: unknown, depth = 0): string {
