@@ -130,7 +130,7 @@ const messages = {
   en: {
     language: 'Language', english: 'English', vietnamese: 'Tiếng Việt',
     main: 'Main', more: 'More', less: 'Less', newTask: 'New task',
-    dashboard: 'Dashboard', projects: 'Projects', calendar: 'Calendar', focusMode: 'Focus Mode', progress: 'Progress', adminUsers: 'Admin users',
+    dashboard: 'Dashboard', projects: 'Projects', calendar: 'Calendar', focusMode: 'Focus Mode', progress: 'Progress', teams: 'Teams', adminUsers: 'Admin users',
     search: 'Search', searchAria: 'Search tasks and projects', searchResults: 'Search results', noMatches: 'No matches for',
     allSynced: 'All changes synced', syncing: 'Syncing...', retrying: 'Connection interrupted. Retrying sync...',
     syncConflict: 'Sync paused: server has newer data. Local changes kept.', syncError: 'Sync paused. Local changes kept.', loadingData: 'Loading server data...', retrySync: 'Retry sync',
@@ -148,7 +148,7 @@ const messages = {
   vi: {
     language: 'Ngôn ngữ', english: 'English', vietnamese: 'Tiếng Việt',
     main: 'Chính', more: 'Thêm', less: 'Thu gọn', newTask: 'Thêm công việc',
-    dashboard: 'Tổng quan', projects: 'Dự án', calendar: 'Lịch', focusMode: 'Tập trung', progress: 'Tiến độ', adminUsers: 'Quản lý người dùng',
+    dashboard: 'Tổng quan', projects: 'Dự án', calendar: 'Lịch', focusMode: 'Tập trung', progress: 'Tiến độ', teams: 'Nhóm', adminUsers: 'Quản lý người dùng',
     search: 'Tìm kiếm', searchAria: 'Tìm công việc và dự án', searchResults: 'Kết quả tìm kiếm', noMatches: 'Không tìm thấy kết quả cho',
     allSynced: 'Đã đồng bộ mọi thay đổi', syncing: 'Đang đồng bộ...', retrying: 'Mất kết nối. Đang thử đồng bộ lại...',
     syncConflict: 'Tạm dừng đồng bộ: máy chủ có dữ liệu mới hơn. Dữ liệu cục bộ vẫn được giữ.', syncError: 'Tạm dừng đồng bộ. Dữ liệu cục bộ vẫn được giữ.', loadingData: 'Đang tải dữ liệu...', retrySync: 'Thử đồng bộ lại',

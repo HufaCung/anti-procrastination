@@ -2,7 +2,7 @@ import pg from 'pg';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { readFile } from 'node:fs/promises';
 import crypto from 'node:crypto';
-import type { AppData, FocusSession, Meta, Project, Settings, Task, User } from '../types.js';
+import type { AppData, FocusSession, Meta, Project, Settings, Task, Team, User } from '../types.js';
 import { defaultMeta, defaultSettings } from './defaults.js';
 import { DataValidationError } from './errors.js';
 
@@ -46,15 +46,17 @@ async function write<T>(userId: string, fn: () => Promise<T>): Promise<T> {
   });
 }
 export async function initDb(): Promise<void> {
-  const migration = await readFile(new URL('./migrations/001-initial.sql', import.meta.url), 'utf8');
-  const checksum = crypto.createHash('sha256').update(migration).digest('hex');
   await transaction(async () => {
     await query('SELECT pg_advisory_xact_lock(874321,1)');
     await query('CREATE TABLE IF NOT EXISTS tinydo_schema_migrations(version TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())');
-    const found = (await query('SELECT checksum FROM tinydo_schema_migrations WHERE version=$1', ['001'])).rows[0];
-    if (found) { if (found.checksum !== checksum) throw new Error('Database migration checksum mismatch'); return; }
-    await query(migration);
-    await query('INSERT INTO tinydo_schema_migrations(version,checksum) VALUES($1,$2)', ['001', checksum]);
+    for (const version of ['001','002']) {
+      const migration = await readFile(new URL(`./migrations/${version}-${version === '001' ? 'initial' : 'teams'}.sql`, import.meta.url), 'utf8');
+      const checksum = crypto.createHash('sha256').update(migration).digest('hex');
+      const found = (await query('SELECT checksum FROM tinydo_schema_migrations WHERE version=$1', [version])).rows[0];
+      if (found) { if (found.checksum !== checksum) throw new Error('Database migration checksum mismatch'); continue; }
+      await query(migration);
+      await query('INSERT INTO tinydo_schema_migrations(version,checksum) VALUES($1,$2)', [version, checksum]);
+    }
   });
 }
 const optional = (value: unknown): string | undefined => value == null || value === '' ? undefined : String(value);
@@ -82,6 +84,22 @@ export const usersDb = {
     const row = (await query('UPDATE users SET password_hash=$1,password_changed_at=$2,auth_version=auth_version+1 WHERE id=$3 AND password_hash=$4 RETURNING *', [hash, new Date().toISOString(), id, expected])).rows[0]; return row ? userFrom(row) : null;
   },
   async delete(id: string): Promise<boolean> { return !!(await query('DELETE FROM users WHERE id=$1', [id])).rowCount; },
+};
+
+export const teamsDb = {
+  async list(userId: string): Promise<Team[]> {
+    const teams = (await query('SELECT t.* FROM teams t JOIN team_members m ON m.team_id=t.id WHERE m.user_id=$1 ORDER BY t.created_at', [userId])).rows;
+    return Promise.all(teams.map(async row => ({
+      id: String(row.id), name: String(row.name), color: String(row.color), ownerId: String(row.owner_id), createdAt: String(row.created_at),
+      members: (await query('SELECT m.*,u.name,u.username FROM team_members m JOIN users u ON u.id=m.user_id WHERE m.team_id=$1 ORDER BY m.role DESC,m.joined_at', [row.id])).rows.map(m => ({ userId:String(m.user_id), name:String(m.name), username:String(m.username), role:m.role as 'owner'|'member', joinedAt:String(m.joined_at) })),
+      tasks: (await query('SELECT * FROM team_tasks WHERE team_id=$1 ORDER BY done,created_at DESC', [row.id])).rows.map(t => ({ id:String(t.id), teamId:String(t.team_id), title:String(t.title), done:Boolean(t.done), assigneeId:optional(t.assignee_id), createdBy:String(t.created_by), createdAt:String(t.created_at) }))
+    })));
+  },
+  async create(team: Team, userId: string) { await transaction(async () => { await query('INSERT INTO teams(id,name,color,owner_id,created_at) VALUES($1,$2,$3,$4,$5)', [team.id,team.name,team.color,userId,team.createdAt]); await query("INSERT INTO team_members(team_id,user_id,role,joined_at) VALUES($1,$2,'owner',$3)",[team.id,userId,team.createdAt]); }); },
+  async addMember(teamId: string, ownerId: string, username: string) { const team=(await query('SELECT id FROM teams WHERE id=$1 AND owner_id=$2',[teamId,ownerId])).rows[0]; if(!team) return 'forbidden'; const user=(await query('SELECT id FROM users WHERE lower(username)=lower($1)',[username.trim()])).rows[0]; if(!user) return 'missing'; await query("INSERT INTO team_members(team_id,user_id,role,joined_at) VALUES($1,$2,'member',$3) ON CONFLICT DO NOTHING",[teamId,user.id,new Date().toISOString()]); return 'ok'; },
+  async addTask(teamId:string,userId:string,task:{id:string;title:string;assigneeId?:string;createdAt:string}) { const member=(await query('SELECT 1 FROM team_members WHERE team_id=$1 AND user_id=$2',[teamId,userId])).rowCount; if(!member) return false; await query('INSERT INTO team_tasks(id,team_id,title,assignee_id,created_by,created_at) VALUES($1,$2,$3,$4,$5,$6)',[task.id,teamId,task.title,task.assigneeId??null,userId,task.createdAt]); return true; },
+  async toggleTask(teamId:string,taskId:string,userId:string,done:boolean) { return !!(await query('UPDATE team_tasks SET done=$1 WHERE id=$2 AND team_id=$3 AND EXISTS(SELECT 1 FROM team_members WHERE team_id=$3 AND user_id=$4)',[done,taskId,teamId,userId])).rowCount; },
+  async remove(teamId:string,userId:string) { return !!(await query('DELETE FROM teams WHERE id=$1 AND owner_id=$2',[teamId,userId])).rowCount; }
 };
 async function save(table: Table, fields: Row): Promise<void> {
   const columns = Object.keys(fields); const key = table === 'settings' || table === 'meta' ? 'user_id' : 'id';

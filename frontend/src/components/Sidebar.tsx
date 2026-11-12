@@ -75,6 +75,10 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
           <Icon name="chart" size={17} stroke={1.9} />
           <span style={{ flex: 1 }}>{t('progress')}</span>
         </NavLink>
+        <NavLink to="/teams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <Icon name="users" size={17} stroke={1.9} />
+          <span style={{ flex: 1 }}>{t('teams')}</span>
+        </NavLink>
       </div>
 
       <div id="side-more" className="col mobile-extra" style={{ gap: 2 }}>

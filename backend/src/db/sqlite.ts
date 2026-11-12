@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { defaultSettings, defaultMeta } from './defaults.js';
 export { defaultSettings, defaultMeta } from './defaults.js';
 import { DataValidationError } from './errors.js';
-import type { AppData, FocusSession, Meta, Project, Settings, Task, User } from '../types.js';
+import type { AppData, FocusSession, Meta, Project, Settings, Task, Team, User } from '../types.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -102,6 +102,9 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_sessions_user ON focus_sessions(user_id);
 
     CREATE TABLE IF NOT EXISTS data_revisions (user_id TEXT PRIMARY KEY, revision INTEGER NOT NULL DEFAULT 0);
+    CREATE TABLE IF NOT EXISTS teams (id TEXT PRIMARY KEY,name TEXT NOT NULL,color TEXT NOT NULL,owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS team_members (team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,role TEXT NOT NULL,joined_at TEXT NOT NULL,PRIMARY KEY(team_id,user_id));
+    CREATE TABLE IF NOT EXISTS team_tasks (id TEXT PRIMARY KEY,team_id TEXT NOT NULL REFERENCES teams(id) ON DELETE CASCADE,title TEXT NOT NULL,done INTEGER NOT NULL DEFAULT 0,assignee_id TEXT REFERENCES users(id) ON DELETE SET NULL,created_by TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,created_at TEXT NOT NULL);
   `);
   const userColumns = db.prepare('PRAGMA table_info(users)').all() as { name: string }[];
   if (!userColumns.some((column) => column.name === 'auth_version')) db.exec('ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0 CHECK (auth_version >= 0)');
@@ -141,6 +144,15 @@ export function initDb() {
 
 // Initialize tables immediately
 initDb();
+
+export const teamsDb = {
+  list(userId: string): Team[] { return (db.prepare('SELECT t.* FROM teams t JOIN team_members m ON m.team_id=t.id WHERE m.user_id=? ORDER BY t.created_at').all(userId) as any[]).map(row => ({ id:row.id,name:row.name,color:row.color,ownerId:row.owner_id,createdAt:row.created_at,members:(db.prepare('SELECT m.*,u.name,u.username FROM team_members m JOIN users u ON u.id=m.user_id WHERE m.team_id=? ORDER BY m.role DESC,m.joined_at').all(row.id) as any[]).map(m=>({userId:m.user_id,name:m.name,username:m.username,role:m.role,joinedAt:m.joined_at})),tasks:(db.prepare('SELECT * FROM team_tasks WHERE team_id=? ORDER BY done,created_at DESC').all(row.id) as any[]).map(t=>({id:t.id,teamId:t.team_id,title:t.title,done:!!t.done,assigneeId:t.assignee_id||undefined,createdBy:t.created_by,createdAt:t.created_at})) })); },
+  create(team:Team,userId:string) { db.transaction(()=>{db.prepare('INSERT INTO teams(id,name,color,owner_id,created_at) VALUES(?,?,?,?,?)').run(team.id,team.name,team.color,userId,team.createdAt);db.prepare("INSERT INTO team_members(team_id,user_id,role,joined_at) VALUES(?,?,'owner',?)").run(team.id,userId,team.createdAt);})(); },
+  addMember(teamId:string,ownerId:string,username:string) { if(!db.prepare('SELECT 1 FROM teams WHERE id=? AND owner_id=?').get(teamId,ownerId)) return 'forbidden'; const u=db.prepare('SELECT id FROM users WHERE lower(username)=lower(?)').get(username.trim()) as any; if(!u)return 'missing';db.prepare("INSERT OR IGNORE INTO team_members(team_id,user_id,role,joined_at) VALUES(?,?,'member',?)").run(teamId,u.id,new Date().toISOString());return 'ok'; },
+  addTask(teamId:string,userId:string,task:{id:string;title:string;assigneeId?:string;createdAt:string}) { if(!db.prepare('SELECT 1 FROM team_members WHERE team_id=? AND user_id=?').get(teamId,userId))return false;db.prepare('INSERT INTO team_tasks(id,team_id,title,assignee_id,created_by,created_at) VALUES(?,?,?,?,?,?)').run(task.id,teamId,task.title,task.assigneeId||null,userId,task.createdAt);return true; },
+  toggleTask(teamId:string,taskId:string,userId:string,done:boolean) { if(!db.prepare('SELECT 1 FROM team_members WHERE team_id=? AND user_id=?').get(teamId,userId))return false;return !!db.prepare('UPDATE team_tasks SET done=? WHERE id=? AND team_id=?').run(done?1:0,taskId,teamId).changes; },
+  remove(teamId:string,userId:string) { return !!db.prepare('DELETE FROM teams WHERE id=? AND owner_id=?').run(teamId,userId).changes; }
+};
 
 // ---------------- Users ----------------
 export const usersDb = {

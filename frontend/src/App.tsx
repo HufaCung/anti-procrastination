@@ -14,6 +14,7 @@ import { ProgressPage } from './pages/Progress';
 import { ProfilePage } from './pages/Profile';
 import { NotFoundPage } from './pages/NotFound';
 import { AdminPage } from './pages/Admin';
+import { TeamsPage } from './pages/Teams';
 import { useLanguage } from './i18n/LanguageContext';
 
 function RequireAuth() {
@@ -63,6 +64,7 @@ export default function App() {
           <Route path="/projects/:id" element={<ProjectPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/progress" element={<ProgressPage />} />
+          <Route path="/teams" element={<TeamsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<NotFoundPage />} />

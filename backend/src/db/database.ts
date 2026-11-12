@@ -24,6 +24,14 @@ export const usersDb = {
   changePassword: async (...args: Parameters<typeof SQLite.usersDb.changePassword>) => provider.usersDb.changePassword(...args),
   delete: async (...args: Parameters<typeof SQLite.usersDb.delete>) => provider.usersDb.delete(...args),
 };
+export const teamsDb = {
+  list: async (...args: Parameters<typeof SQLite.teamsDb.list>) => provider.teamsDb.list(...args),
+  create: async (...args: Parameters<typeof SQLite.teamsDb.create>) => provider.teamsDb.create(...args),
+  addMember: async (...args: Parameters<typeof SQLite.teamsDb.addMember>) => provider.teamsDb.addMember(...args),
+  addTask: async (...args: Parameters<typeof SQLite.teamsDb.addTask>) => provider.teamsDb.addTask(...args),
+  toggleTask: async (...args: Parameters<typeof SQLite.teamsDb.toggleTask>) => provider.teamsDb.toggleTask(...args),
+  remove: async (...args: Parameters<typeof SQLite.teamsDb.remove>) => provider.teamsDb.remove(...args),
+};
 
 export const projectsDb = {
   getByUser: async (...args: Parameters<typeof SQLite.projectsDb.getByUser>) => provider.projectsDb.getByUser(...args),

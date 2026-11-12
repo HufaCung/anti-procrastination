@@ -1,4 +1,4 @@
-import type { AppData, FocusSession, Project, Settings, Task, User } from './types';
+import type { AppData, FocusSession, Project, Settings, Task, Team, User } from './types';
 
 export type SyncResult = { kind: 'success'; revision: number } | { kind: 'conflict' } | { kind: 'retryable' } | { kind: 'rejected'; status: number };
 
@@ -171,4 +171,10 @@ export const api = {
       body: JSON.stringify(settings),
     });
   },
+  async getTeams() { return request<{ teams: Team[] }>('/api/teams'); },
+  async createTeam(name: string) { return request<{ team: Team }>('/api/teams', { method: 'POST', body: JSON.stringify({ name }) }); },
+  async addTeamMember(teamId: string, username: string) { return request<{ success: boolean }>(`/api/teams/${teamId}/members`, { method: 'POST', body: JSON.stringify({ username }) }); },
+  async addTeamTask(teamId: string, title: string, assigneeId?: string) { return request<{ task: unknown }>(`/api/teams/${teamId}/tasks`, { method: 'POST', body: JSON.stringify({ title, assigneeId }) }); },
+  async toggleTeamTask(teamId: string, taskId: string, done: boolean) { return request<{ success: boolean }>(`/api/teams/${teamId}/tasks/${taskId}`, { method: 'PATCH', body: JSON.stringify({ done }) }); },
+  async deleteTeam(teamId: string) { return request<{ success: boolean }>(`/api/teams/${teamId}`, { method: 'DELETE' }); },
 };

@@ -112,3 +112,7 @@ export interface AppData {
   settings: Settings;
   meta: Meta;
 }
+
+export interface TeamMember { userId: ID; name: string; username: string; role: 'owner' | 'member'; joinedAt: string; }
+export interface TeamTask { id: ID; teamId: ID; title: string; done: boolean; assigneeId?: ID; createdBy: ID; createdAt: string; }
+export interface Team { id: ID; name: string; color: string; ownerId: ID; createdAt: string; members: TeamMember[]; tasks: TeamTask[]; }

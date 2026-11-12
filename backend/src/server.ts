@@ -13,6 +13,7 @@ import { tasksRouter } from './routes/tasks.js';
 import { sessionsRouter } from './routes/sessions.js';
 import { settingsRouter } from './routes/settings.js';
 import { adminRouter } from './routes/admin.js';
+import { teamsRouter } from './routes/teams.js';
 import { bootstrapAdmin } from './services/admin-bootstrap.js';
 
 
@@ -36,6 +37,7 @@ app.use('/api/tasks', tasksRouter);
 app.use('/api/sessions', sessionsRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/teams', teamsRouter);
 
 // In production, one Express service serves both the API and the built React app.
 app.use('/api', (_req, res) => { res.status(404).json({ error: 'API route not found' }); });
