@@ -5,6 +5,7 @@ import crypto from 'node:crypto';
 import type { AppData, FocusSession, Meta, Project, Settings, Task, Team, User } from '../types.js';
 import { defaultMeta, defaultSettings } from './defaults.js';
 import { DataValidationError } from './errors.js';
+import { supabaseRoot2021Ca } from './supabase-ca.js';
 
 export { defaultMeta, defaultSettings } from './defaults.js';
 type Row = Record<string, unknown>;
@@ -14,9 +15,12 @@ let url: URL;
 try { url = new URL(connectionString); } catch { throw new Error('Invalid DATABASE_URL'); }
 if (!['postgres:', 'postgresql:'].includes(url.protocol)) throw new Error('DATABASE_URL must be a PostgreSQL URL');
 const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+const isSupabase = url.hostname === 'supabase.com' || url.hostname.endsWith('.supabase.com');
 // Enforce certificate verification for remote databases, including Supabase.
 for (const key of ['sslmode', 'sslcert', 'sslkey', 'sslrootcert', 'uselibpqcompat']) url.searchParams.delete(key);
-export const pool = new pg.Pool({ connectionString: url.toString(), ssl: local ? undefined : { rejectUnauthorized: true, ca: process.env.DATABASE_CA_CERT?.replace(/\\n/g, '\n') }, max: 5, connectionTimeoutMillis: 15000, idleTimeoutMillis: 10000, query_timeout: 30000 });
+const configuredCa = process.env.DATABASE_CA_CERT?.replace(/\\n/g, '\n').trim();
+const ca = isSupabase ? supabaseRoot2021Ca : configuredCa;
+export const pool = new pg.Pool({ connectionString: url.toString(), ssl: local ? undefined : { rejectUnauthorized: true, ...(ca ? { ca } : {}) }, max: 5, connectionTimeoutMillis: 15000, idleTimeoutMillis: 10000, query_timeout: 30000 });
 pool.on('error', () => console.error('[database] Idle PostgreSQL connection failed'));
 const context = new AsyncLocalStorage<{ client: pg.PoolClient; owner?: string }>();
 async function query(sql: string, values: unknown[] = []) { return (context.getStore()?.client ?? pool).query<Row>(sql, values); }
