@@ -27,7 +27,15 @@ const hints: Record<string, string> = {
 
 export function databaseStartupDiagnostic(error: unknown, depth = 0): string {
   if (depth > 4 || !error || typeof error !== 'object') return 'Unclassified database initialization failure.';
-  if ('code' in error && typeof error.code === 'string' && Object.hasOwn(hints, error.code)) return hints[error.code];
+  if ('code' in error && typeof error.code === 'string') {
+    if (Object.hasOwn(hints, error.code)) return hints[error.code];
+    // SQLSTATE and Node/OpenSSL codes are safe identifiers. Returning only the
+    // code makes production failures actionable without exposing driver text,
+    // connection strings, SQL values or credentials.
+    if (/^[0-9A-Z]{5}$/.test(error.code) || /^(?:ERR_|[A-Z]+_)[A-Z0-9_]{1,59}$/.test(error.code)) {
+      return `Database driver error code ${error.code}.`;
+    }
+  }
   if ('message' in error && typeof error.message === 'string') {
     if (['Invalid DATABASE_URL', 'DATABASE_URL must be a PostgreSQL URL'].includes(error.message)) return 'DATABASE_URL must be a valid PostgreSQL URI.';
     if (error.message === 'Database migration checksum mismatch') return 'Migration checksum mismatch. Restore the deployed migration file; do not edit applied migrations.';
