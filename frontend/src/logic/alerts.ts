@@ -7,8 +7,8 @@ export interface DeadlineAlert {
   projectId: string;
   kind: AlertKind;
   key: string;
-  title: string;
-  body: string;
+  projectName: string;
+  openTasks: number;
   tone: 'warn' | 'danger';
 }
 
@@ -37,14 +37,7 @@ export function pendingAlerts(projects: Project[], tasks: Task[], shown: string[
     if (!kind) continue;
     const key = `${p.id}:${p.dueDate}:${kind}`;
     if (seen.has(key)) continue;
-    const left = `${open} ${open === 1 ? 'task' : 'tasks'} left`;
-    const text: Record<AlertKind, [string, string]> = {
-      '3d': [`${p.name} is due within 3 days`, `${left}. Plan a few sessions now to stay ahead.`],
-      '1d': [`${p.name} is due within 24 hours`, `${left}. Prioritize the remaining work.`],
-      '2h': [`${p.name} is due within 2 hours`, `${left}. Wrap up the essentials.`],
-      overdue: [`${p.name} is overdue`, `${left}. Replan them into today’s free slots.`],
-    };
-    out.push({ projectId: p.id, kind, key, title: text[kind][0], body: text[kind][1], tone: kind === 'overdue' || kind === '2h' ? 'danger' : 'warn' });
+    out.push({ projectId: p.id, projectName: p.name, openTasks: open, kind, key, tone: kind === 'overdue' || kind === '2h' ? 'danger' : 'warn' });
   }
   return out;
 }

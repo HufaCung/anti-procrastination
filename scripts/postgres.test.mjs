@@ -27,14 +27,14 @@ test('PostgreSQL migration and API integration', { timeout: 120000 }, async t =>
     const base = `http://127.0.0.1:${server.address().port}`;
     const call = async (route, method = 'GET', data, token) => {
       const response = await fetch(base + route, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(data ? { body: JSON.stringify(data) } : {}) });
-      return { status: response.status, data: await response.json() };
+      return { status: response.status, data: response.status === 204 ? undefined : await response.json() };
     };
     const password = randomUUID();
     let a; let b; let admin;
     const signup = async () => (await call('/api/auth/signup','POST',{ username: `pg-${randomUUID()}`, password })).data;
     await t.test('migration is repeatable and Supabase browser roles cannot read tables', async () => {
       await native.initDb();
-      assert.equal((await control.query('SELECT count(*)::int AS count FROM tinydo_schema_migrations')).rows[0].count,1);
+      assert.deepEqual((await control.query('SELECT version FROM tinydo_schema_migrations ORDER BY version')).rows.map(row => row.version), ['001', '002', '003']);
       const rows = (await control.query("SELECT relname,relrowsecurity FROM pg_class WHERE relname IN ('users','projects','tasks','focus_sessions','settings','meta','data_revisions','tinydo_schema_migrations')")).rows;
       assert.equal(rows.length,8); assert.ok(rows.every(row => row.relrowsecurity));
       assert.equal((await control.query("SELECT has_table_privilege('anon','users','SELECT') AS allowed")).rows[0].allowed,false);
@@ -64,6 +64,11 @@ test('PostgreSQL migration and API integration', { timeout: 120000 }, async t =>
       const snapshot = (await call('/api/data','GET',undefined,a.token)).data;
       assert.equal(snapshot.data.tasks[0].subtasks[0].done,false);
       assert.equal(snapshot.data.settings.autoReplan,true);
+      const settings = { workStartMin: 600, workEndMin: 1020, daysOffMask: 65 };
+      assert.equal((await call('/api/settings', 'PATCH', settings, a.token)).status, 200);
+      const updated = (await call('/api/data', 'GET', undefined, a.token)).data;
+      for (const [key, value] of Object.entries(settings)) assert.equal(updated.data.settings[key], value);
+      assert.equal((await call('/api/settings', 'PATCH', { daysOffMask: 127 }, a.token)).status, 400);
       assert.equal(typeof snapshot.revision,'number');
     });
     await t.test('cross-user writes and invalid session references roll back atomically', async () => {
@@ -92,6 +97,17 @@ test('PostgreSQL migration and API integration', { timeout: 120000 }, async t =>
       assert.equal((await call(`/api/tasks/${ta.id}`,'DELETE',undefined,a.token)).status,200);
       const history=(await call('/api/sessions','GET',undefined,a.token)).data.sessions;
       assert.equal(history.length,1);assert.equal(history[0].taskId,undefined);assert.equal(history[0].minutes,15);
+    });
+    await t.test('deleting an account cascades through owned teams and settings', async () => {
+      const account = await signup();
+      const settings = await call('/api/settings', 'PATCH', { daysOffMask: 65 }, account.token);
+      assert.equal(settings.status, 200);
+      const team = await call('/api/teams', 'POST', { name: 'Owned team' }, account.token);
+      assert.equal(team.status, 201);
+      assert.equal((await call('/api/auth/account', 'DELETE', { password }, account.token)).status, 204);
+      assert.equal((await call('/api/auth/me', 'GET', undefined, account.token)).status, 401);
+      assert.equal((await control.query('SELECT id FROM teams WHERE owner_id=$1', [account.user.id])).rowCount, 0);
+      assert.equal((await control.query('SELECT user_id FROM settings WHERE user_id=$1', [account.user.id])).rowCount, 0);
     });
     await t.test('legacy password upgrades and revocation survive PostgreSQL persistence', async () => {
       const id=randomUUID();const username=`legacy-${id}`;

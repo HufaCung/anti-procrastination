@@ -4,6 +4,8 @@ import { PRIORITY_RANK } from './progress';
 
 export const DAY_START_MIN = 9 * 60; // 09:00
 export const DAY_END_MIN = 22 * 60; // last slot must end by 22:00
+type ScheduleSettings = Pick<Settings, 'dailyGoalMin' | 'workStartMin' | 'workEndMin' | 'daysOffMask'>;
+
 export const GAP_MIN = 5;
 const MAX_DAYS = 120;
 
@@ -68,21 +70,23 @@ export interface ScheduleOptions {
 /**
  * Places `toPlace` tasks into daily capacity (dailyGoalMin minus already-scheduled minutes),
  * starting today. Never after the project's due date (overdue projects may use today only).
- * Slots start at 09:00 and fill available gaps with 5-minute buffers.
+ * Slots fit inside working hours on enabled days, with 5-minute buffers.
  */
 export function schedule(
   toPlace: Task[],
-  settings: Pick<Settings, 'dailyGoalMin'>,
+  settings: ScheduleSettings,
   existing: Task[],
   projects: Project[],
   now: Date,
   opts: ScheduleOptions = {},
 ): ScheduleResult {
+  const today = startOfDay(now);
   const placingIds = new Set(toPlace.map((t) => t.id));
   const days = new Map<string, DayState>();
   for (const t of existing) {
     if (!t.scheduledFor || placingIds.has(t.id)) continue;
     const s = new Date(t.scheduledFor);
+    if (t.status === 'done' && startOfDay(s) > today) continue;
     const k = dayKey(s);
     const st = days.get(k) ?? { used: 0, slots: [] };
     st.used += t.estimateMin;
@@ -90,7 +94,6 @@ export function schedule(
     days.set(k, st);
   }
 
-  const today = startOfDay(now);
   const nowMin = roundUp5(minutesOfDay(now));
   const projectById = new Map(projects.map((p) => [p.id, p]));
   const ordered = sortForScheduling(toPlace, projects, existing.concat(toPlace.filter((t) => !existing.includes(t))));
@@ -121,17 +124,20 @@ export function schedule(
     let placed = false;
     for (let i = 0; i <= span; i++) {
       const day = addDays(firstDay, i);
+      if ((settings.daysOffMask ?? 0) & (1 << day.getDay())) continue;
       const k = dayKey(day);
       const st = days.get(k) ?? { used: 0, slots: [] };
-      if (st.used + task.estimateMin > settings.dailyGoalMin) continue;
-      let start = DAY_START_MIN;
+      const fitsGoal = st.used + task.estimateMin <= settings.dailyGoalMin;
+      const oversizedOnEmptyDay = task.estimateMin > settings.dailyGoalMin && st.slots.length === 0;
+      if (!fitsGoal && !oversizedOnEmptyDay) continue;
+      let start = settings.workStartMin ?? DAY_START_MIN;
       if (daysBetween(today, day) === 0) start = Math.max(start, nowMin);
       start = roundUp5(start);
       for (const slot of [...st.slots].sort((a, b) => a.start - b.start)) {
         if (start + task.estimateMin + GAP_MIN <= slot.start) break;
         if (start < slot.end + GAP_MIN) start = roundUp5(slot.end + GAP_MIN);
       }
-      if (start + task.estimateMin > DAY_END_MIN) continue;
+      if (start + task.estimateMin > (settings.workEndMin ?? DAY_END_MIN)) continue;
       const when = new Date(day);
       when.setHours(0, start, 0, 0);
       st.used += task.estimateMin;
@@ -157,7 +163,7 @@ export function slippedTasks(tasks: Task[], now: Date): Task[] {
  * with from/to (to undefined when it no longer fits before its deadline).
  */
 export function replan(
-  state: { tasks: Task[]; projects: Project[]; settings: Pick<Settings, 'dailyGoalMin'> },
+  state: { tasks: Task[]; projects: Project[]; settings: ScheduleSettings },
   now: Date,
 ): Placement[] {
   const slipped = slippedTasks(state.tasks, now);
@@ -203,16 +209,16 @@ export function revertPlacements(
   });
 }
 
-/** Most recent 22:00 local at or before `now`. */
-export function lastNightlyRun(now: Date): Date {
+/** Most recent end-of-workday time at or before `now`. */
+export function lastNightlyRun(now: Date, endMin = DAY_END_MIN): Date {
   const d = new Date(now);
-  d.setHours(22, 0, 0, 0);
+  d.setHours(0, endMin, 0, 0);
   if (d.getTime() > now.getTime()) d.setDate(d.getDate() - 1);
   return d;
 }
 
 /** Whether nightly auto-replan should run now. */
-export function autoReplanDue(lastRunIso: string | undefined, now: Date): boolean {
+export function autoReplanDue(lastRunIso: string | undefined, now: Date, endMin?: number): boolean {
   if (!lastRunIso) return true;
-  return new Date(lastRunIso).getTime() < lastNightlyRun(now).getTime();
+  return new Date(lastRunIso).getTime() < lastNightlyRun(now, endMin).getTime();
 }

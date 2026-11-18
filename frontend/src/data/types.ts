@@ -15,6 +15,10 @@ export interface User {
 }
 
 export interface Settings {
+  workStartMin?: number;
+  workEndMin?: number;
+  /** Bit 0 is Sunday, bit 6 is Saturday. */
+  daysOffMask?: number;
   userId: ID;
   theme: Theme;
   dailyGoalMin: number; // default 180

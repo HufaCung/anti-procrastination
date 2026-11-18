@@ -86,6 +86,13 @@ describe('progress and risk', () => {
     expect(st.paceIsFallback).toBe(true);
     expect(st.risk).toBe('on_track');
   });
+  it('uses fallback pace when the project only has older sessions', () => {
+    const st = projectStats({ project: project(), tasks: [task({ estimateMin: 30 })], sessions: [session(30, 8)], dailyGoalMin: 180, activeProjectsCount: 3, now: NOW });
+    expect(st.pace).toBe(60);
+    expect(st.paceIsFallback).toBe(true);
+    expect(st.focusMin).toBe(30);
+    expect(st.risk).toBe('on_track');
+  });
   it('needed/day and projected finish', () => {
     const tasks = Array.from({ length: 8 }, () => task({ estimateMin: 15 })); // 120 min
     const st = projectStats({ project: project({ dueDate: dayKey(addDays(NOW, 2)) }), tasks, sessions: [session(70, 1)], dailyGoalMin: 180, activeProjectsCount: 1, now: NOW });
@@ -94,7 +101,7 @@ describe('progress and risk', () => {
     expect(st.pace).toBe(10);
     expect(dayKey(st.projectedFinish)).toBe(dayKey(addDays(NOW, 12)));
     expect(st.risk).toBe('at_risk');
-    expect(st.reasons.some((r) => r.includes('below'))).toBe(true);
+    expect(st.reasons.some((r) => r.kind === 'pace')).toBe(true);
   });
   it('overdue and done', () => {
     const over = projectStats({ project: project({ dueDate: dayKey(addDays(NOW, -1)) }), tasks: [task()], sessions: [], dailyGoalMin: 180, activeProjectsCount: 1, now: NOW });
@@ -106,7 +113,7 @@ describe('progress and risk', () => {
     const y = addDays(NOW, -1).toISOString();
     const st = projectStats({ project: project({ dueDate: dayKey(addDays(NOW, 30)) }), tasks: [task({ scheduledFor: y })], sessions: [session(100, 1)], dailyGoalMin: 180, activeProjectsCount: 1, now: NOW });
     expect(st.risk).toBe('at_risk');
-    expect(st.reasons[0]).toMatch(/1 task slipped from Wed/);
+    expect(st.reasons[0]).toEqual({ kind: 'slipped', count: 1, dates: [new Date(2026, 9, 21)] });
   });
 });
 
@@ -141,6 +148,36 @@ describe('scheduling', () => {
     expect(dayKey(new Date(placed.placements[0].to!))).toBe(urgent.dueDate);
     const overdue = task({ dueDate: dayKey(addDays(NOW, -1)) });
     expect(schedule([overdue], settings, [overdue], [p], NOW).unplaced).toContain(overdue.id);
+  });
+  it('places a task above the goal only on an empty day and within working hours', () => {
+    const large = task({ estimateMin: 240 });
+    const small = task({ estimateMin: 30 });
+    const tooLong = task({ estimateMin: 800 });
+    const p = project({ dueDate: dayKey(addDays(NOW, 1)) });
+    const res = schedule([large, small, tooLong], { dailyGoalMin: 180 }, [], [p], NOW);
+    expect(res.placements.map((entry) => dayKey(new Date(entry.to!)))).toEqual([dayKey(NOW), p.dueDate]);
+    expect(res.unplaced).toEqual([tooLong.id]);
+  });
+  it('honors local work hours and recurring days off even in single-day replans', () => {
+    const friday = new Date(2026, 9, 23, 13, 50);
+    const monday = new Date(2026, 9, 26, 13);
+    const open = task({ estimateMin: 15 });
+    const oversized = task({ estimateMin: 65 });
+    const prefs = { dailyGoalMin: 180, workStartMin: 13 * 60, workEndMin: 14 * 60, daysOffMask: (1 << 0) | (1 << 6) };
+    const p = project({ dueDate: dayKey(monday) });
+    const result = schedule([open, oversized], prefs, [], [p], friday);
+    expect(result.placements[0]?.to).toBe(monday.toISOString());
+    expect(result.unplaced).toEqual([oversized.id]);
+    expect(schedule([open], prefs, [], [p], friday, { onlyDay: new Date(2026, 9, 24) }).unplaced).toEqual([open.id]);
+    expect(lastNightlyRun(friday, prefs.workEndMin)).toEqual(new Date(2026, 9, 22, 14));
+  });
+
+  it('ignores completed tasks in future slots', () => {
+    const tomorrow = new Date(2026, 9, 23, 9);
+    const completed = task({ estimateMin: 170, status: 'done', scheduledFor: tomorrow.toISOString() });
+    const open = task({ estimateMin: 30 });
+    const res = schedule([open], { dailyGoalMin: 180 }, [completed], [project()], NOW, { onlyDay: tomorrow });
+    expect(res.placements[0]?.to).toBe(tomorrow.toISOString());
   });
   it('starts no earlier than now on today', () => {
     const ts = [task()];

@@ -1,3 +1,4 @@
+import { authRateLimit } from '../middleware/auth-rate-limit.js';
 import { isDataValidationError } from '../db/errors.js';
 import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
@@ -19,7 +20,7 @@ export function sanitizeUser(user: User | null): SafeUser | null {
 }
 
 // POST /api/auth/signup
-authRouter.post('/signup', asyncHandler(async (req, res: Response, next) => {
+authRouter.post('/signup', authRateLimit(20), asyncHandler(async (req, res: Response, next) => {
   try {
     const { username, password } = req.body;
     if (typeof username !== 'string' || username.trim().length < 2 || username.trim().length > 100 || /\s/.test(username.trim())) {
@@ -57,7 +58,7 @@ authRouter.post('/signup', asyncHandler(async (req, res: Response, next) => {
 }));
 
 // POST /api/auth/login
-authRouter.post('/login', asyncHandler(async (req, res: Response, next) => {
+authRouter.post('/login', authRateLimit(30), asyncHandler(async (req, res: Response, next) => {
   try {
     const { username, password } = req.body;
 
@@ -68,12 +69,12 @@ authRouter.post('/login', asyncHandler(async (req, res: Response, next) => {
 
     let user = await usersDb.findByUsername(username);
     if (!user) {
-      res.status(200).json({ error: 'Username or password is incorrect' });
+      res.status(401).json({ error: 'Username or password is incorrect' });
       return;
     }
 
     if (typeof password !== 'string' || password.length > 1024 || !await verifyPassword(user.id, password, user.passwordHash)) {
-      res.status(200).json({ error: 'Username or password is incorrect' });
+      res.status(401).json({ error: 'Username or password is incorrect' });
       return;
     }
 
@@ -90,7 +91,7 @@ authRouter.post('/login', asyncHandler(async (req, res: Response, next) => {
       if (user?.passwordHash !== verifiedHash) user = null;
     }
     if (!user) {
-      res.status(200).json({ error: 'Username or password is incorrect' });
+      res.status(401).json({ error: 'Username or password is incorrect' });
       return;
     }
     const token = signToken(user.id, user.authVersion ?? 0);
@@ -148,6 +149,29 @@ authRouter.post('/change-password', authMiddleware, asyncHandler(async (req: Aut
     // All previously issued tokens are revoked; only this replacement token stays valid.
     res.json({ token: signToken(updated.id, updated.authVersion ?? 0), user: sanitizeUser(updated) });
   } catch (error) { next(error); }
+}));
+
+authRouter.delete('/account', authMiddleware, authRateLimit(10), asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
+  if (!req.headers.authorization?.startsWith('Bearer ')) {
+    res.status(401).json({ error: 'Bearer authentication required' });
+    return;
+  }
+
+  const user = req.user!;
+  const password: unknown = req.body?.password;
+  if (typeof password !== 'string' || password.length === 0 || password.length > 1024) {
+    res.status(400).json({ error: 'Current password is required' });
+    return;
+  }
+  if (!await verifyPassword(user.id, password, user.passwordHash)) {
+    res.status(403).json({ error: 'Current password does not match' });
+    return;
+  }
+  if (!await usersDb.delete(user.id, user.passwordHash)) {
+    res.status(409).json({ error: 'Account changed. Sign in again before retrying.' });
+    return;
+  }
+  res.status(204).end();
 }));
 
 authRouter.post('/forgot-password', asyncHandler(async (_req, res: Response) => {

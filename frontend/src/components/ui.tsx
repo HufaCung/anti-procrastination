@@ -1,9 +1,11 @@
+import { useCopy, useLanguage } from '../i18n/LanguageContext';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon, type IconName } from './Icon';
 import type { Risk, TaskStatus } from '../data/types';
+import { translateCopy } from '../i18n/copy';
 import { STATUS_LABEL } from '../logic/status';
-import { RISK_LABEL } from '../logic/progress';
+import { riskLabel } from '../i18n/progress';
 
 export function ProgressBar({ pct, color, height = 5, label }: { pct: number; color?: string; height?: 5 | 6 | 8; label?: string }) {
   const v = Math.max(0, Math.min(100, Math.round(pct)));
@@ -22,24 +24,30 @@ export function ProgressBar({ pct, color, height = 5, label }: { pct: number; co
 }
 
 export function StatusPill({ status }: { status: TaskStatus }) {
-  return <span className={`pill ${status}`}>{STATUS_LABEL[status]}</span>;
+  const { language } = useLanguage();
+  return <span className={`pill ${status}`}>{translateCopy(language, STATUS_LABEL[status])}</span>;
 }
 
 export function RiskPill({ risk, className = '' }: { risk: Risk; className?: string }) {
-  return <span className={`pill ${risk} ${className}`}>{RISK_LABEL[risk]}</span>;
+  const { language } = useLanguage();
+  return <span className={`pill ${risk} ${className}`}>{riskLabel(risk, language)}</span>;
 }
 
 export function StatusButton({ status, title, onClick }: { status: TaskStatus; title: string; onClick: () => void }) {
+  const copy = useCopy();
+  const { language } = useLanguage();
+  const statusText = translateCopy(language, STATUS_LABEL[status]);
   return (
-    <button type="button" className={`pill ${status}`} onClick={onClick} aria-label={`Status ${STATUS_LABEL[status]}, change: ${title}`}>
-      {STATUS_LABEL[status]}
+    <button type="button" className={`pill ${status}`} onClick={onClick} aria-label={copy("Status {0}, change: {1}", statusText, title)}>
+      {statusText}
     </button>
   );
 }
 
 export function CheckButton({ done, title, onClick }: { done: boolean; title: string; onClick: () => void }) {
+  const copy = useCopy();
   return (
-    <button type="button" className={`cbox ${done ? 'on' : ''}`} onClick={onClick} aria-label={`${done ? 'Mark not done' : 'Mark done'}: ${title}`} aria-pressed={done}>
+    <button type="button" className={`cbox ${done ? 'on' : ''}`} onClick={onClick} aria-label={`${done ? copy("Mark not done") : copy("Mark done")}: ${title}`} aria-pressed={done}>
       {done && (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
           <path d="M5 12.5 10 17 19 7" />
@@ -153,6 +161,7 @@ export function PasswordField({
   children?: ReactNode;
   inputRef?: React.Ref<HTMLInputElement>;
 }) {
+  const copy = useCopy();
   const [show, setShow] = useState(false);
   const gen = useId();
   const fid = id ?? gen;
@@ -170,12 +179,12 @@ export function PasswordField({
           type={show ? 'text' : 'password'}
           autoComplete={autoComplete}
           value={value}
-          placeholder="At least 8 characters"
+          placeholder={copy("At least 8 characters")}
           aria-invalid={!!error}
           aria-describedby={error ? errId : undefined}
           onChange={(e) => onChange(e.target.value)}
         />
-        <button type="button" className="eye" onClick={() => setShow((s) => !s)} aria-label={show ? 'Hide password' : 'Show password'} aria-pressed={show}>
+        <button type="button" className="eye" onClick={() => setShow((s) => !s)} aria-label={show ? copy("Hide password") : copy("Show password")} aria-pressed={show}>
           <Icon name={show ? 'eyeOff' : 'eye'} size={17} />
         </button>
       </div>
@@ -211,6 +220,7 @@ export function Modal({
   width?: number;
   initialFocus?: React.RefObject<HTMLElement>;
 }) {
+  const copy = useCopy();
   const [mounted, setMounted] = useState(open);
   const [closing, setClosing] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -280,7 +290,7 @@ export function Modal({
       <div ref={ref} className="modal" role="dialog" aria-modal="true" aria-labelledby={labelledBy ?? titleId} style={{ maxWidth: width }}>
         <div className="modal-head">
           <h2 id={titleId}>{title}</h2>
-          <button type="button" className="icon-btn plain" aria-label="Close dialog" onClick={onClose}>
+          <button type="button" className="icon-btn plain" aria-label={copy("Close dialog")} onClick={onClose}>
             <Icon name="x" size={16} />
           </button>
         </div>
@@ -293,7 +303,7 @@ export function Modal({
 }
 
 export function ConfirmModal({
-  open, onClose, onConfirm, title, body, confirmLabel = 'Delete', danger = true,
+  open, onClose, onConfirm, title, body, confirmLabel, danger = true,
 }: {
   open: boolean;
   onClose: () => void;
@@ -303,6 +313,7 @@ export function ConfirmModal({
   confirmLabel?: string;
   danger?: boolean;
 }) {
+  const copy = useCopy();
   return (
     <Modal
       open={open}
@@ -310,8 +321,8 @@ export function ConfirmModal({
       title={title}
       footer={
         <>
-          <button type="button" className="btn btn-secondary" onClick={onClose} data-autofocus>Cancel</button>
-          <button type="button" className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>{confirmLabel}</button>
+          <button type="button" className="btn btn-secondary" onClick={onClose} data-autofocus>{copy("Cancel")}</button>
+          <button type="button" className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>{confirmLabel ?? copy("Delete")}</button>
         </>
       }
     >
@@ -321,7 +332,8 @@ export function ConfirmModal({
 }
 
 export function ThemeIconButton({ theme, onToggle }: { theme: 'light' | 'dark'; onToggle: () => void }) {
-  const label = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
+  const copy = useCopy();
+  const label = theme === 'dark' ? copy("Switch to light mode") : copy("Switch to dark mode");
   return (
     <button type="button" className="icon-btn" onClick={onToggle} aria-label={label} title={label}>
       <Icon name={theme === 'dark' ? 'sun' : 'moon'} size={16} />

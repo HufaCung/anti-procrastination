@@ -1,22 +1,28 @@
 # TinyDo
 
-A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**.
+A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**. Teams can share tasks, and users can switch between English and Vietnamese. Administrators have a read-only account directory.
 
 This repository is organized as a monorepo containing:
-- **`frontend/`**: React 18, TypeScript, Vite, Tailwind/tokens CSS.
+- **`frontend/`**: React 18, TypeScript, Vite, and plain CSS with design tokens.
 - **`backend/`**: Node.js, Express, TypeScript, PostgreSQL (`pg`) or local SQLite (`better-sqlite3`), JWT authentication.
 
 ## Free shared deployment
 
 Use **Render Free + Supabase PostgreSQL Free**: [deployment guide](docs/DEPLOY_SUPABASE.md). Set DATABASE_URL on the backend; all users then share durable PostgreSQL data. Without it, local development uses SQLite.
 
-## Quick Start
+## Quick start
+
+Use Node.js 22.12 or later in the Node 22 release line, or Node.js 24 and later.
 
 ```bash
 # 1. Install all dependencies (npm workspaces)
-npm install
+npm ci
 
-# 2. Run both Backend (http://localhost:3001) & Frontend (http://localhost:5173)
+# 2. Copy the example configuration into the backend workspace
+cp .env.example backend/.env
+# PowerShell: Copy-Item .env.example backend/.env
+
+# 3. Run both Backend (http://localhost:3001) & Frontend (http://localhost:5173)
 npm run dev
 ```
 
@@ -28,6 +34,34 @@ npm run dev:frontend
 # Backend only
 npm run dev:backend
 ```
+
+## Environment variables
+
+Copy the root `.env.example` to `backend/.env` for local development. In a hosted deployment, set the variables in the service environment.
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | API port, defaults to 3001 |
+| `NODE_ENV` | Set to `production` in production |
+| `JWT_SECRET` | Strong random secret required in production |
+| `DATABASE_URL` | PostgreSQL connection string. Leave empty to use local SQLite |
+| `REQUIRE_DATABASE_URL` | Set to `true` on hosted deployments that require PostgreSQL |
+| `DATABASE_CA_CERT` | Optional CA certificate for the database connection |
+| `BOOTSTRAP_ADMIN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional startup admin provisioning |
+
+Visit the frontend on [port 5173](http://localhost:5173). Vite proxies `/api` to the backend on port 3001.
+
+## Workspace screens
+
+The Dashboard shows upcoming work and focus goals. Projects and Calendar organize deadlines and planned work. Focus Mode times work sessions, Progress shows activity and forecasts, and Teams supports shared tasks. Profile contains account and workspace settings.
+
+Use the language switch to choose English or Vietnamese. The preference is stored in the browser. The chosen language applies to navigation, screen labels, dates, durations, scheduling and risk messages. Task titles, project names, team names and other user-entered content are preserved.
+
+## Work schedule and account deletion
+
+Set working hours and recurring weekly days off under **Profile & settings → Focus & planning**. New and replanned sessions use your device’s local time, stay inside the configured hours, and skip days off. The default is 09:00–22:00 every day. At least one day must remain enabled. Existing bookings stay in place, and automatic replanning uses the configured end time.
+
+Under **Profile & settings → Account**, use **Delete account** and confirm with your current password. Deletion removes your workspace, owned teams, team memberships, and shared tasks you created. It clears the current browser’s account cache and invalidates the account’s sessions. If startup admin provisioning is enabled, an admin configured there can be recreated on restart.
 
 ## Available Scripts
 
@@ -74,12 +108,22 @@ tinydo/
 
 ## Backend API Endpoints
 
-- **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`, `/api/auth/account`
+- **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`. Invalid login credentials return HTTP 401. Login and signup each have a per-process, per-client-IP limit (30 and 20 attempts per minute respectively). Excess attempts return HTTP 429 with a Retry-After header. Behind a reverse proxy, Express uses the proxy address until trusted proxy settings are configured for the actual network topology. The password reset endpoint returns HTTP 503 while email reset is unavailable
+- **Account deletion**: `DELETE /api/auth/account` with a bearer token and JSON `{ "password": "current password" }`. Returns HTTP 204 on success.
 - **Data Sync**: `/api/data` (GET all user data, PUT sync/replace data)
 - **Projects**: `/api/projects` (GET, POST, DELETE `/:id`)
 - **Tasks**: `/api/tasks` (GET, POST, DELETE `/:id`)
 - **Sessions**: `/api/sessions` (GET, POST)
 - **Settings**: `/api/settings` (GET, PATCH)
+
+- **Teams**: `GET/POST /api/teams`, `POST /api/teams/:id/members`, `POST /api/teams/:id/tasks`, `PATCH /api/teams/:id/tasks/:taskId`, and `DELETE /api/teams/:id`
+- **Admin**: `GET /api/admin/users` (requires an admin account)
+
+## Database and migrations
+
+Local development uses `backend/data/tinydo.db` when `DATABASE_URL` is empty. For PostgreSQL, run `npm run build` and then `npm run db:migrate` with the intended connection configured. Keep migration SQL files in LF format so line-ending conversions do not change checksums. If local database configuration is ignored, verify that the file is at `backend/.env` and restart the backend. For Supabase connectivity, check the pooler URI and CA configuration in the [deployment guide](docs/DEPLOY_SUPABASE.md).
+
+The repository also provides a [Dockerfile](Dockerfile). Build with `docker build -t tinydo .` and pass production environment variables at runtime, for example with `docker run --env-file backend/.env -p 3001:3001 tinydo`. Configure PostgreSQL for durable hosted data.
 
 ## Automated feature checks
 
@@ -119,14 +163,31 @@ replan/undo, and deadline alert batching and deadline changes.
 - Timer expiry and **Log session** record focus time without completing the task.
   **Mark done** explicitly completes the task; subtask checkboxes stay independent.
 - **Plan tasks** schedules from today onward, using the existing daily goal and
-  09:00–22:00 device-local window. It fills available gaps with five-minute buffers.
+  device-local working window, defaulting to 09:00–22:00, and skips configured days off. It fills available gaps with five-minute buffers. A task above the daily goal may occupy an otherwise empty day if it fits inside the working hours. Completed tasks release future scheduled capacity. Forecasts fall back to a share of the daily goal when a project has no focus activity in the past seven calendar days.
   Custom working hours and days off are not implemented.
 - Progress is completed task count, not effort-weighted completion. Forecasts use
   remaining task estimates and a seven-day average of logged focus time. Without
   focus history, daily goal is split across active projects.
 - Deadline reminders are delivered in batches; a changed deadline gets fresh
-  reminders. Auto-replan runs after 22:00 while the app is open, or when you return;
+  reminders. Auto-replan runs after the configured workday ends while the app is open, or when you return;
   it is not a server-side background job.
+
+## Create a full-feature local test account
+
+Start the app with `npm run dev` against your local test database. In a second terminal at the repository root, set a disposable password and run the seed command.
+
+```powershell
+$secret = Read-Host 'Choose a test password of at least 8 characters' -AsSecureString
+$env:TINYDO_SEED_PASSWORD = [System.Net.NetworkCredential]::new('', $secret).Password
+try { npm run seed:test }
+finally { Remove-Item Env:TINYDO_SEED_PASSWORD }
+```
+
+Open [TinyDo locally](http://localhost:5173) and sign in as `tinydo-test` with that password. The script loads 10 projects, 70 tasks with subtasks, and 20 focus sessions. It sets a 09:00–18:00 workday with weekends off and leaves auto-replan disabled initially so slipped tasks remain available for manual testing. It also creates two shared teams. The main account owns one team and joins the other. Use `tinydo-test-member` with the same disposable password to test the other side or go through onboarding.
+
+Use the workspace to test Dashboard, Projects, Calendar, Focus Mode, Progress, Teams, and profile settings. Toggle English and Vietnamese in Profile. Test account deletion after you finish with the data. For the separate read-only Admin screen, use the [admin account setup](#read-only-admin-users-screen). Password reset is currently unavailable.
+
+The script uses a local HTTP API on port 3001 by default. Set `TINYDO_SEED_URL` for a different local port or `TINYDO_SEED_USERNAME` for a fresh account pair. Sequential reruns with the same credentials restore missing fixtures and keep existing personal records and settings.
 
 ## Persistent demo data (100 records)
 
@@ -223,6 +284,10 @@ This builds the app and runs an isolated production smoke test, including SPA de
 links, static assets, API routing and SQLite/JWT persistence across a server restart.
 It does not create any hosting resources or deploy the app.
 
+## Resolving a sync conflict
+
+In the sidebar, open **Resolve sync conflict** and choose **Back up and use server data**. This downloads a JSON backup of the current workspace and opens the latest server version. The backup is also kept in this browser for the account. Use the downloaded file to recover individual edits manually.
+
 ## Authentication and sync contracts
 
 - The browser stores profile fields and the session token, never a password or
@@ -286,7 +351,7 @@ No local backend or Supabase connection URI is needed for this option. Start the
 Render app in a browser first and wait for it to wake, then run from the repo root:
 
 ```powershell
-$env:TINYDO_SEED_URL = 'https://anti-procrastination-7jwr.onrender.com'
+$env:TINYDO_SEED_URL = 'https://<your-app>.onrender.com'
 $env:TINYDO_SEED_ALLOW_REMOTE = 'true'
 $env:TINYDO_SEED_USERNAME = 'test100'
 $demoPassword = Read-Host 'Demo password (at least 8 characters)' -AsSecureString

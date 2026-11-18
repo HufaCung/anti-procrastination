@@ -16,6 +16,7 @@
     "test:e2e": "npm run e2e --workspace=frontend",
     "test:features": "node scripts/test-features.mjs",
     "test:features:headed": "node scripts/test-features.mjs --headed",
+    "seed:test": "node scripts/seed-demo.mjs --full",
     "seed:demo": "node scripts/seed-demo.mjs",
     "test:seed": "npm run build --workspace=backend && node --test scripts/seed-demo.test.mjs",
     "admin:create": "npm run admin:create --workspace=backend",

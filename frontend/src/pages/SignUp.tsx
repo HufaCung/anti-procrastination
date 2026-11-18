@@ -5,12 +5,14 @@ import { PasswordField, TextField, useDocumentTitle } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { useStore } from '../store/AppStore';
 import { passwordScore } from '../data/auth';
+import { translateCopy } from '../i18n/copy';
 import { useLanguage } from '../i18n/LanguageContext';
 
 const COLORS = ['var(--track)', 'var(--danger-text)', '#E07B00', 'var(--accent)', 'var(--ok-strong)'];
 
 export function SignUpPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const errorText = (value: string | undefined) => value && translateCopy(language, value);
   useDocumentTitle(t('createTitle'));
   const s = useStore();
   const [username, setUsername] = useState('');
@@ -50,9 +52,9 @@ export function SignUpPage() {
               <p className="lead">{t('createLead')}</p>
             </div>
             <form onSubmit={submit} noValidate className="col" style={{ gap: 16 }}>
-              {errors.form && <div role="alert" className="status-bad">{errors.form}</div>}
-              <TextField label={t('username')} autoComplete="username" placeholder={t('yourUsername')} value={username} inputRef={refs.username} onChange={(v) => { setUsername(v); clear('username'); clear('form'); }} error={errors.username} />
-              <PasswordField label={t('password')} autoComplete="new-password" value={pw} inputRef={refs.password} onChange={(v) => { setPw(v); clear('password'); }} error={errors.password}>
+              {errors.form && <div role="alert" className="status-bad">{errorText(errors.form)}</div>}
+              <TextField label={t('username')} autoComplete="username" placeholder={t('yourUsername')} value={username} inputRef={refs.username} onChange={(v) => { setUsername(v); clear('username'); clear('form'); }} error={errorText(errors.username)} />
+              <PasswordField label={t('password')} autoComplete="new-password" value={pw} inputRef={refs.password} onChange={(v) => { setPw(v); clear('password'); }} error={errorText(errors.password)}>
                 <div className="meter" aria-hidden="true">
                   {[0, 1, 2, 3].map((i) => <span key={i} style={{ background: pw && i < score ? COLORS[score] : undefined }} />)}
                 </div>
@@ -60,10 +62,10 @@ export function SignUpPage() {
                   {pw ? `${t('passwordStrength')}: ${[t('passwordHint'), t('weak'), t('fair'), t('good'), t('strong')][score] === t('passwordHint') ? t('weak') : [t('passwordHint'), t('weak'), t('fair'), t('good'), t('strong')][score]}` : t('passwordHint')}
                 </span>
               </PasswordField>
-              <PasswordField label={t('confirmPassword')} autoComplete="new-password" value={confirmPassword} inputRef={refs.confirmPassword} onChange={(v) => { setConfirmPassword(v); clear('confirmPassword'); }} error={errors.confirmPassword} />
+              <PasswordField label={t('confirmPassword')} autoComplete="new-password" value={confirmPassword} inputRef={refs.confirmPassword} onChange={(v) => { setConfirmPassword(v); clear('confirmPassword'); }} error={errorText(errors.confirmPassword)} />
               <button type="submit" className={`btn btn-primary btn-lg btn-block ${loading ? 'loading' : ''}`} disabled={loading}>
                 {loading && <span className="spinner" aria-hidden="true" />}
-                {loading ? t('creatingAccount') : t('createAccount')}
+                {loading ? t('creatingAccount') : t('createTitle')}
               </button>
             </form>
             <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>

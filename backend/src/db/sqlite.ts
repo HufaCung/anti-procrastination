@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defaultSettings, defaultMeta } from './defaults.js';
 export { defaultSettings, defaultMeta } from './defaults.js';
+import { validateWorkSchedule } from './work-schedule.js';
 import { DataValidationError } from './errors.js';
 import type { AppData, FocusSession, Meta, Project, Settings, Task, Team, User } from '../types.js';
 
@@ -110,6 +111,12 @@ export function initDb() {
   if (!userColumns.some((column) => column.name === 'auth_version')) db.exec('ALTER TABLE users ADD COLUMN auth_version INTEGER NOT NULL DEFAULT 0 CHECK (auth_version >= 0)');
   if (!userColumns.some((column) => column.name === 'role')) db.exec("ALTER TABLE users ADD COLUMN role TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin'))");
   if (!userColumns.some((column) => column.name === 'username')) db.exec('ALTER TABLE users RENAME COLUMN email TO username');
+  const settingsColumns = db.prepare('PRAGMA table_info(settings)').all() as { name: string }[];
+  db.transaction(() => {
+    if (!settingsColumns.some(({ name }) => name === 'work_start_min')) db.exec('ALTER TABLE settings ADD COLUMN work_start_min INTEGER NOT NULL DEFAULT 540 CHECK (work_start_min BETWEEN 0 AND 1438)');
+    if (!settingsColumns.some(({ name }) => name === 'work_end_min')) db.exec('ALTER TABLE settings ADD COLUMN work_end_min INTEGER NOT NULL DEFAULT 1320 CHECK (work_end_min BETWEEN 1 AND 1439 AND work_end_min > work_start_min)');
+    if (!settingsColumns.some(({ name }) => name === 'days_off_mask')) db.exec('ALTER TABLE settings ADD COLUMN days_off_mask INTEGER NOT NULL DEFAULT 0 CHECK (days_off_mask BETWEEN 0 AND 126)');
+  })();
   const taskColumns = db.prepare('PRAGMA table_info(tasks)').all() as { name: string }[];
   if (!taskColumns.some((column) => column.name === 'due_date')) db.exec('ALTER TABLE tasks ADD COLUMN due_date TEXT');
   if (!taskColumns.some((column) => column.name === 'subtasks')) db.exec('ALTER TABLE tasks ADD COLUMN subtasks TEXT');
@@ -235,9 +242,12 @@ export const usersDb = {
     return info.changes ? usersDb.findById(id) : null;
   },
 
-  delete(id: string): boolean {
-    const info = db.prepare('DELETE FROM users WHERE id = ?').run(id);
-    return info.changes > 0;
+  delete(id: string, expectedHash: string): boolean {
+    return db.transaction(() => {
+      const result = db.prepare('DELETE FROM users WHERE id = ? AND password_hash = ?').run(id, expectedHash);
+      if (result.changes) db.prepare('DELETE FROM data_revisions WHERE user_id = ?').run(id);
+      return result.changes > 0;
+    })();
   },
 };
 
@@ -250,6 +260,9 @@ export const settingsDb = {
       userId: row.user_id,
       theme: row.theme,
       dailyGoalMin: row.daily_goal_min,
+      workStartMin: row.work_start_min,
+      workEndMin: row.work_end_min,
+      daysOffMask: row.days_off_mask,
       defaultTaskMin: row.default_task_min,
       timeZone: row.time_zone,
       weekStart: row.week_start,
@@ -261,9 +274,10 @@ export const settingsDb = {
   },
 
   save(settings: Settings): void {
+    validateWorkSchedule(settings);
     const stmt = db.prepare(`
-      INSERT INTO settings (user_id, theme, daily_goal_min, default_task_min, time_zone, week_start, auto_replan, deadline_alerts, weekly_digest, focus_sound)
-      VALUES (@userId, @theme, @dailyGoalMin, @defaultTaskMin, @timeZone, @weekStart, @autoReplan, @deadlineAlerts, @weeklyDigest, @focusSound)
+      INSERT INTO settings (user_id, theme, daily_goal_min, default_task_min, time_zone, week_start, auto_replan, deadline_alerts, weekly_digest, focus_sound, work_start_min, work_end_min, days_off_mask)
+      VALUES (@userId, @theme, @dailyGoalMin, @defaultTaskMin, @timeZone, @weekStart, @autoReplan, @deadlineAlerts, @weeklyDigest, @focusSound, @workStartMin, @workEndMin, @daysOffMask)
       ON CONFLICT(user_id) DO UPDATE SET
         theme = excluded.theme,
         daily_goal_min = excluded.daily_goal_min,
@@ -273,12 +287,18 @@ export const settingsDb = {
         auto_replan = excluded.auto_replan,
         deadline_alerts = excluded.deadline_alerts,
         weekly_digest = excluded.weekly_digest,
-        focus_sound = excluded.focus_sound
+        focus_sound = excluded.focus_sound,
+        work_start_min = excluded.work_start_min,
+        work_end_min = excluded.work_end_min,
+        days_off_mask = excluded.days_off_mask
     `);
     stmt.run({
       userId: settings.userId,
       theme: settings.theme,
       dailyGoalMin: settings.dailyGoalMin,
+      workStartMin: settings.workStartMin ?? 540,
+      workEndMin: settings.workEndMin ?? 1320,
+      daysOffMask: settings.daysOffMask ?? 0,
       defaultTaskMin: settings.defaultTaskMin,
       timeZone: settings.timeZone,
       weekStart: settings.weekStart,
@@ -545,7 +565,15 @@ export function getAppData(userId: string): AppData {
 export function saveAppData(userId: string, data: AppData): void {
   const syncTx = db.transaction(() => {
     // Save settings and meta
-    settingsDb.save({ ...defaultSettings(userId), ...data.settings, userId });
+    const existingSettings = settingsDb.get(userId);
+    settingsDb.save({
+      ...defaultSettings(userId),
+      workStartMin: existingSettings.workStartMin,
+      workEndMin: existingSettings.workEndMin,
+      daysOffMask: existingSettings.daysOffMask,
+      ...data.settings,
+      userId,
+    });
     metaDb.save({ ...defaultMeta(userId), ...data.meta, userId });
 
     // Sync projects: remove old projects not in data, upsert existing/new

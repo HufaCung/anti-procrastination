@@ -92,6 +92,9 @@ export function defaultSettings(userId: string): Settings {
     userId,
     theme: (readJSON<string | null>(THEME_KEY, null) as 'light' | 'dark' | null) ?? currentTheme(),
     dailyGoalMin: 180,
+    workStartMin: 540,
+    workEndMin: 1320,
+    daysOffMask: 0,
     defaultTaskMin: 15,
     timeZone: 'Asia/Ho_Chi_Minh',
     weekStart: 'mon',
@@ -135,6 +138,17 @@ export function hasUserData(userId: string): boolean {
 function replaceFor<T extends { userId: string }>(c: Collection, userId: string, items: T[]) {
   const others = read<T>(c).filter((x) => x.userId !== userId);
   write(c, [...others, ...items]);
+}
+
+export function removeUserData(userId: string): void {
+  write('users', read<User>('users').filter((user) => user.id !== userId));
+  for (const collection of ['projects', 'tasks', 'sessions', 'settings', 'meta'] as const) {
+    replaceFor(collection, userId, []);
+  }
+  try {
+    ls()?.removeItem(`nt:sync:${userId}`);
+    ls()?.removeItem(`nt:sync-backup:${userId}`);
+  } catch { /* storage unavailable */ }
 }
 
 export function saveUserData(userId: string, data: AppData): void {

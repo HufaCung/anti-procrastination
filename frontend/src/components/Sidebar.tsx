@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
-import { ProgressBar, Segmented } from './ui';
+import { Modal, ProgressBar, Segmented } from './ui';
 import { useNow, useStore } from '../store/AppStore';
-import { fmt, fmtMinutes, parseDay } from '../logic/dates';
+import { parseDay } from '../logic/dates';
 import { streak } from '../logic/analytics';
 import * as T from '../logic/timer';
-import { LanguageToggle, useLanguage } from '../i18n/LanguageContext';
+import { useDateCopy, useCopy, LanguageToggle, useLanguage } from '../i18n/LanguageContext';
 
 export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
+  const copy = useCopy();
+  const { fmt, fmtMinutes } = useDateCopy();
   const s = useStore();
   const { t } = useLanguage();
   const navigate = useNavigate();
@@ -19,6 +21,20 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
   const days = useMemo(() => streak(data.tasks, s.now), [data.tasks, s.now]);
   const name = s.user?.name ?? '';
   const first = name.split(' ')[0] || name;
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolveFailed, setResolveFailed] = useState(false);
+
+  async function resolveConflict() {
+    if (resolving) return;
+    setResolving(true);
+    setResolveFailed(false);
+    const success = await s.useServerCopy();
+    setResolving(false);
+    if (success) setResolveOpen(false);
+    else setResolveFailed(true);
+  }
+
   const [more, setMore] = useState(false);
   useEffect(() => setMore(false), [loc.pathname]);
 
@@ -28,7 +44,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
         <div className="logo" aria-hidden="true">T</div>
         <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
           <span style={{ fontWeight: 600, fontSize: 14 }}>TinyDo</span>
-          <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{first}’s workspace</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{copy("{0}’s workspace", first)}</span>
         </div>
         <button type="button" className="btn btn-secondary btn-sm mobile-only" aria-expanded={more} aria-controls="side-more" onClick={() => setMore((m) => !m)}>
           {more ? t('less') : t('more')}
@@ -45,6 +61,23 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
 
       <div className="col" style={{ gap: 4, padding: '4px 0', fontSize: 12, color: 'var(--muted)' }}>
         <span role="status" data-testid="sync-status">{s.syncStatus === 'synced' ? t('allSynced') : s.syncStatus === 'syncing' ? t('syncing') : s.syncStatus === 'retrying' ? t('retrying') : s.syncStatus === 'conflict' ? t('syncConflict') : s.syncStatus === 'error' ? t('syncError') : t('loadingData')}</span>
+        {s.syncStatus === 'conflict' && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setResolveFailed(false); setResolveOpen(true); }}>
+            {t('resolveSync')}
+          </button>
+        )}
+        <Modal open={resolveOpen} title={t('resolveSync')} onClose={() => { if (!resolving) setResolveOpen(false); }}>
+          <div className="modal-body">
+            <p>{t('resolveSyncBody')}</p>
+            {resolveFailed && <p role="alert">{t('resolveSyncFailed')}</p>}
+          </div>
+          <div className="modal-foot">
+            <button type="button" className="btn btn-secondary" disabled={resolving} onClick={() => setResolveOpen(false)}>{copy('Cancel')}</button>
+            <button type="button" className="btn btn-primary" disabled={resolving} onClick={() => void resolveConflict()}>
+              {resolving ? t('loadingData') : t('useServerCopy')}
+            </button>
+          </div>
+        </Modal>
         {s.syncStatus === 'error' && <button type="button" className="btn btn-secondary btn-sm" onClick={s.retrySync}>{t('retrySync')}</button>}
       </div>
 
@@ -171,12 +204,13 @@ export function Avatar({ size }: { size?: 'xl' }) {
 }
 
 function TimerBadge() {
+  const copy = useCopy();
   const s = useStore();
   const now = useNow(1000);
   const t = s.data?.meta.timer;
   if (!t || (!t.running && T.isPristine(t))) return null;
   return (
-    <span className={`pill ${t.running ? 'in_progress' : 'todo'} tnum`} style={{ padding: '2px 7px', fontSize: 11 }} aria-label={t.running ? 'Focus timer running' : 'Focus timer paused'}>
+    <span className={`pill ${t.running ? 'in_progress' : 'todo'} tnum`} style={{ padding: '2px 7px', fontSize: 11 }} aria-label={t.running ? copy("Focus timer running") : copy("Focus timer paused")}>
       {T.clock(T.remainingMs(t, now.getTime()))}
     </span>
   );
@@ -192,6 +226,7 @@ interface Result {
 }
 
 function SearchBox() {
+  const { fmt } = useDateCopy();
   const s = useStore();
   const { t } = useLanguage();
   const navigate = useNavigate();

@@ -4,10 +4,12 @@ import { AuthFooter, AuthHeader } from './AuthLayout';
 import { PasswordField, TextField, useDocumentTitle } from '../components/ui';
 import { useStore } from '../store/AppStore';
 import { Icon } from '../components/Icon';
+import { translateCopy } from '../i18n/copy';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export function LoginPage() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const errorText = (value: string | undefined) => value && translateCopy(language, value);
   useDocumentTitle(t('loginTitle'));
   const s = useStore();
   const [username, setUsername] = useState('');
@@ -43,16 +45,16 @@ export function LoginPage() {
               <p className="lead">{t('loginLead')}</p>
             </div>
             <form onSubmit={submit} noValidate className="col" style={{ gap: 16 }}>
-              {errors.form && <div role="alert" className="status-bad">{errors.form}</div>}
+              {errors.form && <div role="alert" className="status-bad">{errorText(errors.form)}</div>}
               <TextField
                 label={t('username')} autoComplete="username" placeholder={t('yourUsername')} value={username} inputRef={usernameRef}
                 onChange={(v) => { setUsername(v); setErrors(({ username: _e, form: _f, ...rest }) => rest); }}
-                error={errors.username}
+                error={errorText(errors.username)}
               />
               <PasswordField
                 label={t('password')} autoComplete="current-password" value={pw} inputRef={pwRef}
                 onChange={(v) => { setPw(v); setErrors(({ password: _p, form: _f, ...rest }) => rest); }}
-                error={errors.password}
+                error={errorText(errors.password)}
               />
               <button type="submit" className={`btn btn-primary btn-lg btn-block ${loading ? 'loading' : ''}`} disabled={loading}>
                 {loading && <span className="spinner" aria-hidden="true" />}
