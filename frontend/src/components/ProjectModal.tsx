@@ -1,3 +1,4 @@
+import { useCopy } from '../i18n/LanguageContext';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Priority, Project } from '../data/types';
@@ -9,6 +10,7 @@ import { useToast } from '../store/toast';
 import { addDays, dayKey } from '../logic/dates';
 
 export function ProjectModal({ open, onClose, project }: { open: boolean; onClose: () => void; project?: Project }) {
+  const copy = useCopy();
   const s = useStore();
   const toast = useToast();
   const navigate = useNavigate();
@@ -44,9 +46,9 @@ export function ProjectModal({ open, onClose, project }: { open: boolean; onClos
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, string> = {};
-    if (name.trim().length < 2) errs.name = 'Give the project a name (2+ characters).';
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) errs.due = 'Pick a deadline.';
-    else if (!editing && due < dayKey(new Date())) errs.due = 'The deadline can’t be in the past.';
+    if (name.trim().length < 2) errs.name = copy("Give the project a name (2+ characters).");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(due)) errs.due = copy("Pick a deadline.");
+    else if (!editing && due < dayKey(new Date())) errs.due = copy("The deadline can’t be in the past.");
     setErrors(errs);
     if (Object.keys(errs).length) {
       (errs.name ? nameRef.current : document.getElementById('pm-due'))?.focus();
@@ -54,13 +56,13 @@ export function ProjectModal({ open, onClose, project }: { open: boolean; onClos
     }
     if (editing && project) {
       s.updateProject(project.id, { name: name.trim(), dueDate: due, priority, color, description: description.trim() || undefined });
-      toast({ tone: 'ok', title: 'Project updated' });
+      toast({ tone: 'ok', title: copy("Project updated") });
       onClose();
       return;
     }
     const p = s.createProject({ name, dueDate: due, priority, color, description });
     onClose();
-    toast({ tone: 'ok', title: `Created ${p.name}`, body: 'Add a few 10–15 minute tasks to get started.' });
+    toast({ tone: 'ok', title: copy("Created {0}", p.name), body: copy("Add a few 10–15 minute tasks to get started.") });
     navigate(`/projects/${p.id}`);
   };
 
@@ -69,45 +71,45 @@ export function ProjectModal({ open, onClose, project }: { open: boolean; onClos
       <Modal
         open={open && !confirm}
         onClose={onClose}
-        title={editing ? 'Edit project' : 'New project'}
+        title={editing ? copy("Edit project") : copy("New project")}
         initialFocus={nameRef}
         width={500}
       >
         <form onSubmit={submit} noValidate>
           <div className="modal-body">
-            <TextField label="Project name" value={name} onChange={(v) => { setName(v); setErrors((x) => ({ ...x, name: '' })); }} error={errors.name} placeholder="e.g. Final report for Data Structures" inputRef={nameRef} />
+            <TextField label={copy("Project name")} value={name} onChange={(v) => { setName(v); setErrors((x) => ({ ...x, name: '' })); }} error={errors.name} placeholder={copy("e.g. Final report for Data Structures")} inputRef={nameRef} />
             <div className="row wrap" style={{ gap: 12, alignItems: 'flex-start' }}>
               <div className="field" style={{ flex: '1 1 180px' }}>
-                <DatePicker id="pm-due" label="Deadline" value={due} onChange={(value) => { setDue(value); setErrors((x) => ({ ...x, due: '' })); }} min={editing ? undefined : dayKey(new Date())} error={errors.due} />
+                <DatePicker id="pm-due" label={copy("Deadline")} value={due} onChange={(value) => { setDue(value); setErrors((x) => ({ ...x, due: '' })); }} min={editing ? undefined : dayKey(new Date())} error={errors.due} />
               </div>
               <div className="field" style={{ flex: '1 1 220px' }}>
-                <span className="field-label" id="pm-prio">Priority</span>
-                <Segmented label="Priority" full tall value={priority} onChange={setPriority} options={[{ value: 'low', label: 'Low' }, { value: 'medium', label: 'Medium' }, { value: 'high', label: 'High' }]} />
+                <span className="field-label" id="pm-prio">{copy("Priority")}</span>
+                <Segmented label={copy("Priority")} full tall value={priority} onChange={setPriority} options={[{ value: 'low', label: copy("Low") }, { value: 'medium', label: copy("Medium") }, { value: 'high', label: copy("High") }]} />
               </div>
             </div>
             <div className="field">
-              <span className="field-label">Color</span>
-              <div className="color-swatches" role="radiogroup" aria-label="Project color">
+              <span className="field-label">{copy("Color")}</span>
+              <div className="color-swatches" role="radiogroup" aria-label={copy("Project color")}>
                 {PROJECT_COLORS.map((c) => (
-                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={`Color ${c}`} className="swatch" style={{ background: c }} onClick={() => setColor(c)} />
+                  <button key={c} type="button" role="radio" aria-checked={c === color} aria-label={copy("Color {0}", c)} className="swatch" style={{ background: c }} onClick={() => setColor(c)} />
                 ))}
               </div>
             </div>
             <div className="field">
               <label htmlFor="pm-desc">
-                Notes <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(optional)</span>
+                {copy("Notes")} <span style={{ color: 'var(--muted)', fontWeight: 400 }}>{copy("(optional)")}</span>
               </label>
-              <textarea id="pm-desc" className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Scope, links, anything worth remembering" />
+              <textarea id="pm-desc" className="textarea" rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={copy("Scope, links, anything worth remembering")} />
             </div>
           </div>
           <div className="modal-foot" style={{ justifyContent: editing ? 'space-between' : 'flex-end' }}>
             {editing && (
-              <button type="button" className="btn btn-danger-outline" onClick={() => setConfirm(true)}>Delete project</button>
+              <button type="button" className="btn btn-danger-outline" onClick={() => setConfirm(true)}>{copy("Delete project")}</button>
             )}
             <div className="row">
-              <button type="button" className="btn btn-secondary" onClick={onClose}>Cancel</button>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>{copy("Cancel")}</button>
               <button type="submit" className="btn btn-primary">
-                {editing ? 'Save changes' : 'Create project'}
+                {editing ? copy("Save changes") : copy("Create project")}
               </button>
             </div>
           </div>
@@ -117,14 +119,14 @@ export function ProjectModal({ open, onClose, project }: { open: boolean; onClos
         <ConfirmModal
           open={confirm}
           onClose={() => setConfirm(false)}
-          title="Delete this project?"
-          body={<>“{project.name}” and its {s.tasksOf(project.id).length} tasks will be permanently removed. Focus time already logged stays in your stats.</>}
-          confirmLabel="Delete project"
+          title={copy("Delete this project?")}
+          body={<>“{project.name}{copy("” and its")} {s.tasksOf(project.id).length} {copy("tasks will be permanently removed. Focus time already logged stays in your stats.")}</>}
+          confirmLabel={copy("Delete project")}
           onConfirm={() => {
             s.deleteProject(project.id);
             setConfirm(false);
             onClose();
-            toast({ title: `Deleted ${project.name}` });
+            toast({ title: copy("Deleted {0}", project.name) });
             navigate('/projects');
           }}
         />

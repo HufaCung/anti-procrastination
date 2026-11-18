@@ -1,6 +1,7 @@
 import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
-import { settingsDb, defaultSettings } from '../db/database.js';
+import { isDataValidationError } from '../db/errors.js';
+import { settingsDb } from '../db/database.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
 import type { Settings } from '../types.js';
 
@@ -25,6 +26,12 @@ settingsRouter.patch('/', asyncHandler(async (req: AuthenticatedRequest, res: Re
     userId: user.id,
   };
 
-  await settingsDb.save(updated);
+  try {
+    await settingsDb.save(updated);
+  } catch (error) {
+    if (!isDataValidationError(error)) throw error;
+    res.status(400).json({ error: 'Invalid working hours or days off' });
+    return;
+  }
   res.json({ settings: updated });
 }));

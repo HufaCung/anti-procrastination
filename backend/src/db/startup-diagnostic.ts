@@ -28,6 +28,7 @@ const hints: Record<string, string> = {
   APP_DB_MIGRATION_TABLE: 'Database migration tracking table failed.',
   APP_DB_MIGRATION_001: 'Database migration 001 failed.',
   APP_DB_MIGRATION_002: 'Database migration 002 failed.',
+  APP_DB_MIGRATION_003: 'Database migration 003 failed.',
 };
 
 export function databaseStartupDiagnostic(error: unknown, depth = 0): string {

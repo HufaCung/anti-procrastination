@@ -103,6 +103,22 @@ export const api = {
     } catch { return null; }
   },
 
+  async deleteAccount(password: string): Promise<'deleted' | 'password' | 'error'> {
+    const token = getAuthToken();
+    if (!token) return 'error';
+    try {
+      const response = await fetch('/api/auth/account', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ password }),
+      });
+      if (response.status === 204) return 'deleted';
+      return response.status === 403 ? 'password' : 'error';
+    } catch {
+      return 'error';
+    }
+  },
+
   // AppData bulk sync
   async fetchAppData(): Promise<{ data: AppData; revision: number } | 'rejected' | null> {
     try {

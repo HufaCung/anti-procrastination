@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import crypto from 'node:crypto';
 import type { AppData, FocusSession, Meta, Project, Settings, Task, Team, User } from '../types.js';
 import { defaultMeta, defaultSettings } from './defaults.js';
+import { validateWorkSchedule } from './work-schedule.js';
 import { DataValidationError } from './errors.js';
 import { supabaseRoot2021Ca } from './supabase-ca.js';
 
@@ -58,9 +59,9 @@ export async function initDb(): Promise<void> {
     await transaction(async () => {
       await stage('APP_DB_LOCK', () => query('SELECT pg_advisory_xact_lock(874321,1)'));
       await stage('APP_DB_MIGRATION_TABLE', () => query('CREATE TABLE IF NOT EXISTS tinydo_schema_migrations(version TEXT PRIMARY KEY, checksum TEXT NOT NULL, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())'));
-      for (const version of ['001','002']) {
+      for (const [version, name] of [['001', 'initial'], ['002', 'teams'], ['003', 'work-schedule']]) {
         await stage(`APP_DB_MIGRATION_${version}`, async () => {
-          const migration = await readFile(new URL(`./migrations/${version}-${version === '001' ? 'initial' : 'teams'}.sql`, import.meta.url), 'utf8');
+          const migration = await readFile(new URL(`./migrations/${version}-${name}.sql`, import.meta.url), 'utf8');
           const checksum = crypto.createHash('sha256').update(migration).digest('hex');
           const found = (await query('SELECT checksum FROM tinydo_schema_migrations WHERE version=$1', [version])).rows[0];
           if (found) { if (found.checksum !== checksum) throw new Error('Database migration checksum mismatch'); return; }
@@ -98,7 +99,9 @@ export const usersDb = {
   async changePassword(id: string, expected: string, hash: string): Promise<User | null> {
     const row = (await query('UPDATE users SET password_hash=$1,password_changed_at=$2,auth_version=auth_version+1 WHERE id=$3 AND password_hash=$4 RETURNING *', [hash, new Date().toISOString(), id, expected])).rows[0]; return row ? userFrom(row) : null;
   },
-  async delete(id: string): Promise<boolean> { return !!(await query('DELETE FROM users WHERE id=$1', [id])).rowCount; },
+  async delete(id: string, expectedHash: string): Promise<boolean> {
+    return !!(await query('DELETE FROM users WHERE id=$1 AND password_hash=$2', [id, expectedHash])).rowCount;
+  },
 };
 
 export const teamsDb = {
@@ -126,9 +129,9 @@ export const settingsDb = {
   async get(userId: string): Promise<Settings> {
     const row = (await query('SELECT * FROM settings WHERE user_id=$1', [userId])).rows[0];
     if (!row) return defaultSettings(userId);
-    return { userId, theme: row.theme as Settings['theme'], dailyGoalMin: Number(row.daily_goal_min), defaultTaskMin: Number(row.default_task_min) as Settings['defaultTaskMin'], timeZone: String(row.time_zone), weekStart: row.week_start as Settings['weekStart'], autoReplan: Boolean(row.auto_replan), deadlineAlerts: Boolean(row.deadline_alerts), weeklyDigest: Boolean(row.weekly_digest), focusSound: Boolean(row.focus_sound) };
+    return { userId, theme: row.theme as Settings['theme'], dailyGoalMin: Number(row.daily_goal_min), workStartMin: Number(row.work_start_min), workEndMin: Number(row.work_end_min), daysOffMask: Number(row.days_off_mask), defaultTaskMin: Number(row.default_task_min) as Settings['defaultTaskMin'], timeZone: String(row.time_zone), weekStart: row.week_start as Settings['weekStart'], autoReplan: Boolean(row.auto_replan), deadlineAlerts: Boolean(row.deadline_alerts), weeklyDigest: Boolean(row.weekly_digest), focusSound: Boolean(row.focus_sound) };
   },
-  async save(s: Settings): Promise<void> { await write(s.userId, () => save('settings', { user_id: s.userId, theme: s.theme, daily_goal_min: s.dailyGoalMin, default_task_min: s.defaultTaskMin, time_zone: s.timeZone, week_start: s.weekStart, auto_replan: s.autoReplan, deadline_alerts: s.deadlineAlerts, weekly_digest: s.weeklyDigest, focus_sound: s.focusSound })); },
+  async save(s: Settings): Promise<void> { validateWorkSchedule(s); await write(s.userId, () => save('settings', { user_id: s.userId, theme: s.theme, daily_goal_min: s.dailyGoalMin, work_start_min: s.workStartMin ?? 540, work_end_min: s.workEndMin ?? 1320, days_off_mask: s.daysOffMask ?? 0, default_task_min: s.defaultTaskMin, time_zone: s.timeZone, week_start: s.weekStart, auto_replan: s.autoReplan, deadline_alerts: s.deadlineAlerts, weekly_digest: s.weeklyDigest, focus_sound: s.focusSound })); },
 };
 export const metaDb = {
   async get(userId: string): Promise<Meta> {
@@ -177,7 +180,15 @@ export async function getAppData(userId: string): Promise<AppData> {
 export async function getAppDataSnapshot(userId: string) { return transaction(async () => ({ data: await getAppData(userId), revision: await getDataRevision(userId) }), true); }
 export async function saveAppData(userId: string, data: AppData): Promise<void> {
   await write(userId, async () => {
-    await settingsDb.save({ ...defaultSettings(userId), ...data.settings, userId });
+    const existingSettings = await settingsDb.get(userId);
+    await settingsDb.save({
+      ...defaultSettings(userId),
+      workStartMin: existingSettings.workStartMin,
+      workEndMin: existingSettings.workEndMin,
+      daysOffMask: existingSettings.daysOffMask,
+      ...data.settings,
+      userId,
+    });
     await metaDb.save({ ...defaultMeta(userId), ...data.meta, userId });
     for (const p of await projectsDb.getByUser(userId)) if (!data.projects.some(x => x.id === p.id)) await projectsDb.delete(p.id,userId);
     for (const p of data.projects) await projectsDb.save({ ...p,userId });

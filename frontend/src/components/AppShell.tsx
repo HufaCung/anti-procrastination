@@ -1,3 +1,4 @@
+import { useCopy } from '../i18n/LanguageContext';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
@@ -32,6 +33,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 }
 
 export function AppShell() {
+  const copy = useCopy();
   const ui = useUI();
   const loc = useLocation();
   useEffect(() => {
@@ -39,7 +41,7 @@ export function AppShell() {
   }, [loc.pathname]);
   return (
     <div className="shell">
-      <a href="#main" className="skip-link">Skip to content</a>
+      <a href="#main" className="skip-link">{copy("Skip to content")}</a>
       <div className="shell-side">
         <Sidebar onNewTask={() => ui.openQuickTask(loc.pathname.startsWith('/projects/') ? loc.pathname.split('/')[2] : undefined)} />
       </div>

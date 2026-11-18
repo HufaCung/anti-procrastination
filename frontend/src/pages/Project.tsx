@@ -1,3 +1,4 @@
+import { useDateCopy, useCopy, useLanguage } from '../i18n/LanguageContext';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Page, useUI } from '../components/AppShell';
@@ -8,24 +9,25 @@ import { useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
 import type { Subtask, Task } from '../data/types';
 import { uid } from '../logic/ids';
-import { daysBetween, fmt, fmtMinutes, fmtMinutesPadded, parseDay, startOfDay } from '../logic/dates';
-import { PRIORITY_LABEL } from '../logic/progress';
+import { daysBetween, parseDay, startOfDay } from '../logic/dates';
+import { priorityLabel, formatRiskReason } from '../i18n/progress';
 import * as T from '../logic/timer';
 
 const PRIORITY_COLOR = { high: '#E0560A', medium: '#E0A100', low: '#8A8A86' } as const;
 
 export function ProjectPage() {
+  const copy = useCopy();
   const { id = '' } = useParams();
   const s = useStore();
   const project = s.projectById(id);
-  useDocumentTitle(project?.name ?? 'Project');
+  useDocumentTitle(project?.name ?? copy("Project"));
   if (!project) {
     return (
-      <Page label="Project not found">
-        <nav aria-label="Breadcrumb" className="breadcrumb"><Link to="/projects">Projects</Link></nav>
+      <Page label={copy("Project not found")}>
+        <nav aria-label={copy("Breadcrumb")} className="breadcrumb"><Link to="/projects">{copy("Projects")}</Link></nav>
         <section className="card">
-          <EmptyState icon="folder" title="Project not found" body="It may have been deleted.">
-            <Link to="/projects" className="btn btn-secondary">Back to projects</Link>
+          <EmptyState icon="folder" title={copy("Project not found")} body={copy("It may have been deleted.")}>
+            <Link to="/projects" className="btn btn-secondary">{copy("Back to projects")}</Link>
           </EmptyState>
         </section>
       </Page>
@@ -35,6 +37,9 @@ export function ProjectPage() {
 }
 
 function ProjectView({ projectId }: { projectId: string }) {
+  const { fmt, fmtMinutes, fmtMinutesPadded } = useDateCopy();
+  const copy = useCopy();
+  const { language } = useLanguage();
   const s = useStore();
   const ui = useUI();
   const toast = useToast();
@@ -80,7 +85,7 @@ function ProjectView({ projectId }: { projectId: string }) {
   }, [tasks]);
 
   const daysToDue = daysBetween(now, parseDay(project.dueDate));
-  const dueLabel = daysToDue > 0 ? `${daysToDue} ${daysToDue === 1 ? 'day' : 'days'}` : daysToDue === 0 ? 'today' : `${-daysToDue} ${daysToDue === -1 ? 'day' : 'days'} ago`;
+  const dueLabel = daysToDue > 0 ? `${daysToDue} ${daysToDue === 1 ? copy("day") : copy("days")}` : daysToDue === 0 ? copy('Today').toLowerCase() : copy("{0} {1} ago", -daysToDue, daysToDue === -1 ? copy("day") : copy("days"));
   const nextTask = [...tasks]
     .filter((t) => t.status !== 'done')
     .sort((a, b) => (a.status === 'in_progress' ? -1 : 0) - (b.status === 'in_progress' ? -1 : 0) || (a.scheduledFor ?? '9').localeCompare(b.scheduledFor ?? '9') || a.order - b.order)[0];
@@ -103,23 +108,23 @@ function ProjectView({ projectId }: { projectId: string }) {
 
   const removeTask = (t: Task) => {
     s.deleteTask(t.id);
-    toast({ title: 'Task deleted', body: t.title, action: { label: 'Undo', onClick: () => s.restoreTask(t) } });
+    toast({ title: copy("Task deleted"), body: t.title, action: { label: copy("Undo"), onClick: () => s.restoreTask(t) } });
   };
 
   const replan = () => {
     const r = s.replanProject(projectId);
     toast({
       tone: r.unplaced ? 'warn' : 'ok',
-      title: r.placed ? `Rescheduled ${r.placed} ${r.placed === 1 ? 'task' : 'tasks'}` : 'Nothing to replan',
-      body: r.unplaced ? `${r.unplaced} ${r.unplaced === 1 ? 'task doesn’t' : 'tasks don’t'} fit before the deadline. Raise your daily goal or trim scope.` : r.placed ? 'Unfinished and unscheduled tasks now sit in free slots before the deadline.' : 'Every open task already has a future slot.',
-      action: r.placed ? { label: 'Undo', onClick: () => s.undoReplan() } : undefined,
+      title: r.placed ? copy("Rescheduled {0} {1}", r.placed, r.placed === 1 ? copy("task") : copy("tasks")) : copy("Nothing to replan"),
+      body: r.unplaced ? copy("{0} {1} fit before the deadline. Raise your daily goal or trim scope.", r.unplaced, r.unplaced === 1 ? 'task doesn’t' : 'tasks don’t') : r.placed ? copy("Unfinished and unscheduled tasks now sit in free slots before the deadline.") : copy("Every open task already has a future slot."),
+      action: r.placed ? { label: copy("Undo"), onClick: () => s.undoReplan() } : undefined,
     });
   };
 
   return (
     <Page label={project.name}>
-      <nav aria-label="Breadcrumb" className="breadcrumb">
-        <Link to="/projects">Projects</Link>
+      <nav aria-label={copy("Breadcrumb")} className="breadcrumb">
+        <Link to="/projects">{copy("Projects")}</Link>
         <span aria-hidden="true">/</span>
         <span style={{ color: 'var(--text)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} aria-current="page">{project.name}</span>
       </nav>
@@ -134,80 +139,80 @@ function ProjectView({ projectId }: { projectId: string }) {
           <div className="row wrap">
             <span className="chip">
               <Icon name="calendar" size={14} style={{ color: 'var(--muted)' }} />
-              Due {fmt.dowMonthDay(parseDay(project.dueDate))} · {dueLabel}
+              {copy("Due")} {fmt.dowMonthDay(parseDay(project.dueDate))} · {dueLabel}
             </span>
             <span className="chip">
               <Icon name="priority" size={14} style={{ color: PRIORITY_COLOR[project.priority] }} />
-              {PRIORITY_LABEL[project.priority]}
+              {priorityLabel(project.priority, language)}
             </span>
             <RiskPill risk={st.risk} className="chip-like" />
-            <span className="chip" style={{ color: 'var(--text2)' }} data-testid="work-left">{fmtMinutes(st.remainingMin)} of work left</span>
+            <span className="chip" style={{ color: 'var(--text2)' }} data-testid="work-left">{fmtMinutes(st.remainingMin)} {copy("of work left")}</span>
           </div>
         </div>
         <div className="row wrap">
           <button type="button" className="btn btn-secondary" onClick={() => ui.openEditProject(project)}>
             <Icon name="edit" size={15} />
-            Edit project
+            {copy("Edit project")}
           </button>
           <button type="button" className="btn btn-primary" disabled={!nextTask} onClick={() => nextTask && navigate(`/focus?task=${nextTask.id}`)}>
             <Icon name="play" size={15} />
-            Focus on next task
+            {copy("Focus on next task")}
           </button>
         </div>
       </header>
 
-      <section aria-label="Progress" className="card pad" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 16, alignItems: 'center' }}>
+      <section aria-label={copy("Progress")} className="card pad" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 16, alignItems: 'center' }}>
         <div className="col" style={{ gridColumn: '1 / -1', gap: 8 }}>
           <div className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}>
-            <span style={{ fontWeight: 600 }} data-testid="project-pct">{st.pct}% complete</span>
-            <span className="muted tnum">{st.done} of {st.total} tasks</span>
+            <span style={{ fontWeight: 600 }} data-testid="project-pct">{st.pct}{copy("% complete")}</span>
+            <span className="muted tnum">{st.done} {copy("of")} {st.total} {copy("tasks")}</span>
           </div>
-          <ProgressBar pct={st.pct} color={project.color} height={8} label={`${project.name} progress`} />
-          <span className="muted" style={{ fontSize: 12 }}>Progress counts completed tasks, regardless of their size. Forecasts use remaining task estimates and logged focus time, not time spent outside the timer.</span>
+          <ProgressBar pct={st.pct} color={project.color} height={8} label={copy("{0} progress", project.name)} />
+          <span className="muted" style={{ fontSize: 12 }}>{copy("Progress counts completed tasks, regardless of their size. Forecasts use remaining task estimates and logged focus time, not time spent outside the timer.")}</span>
         </div>
-        <div className="col stat" style={{ gap: 2 }}><span className="k">Needed per day</span><span className="v">{st.remainingMin ? `${Math.round(st.neededPerDay)} min` : '—'}</span></div>
-        <div className="col stat" style={{ gap: 2 }}><span className="k">Your recent pace</span><span className="v">{Math.round(st.pace)} min / day{st.paceIsFallback ? '*' : ''}</span></div>
+        <div className="col stat" style={{ gap: 2 }}><span className="k">{copy("Needed per day")}</span><span className="v">{st.remainingMin ? copy("{0} min", Math.round(st.neededPerDay)) : '—'}</span></div>
+        <div className="col stat" style={{ gap: 2 }}><span className="k">{copy("Your recent pace")}</span><span className="v">{Math.round(st.pace)} {copy("min / day")}{st.paceIsFallback ? '*' : ''}</span></div>
         <div className="col stat" style={{ gap: 2 }}>
-          <span className="k">Projected finish</span>
+          <span className="k">{copy("Projected finish")}</span>
           <span className="v" style={{ color: st.risk === 'done' ? 'var(--ok-text)' : st.daysLate > 0 ? riskColor ?? 'var(--warn-text)' : undefined }}>
-            {st.risk === 'done' ? 'Finished' : st.remainingMin === 0 ? 'Today' : `${fmt.monthDay(st.projectedFinish)}${st.daysLate > 0 ? ` · ${st.daysLate} ${st.daysLate === 1 ? 'day' : 'days'} late` : ''}`}
+            {st.risk === 'done' ? copy('Finished') : st.remainingMin === 0 ? copy("Today") : `${fmt.monthDay(st.projectedFinish)}${st.daysLate > 0 ? " " + copy("· {0} {1} late", st.daysLate, st.daysLate === 1 ? copy("day") : copy("days")) : ''}`}
           </span>
         </div>
-        <div className="col stat" style={{ gap: 2 }}><span className="k">Focus logged</span><span className="v">{fmtMinutesPadded(st.focusMin)}</span></div>
+        <div className="col stat" style={{ gap: 2 }}><span className="k">{copy("Focus logged")}</span><span className="v">{fmtMinutesPadded(st.focusMin)}</span></div>
         {st.paceIsFallback && st.remainingMin > 0 && (
-          <span style={{ gridColumn: '1 / -1', fontSize: 12, color: 'var(--muted)' }}>* No focus sessions yet, so pace is estimated from your daily goal split across active projects.</span>
+          <span style={{ gridColumn: '1 / -1', fontSize: 12, color: 'var(--muted)' }}>{copy("* No focus sessions yet, so pace is estimated from your daily goal split across active projects.")}</span>
         )}
       </section>
 
       <div className="split">
         <section aria-labelledby="tasks-h" className="card main">
           <div className="card-head" style={{ padding: '12px 16px' }}>
-            <h2 id="tasks-h" className="section-title">Task breakdown</h2>
-            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>Click a status to move it: To do → In progress → Done</span>
+            <h2 id="tasks-h" className="section-title">{copy("Task breakdown")}</h2>
+            <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{copy("Click a status to move it: To do → In progress → Done")}</span>
           </div>
 
           <form onSubmit={addTask} className="col" style={{ padding: '12px 16px', gap: 10 }} noValidate data-tour="add-task">
           <div className="add-form" style={{ padding: 0 }}>
             <label className="grow-input" style={draftErr ? { borderColor: 'var(--danger-text)' } : undefined}>
               <Icon name="plus" size={15} />
-              <input ref={draftRef} value={draft} onChange={(e) => { setDraft(e.target.value); setDraftErr(false); }} placeholder="Add a 10–15 min task…" aria-label="New task title" aria-invalid={draftErr} />
+              <input ref={draftRef} value={draft} onChange={(e) => { setDraft(e.target.value); setDraftErr(false); }} placeholder={copy("Add a 10–15 min task…")} aria-label={copy("New task title")} aria-invalid={draftErr} />
             </label>
-            <select className="select" value={draftEst} onChange={(e) => setDraftEst(Number(e.target.value))} aria-label="Estimate" data-tour="estimate">
-              {[5, 10, 15, 20, 25, 30].map((m) => <option key={m} value={m}>{m} min</option>)}
+            <select className="select" value={draftEst} onChange={(e) => setDraftEst(Number(e.target.value))} aria-label={copy("Estimate")} data-tour="estimate">
+              {[5, 10, 15, 20, 25, 30].map((m) => <option key={m} value={m}>{m} {copy("min")}</option>)}
             </select>
-            <button type="submit" className="btn btn-dark">Add</button>
+            <button type="submit" className="btn btn-dark">{copy("Add")}</button>
           </div>
-          <div style={{ maxWidth: 260 }}><DatePicker id="task-due" label="Task deadline (optional)" value={draftDue} onChange={setDraftDue} optional /></div>
+          <div style={{ maxWidth: 260 }}><DatePicker id="task-due" label={copy("Task deadline (optional)")} value={draftDue} onChange={setDraftDue} optional /></div>
           </form>
 
           {groups.length === 0 ? (
-            <EmptyState icon="inbox" title="No tasks yet" body="Add a 10–15 minute task above. Small steps are easier to start and to schedule." />
+            <EmptyState icon="inbox" title={copy("No tasks yet")} body={copy("Add a 10–15 minute task above. Small steps are easier to start and to schedule.")} />
           ) : (
             groups.map((g) => (
               <div key={g.name} className="group">
                 <div className="group-head">
                   <span className="n">{g.name}</span>
-                  <span className="s">{g.done}/{g.tasks.length} done</span>
+                  <span className="s">{g.done}/{g.tasks.length} {copy("done")}</span>
                 </div>
                 <ul className="task-list" style={{ padding: '0 0 6px' }}>
                   {g.tasks.map((t, i) => (
@@ -226,7 +231,7 @@ function ProjectView({ projectId }: { projectId: string }) {
                       onFocus={() => {
                         const timer = s.data?.meta.timer;
                         if (timer && (timer.running || !T.isPristine(timer))) {
-                          toast({ title: 'Finish or reset the current session first' });
+                          toast({ title: copy("Finish or reset the current session first") });
                           return;
                         }
                         navigate(`/focus?task=${encodeURIComponent(t.id)}`);
@@ -243,27 +248,27 @@ function ProjectView({ projectId }: { projectId: string }) {
           <section aria-labelledby="risk-h" className="card pad col" style={{ gap: 10 }}>
             {st.risk === 'at_risk' || st.risk === 'overdue' ? (
               <>
-                <h2 id="risk-h" className="section-title">{st.risk === 'overdue' ? 'Why it’s overdue' : 'Why it’s at risk'}</h2>
+                <h2 id="risk-h" className="section-title">{st.risk === 'overdue' ? copy("Why it’s overdue") : copy("Why it’s at risk")}</h2>
                 <ul className="risk-list">
-                  {st.reasons.map((r) => <li key={r}>{r}</li>)}
+                  {st.reasons.map((r) => <li key={r.kind}>{formatRiskReason(r, language)}</li>)}
                 </ul>
               </>
             ) : (
               <>
-                <h2 id="risk-h" className="section-title">{st.risk === 'done' ? 'All done' : 'On track'}</h2>
+                <h2 id="risk-h" className="section-title">{st.risk === 'done' ? copy("All done") : copy("On track")}</h2>
                 <p style={{ color: 'var(--text2)', lineHeight: 1.45 }}>
                   {st.risk === 'done'
-                    ? 'Every task in this project is finished. Nice work.'
+                    ? copy("Every task in this project is finished. Nice work.")
                     : st.total === 0
-                      ? 'Add tasks to see whether the deadline is realistic.'
-                      : `At ${Math.round(st.pace)} min/day you’ll finish around ${fmt.monthDay(st.projectedFinish)}, before the ${fmt.monthDay(parseDay(project.dueDate))} deadline.`}
+                      ? copy("Add tasks to see whether the deadline is realistic.")
+                      : copy("At {0} min/day you’ll finish around {1}, before the {2} deadline.", Math.round(st.pace), fmt.monthDay(st.projectedFinish), fmt.monthDay(parseDay(project.dueDate)))}
                 </p>
               </>
             )}
             {st.risk !== 'done' && st.total > 0 && (
               <button type="button" className="btn btn-secondary" style={{ fontWeight: 600 }} onClick={replan}>
                 <Icon name="refresh" size={15} />
-                Replan unfinished tasks
+                {copy("Replan unfinished tasks")}
               </button>
             )}
           </section>
@@ -288,6 +293,8 @@ function TaskRow({
   onSubtasks: (fn: (subtasks: Subtask[]) => Subtask[]) => void;
   onFocus: () => void;
 }) {
+  const { fmt } = useDateCopy();
+  const copy = useCopy();
   const [title, setTitle] = useState(task.title);
   const [menuOpen, setMenuOpen] = useState(false);
   const [adding, setAdding] = useState(false);
@@ -348,7 +355,7 @@ function TaskRow({
           ref={titleRef}
           className={`inline-edit ${done ? 'done' : ''}`}
           value={title}
-          aria-label={`Task title: ${task.title}`}
+          aria-label={copy("Task title: {0}", task.title)}
           onChange={(e) => setTitle(e.target.value)}
           onBlur={commit}
           onKeyDown={(e) => {
@@ -359,22 +366,22 @@ function TaskRow({
             }
           }}
         />
-        {task.dueDate && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>Deadline: {fmt.dowMonthDay(parseDay(task.dueDate))}</span>}
+        {task.dueDate && <span style={{ fontSize: 11.5, color: 'var(--muted)' }}>{copy("Deadline:")} {fmt.dowMonthDay(parseDay(task.dueDate))}</span>}
         {when && !done && (
           <span style={{ fontSize: 11.5, color: slipped ? 'var(--danger-text)' : task.replannedFrom ? 'var(--accent-text)' : 'var(--muted)', fontWeight: slipped ? 500 : 400 }}>
-            Planned: {fmt.dowMonthDay(when)} · {fmt.time(when)}{slipped ? ' · slipped' : task.replannedFrom ? ' · replanned' : ''}
+            {copy("Planned:")} {fmt.dowMonthDay(when)} · {fmt.time(when)}{slipped ? ` · ${copy('slipped')}` : task.replannedFrom ? ` · ${copy('replanned')}` : ''}
           </span>
         )}
       </div>
-      <select className="est-select" value={task.estimateMin} onChange={(e) => onEstimate(Number(e.target.value))} aria-label={`Estimate for ${task.title}`}>
-        {estOptions.map((m) => <option key={m} value={m}>{m} min</option>)}
+      <select className="est-select" value={task.estimateMin} onChange={(e) => onEstimate(Number(e.target.value))} aria-label={copy("Estimate for {0}", task.title)}>
+        {estOptions.map((m) => <option key={m} value={m}>{m} {copy("min")}</option>)}
       </select>
       <StatusButton status={task.status} title={task.title} onClick={onCycle} />
       <div className="task-menu" ref={menuRef}>
-        <button type="button" className="icon-btn plain sm" aria-label={`Options for ${task.title}`} aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(!menuOpen)} data-tour="task-options">
+        <button type="button" className="icon-btn plain sm" aria-label={copy("Options for {0}", task.title)} aria-expanded={menuOpen} aria-haspopup="menu" onClick={() => setMenuOpen(!menuOpen)} data-tour="task-options">
           <Icon name="more" size={18} stroke={3} />
         </button>
-        {menuOpen && <div className={`task-menu-popover ${menuAbove ? 'above' : ''}`} style={{ maxHeight: menuMaxHeight }} role="menu" aria-label={`Options for ${task.title}`} onKeyDown={(event) => {
+        {menuOpen && <div className={`task-menu-popover ${menuAbove ? 'above' : ''}`} style={{ maxHeight: menuMaxHeight }} role="menu" aria-label={copy("Options for {0}", task.title)} onKeyDown={(event) => {
           if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
           event.preventDefault();
           const items = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
@@ -382,17 +389,17 @@ function TaskRow({
           const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : event.key === 'ArrowDown' ? (current + 1) % items.length : (current - 1 + items.length) % items.length;
           items[next]?.focus();
         }}>
-          <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setAdding(true); }}><Icon name="plus" size={15} /> Add subtask</button>
-          <button type="button" role="menuitem" disabled={done} onClick={() => { setMenuOpen(false); onFocus(); }}><Icon name="play" size={15} /> Focus on task</button>
-          <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); titleRef.current?.focus(); titleRef.current?.select(); }}><Icon name="edit" size={15} /> Edit task</button>
-          <button type="button" role="menuitem" disabled={first} onClick={() => { setMenuOpen(false); onMove(-1); }}><Icon name="up" size={15} /> Move up</button>
-          <button type="button" role="menuitem" disabled={last} onClick={() => { setMenuOpen(false); onMove(1); }}><Icon name="down" size={15} /> Move down</button>
-          <button type="button" role="menuitem" className="danger" onClick={() => { setMenuOpen(false); onDelete(); }}><Icon name="trash" size={15} /> Delete task</button>
+          <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setAdding(true); }}><Icon name="plus" size={15} /> {copy("Add subtask")}</button>
+          <button type="button" role="menuitem" disabled={done} onClick={() => { setMenuOpen(false); onFocus(); }}><Icon name="play" size={15} /> {copy("Focus on task")}</button>
+          <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); titleRef.current?.focus(); titleRef.current?.select(); }}><Icon name="edit" size={15} /> {copy("Edit task")}</button>
+          <button type="button" role="menuitem" disabled={first} onClick={() => { setMenuOpen(false); onMove(-1); }}><Icon name="up" size={15} /> {copy("Move up")}</button>
+          <button type="button" role="menuitem" disabled={last} onClick={() => { setMenuOpen(false); onMove(1); }}><Icon name="down" size={15} /> {copy("Move down")}</button>
+          <button type="button" role="menuitem" className="danger" onClick={() => { setMenuOpen(false); onDelete(); }}><Icon name="trash" size={15} /> {copy("Delete task")}</button>
         </div>}
       </div>
       </div>
       {(subtasks.length > 0 || adding) && <div className="subtasks">
-        {subtasks.length > 0 && <div className="subtasks-caption">{subtasks.filter((subtask) => subtask.done).length} of {subtasks.length} subtasks done</div>}
+        {subtasks.length > 0 && <div className="subtasks-caption">{subtasks.filter((subtask) => subtask.done).length} {copy("of")} {subtasks.length} {copy("subtasks done")}</div>}
         <ul className="subtasks-list">
           {subtasks.map((subtask) => <SubtaskRow key={subtask.id} subtask={subtask} onChange={(patch) => onSubtasks((items) => items.map((item) => item.id === subtask.id ? { ...item, ...patch } : item))} onDelete={() => onSubtasks((items) => items.filter((item) => item.id !== subtask.id))} />)}
         </ul>
@@ -405,9 +412,9 @@ function TaskRow({
           setSubtaskTitle('');
           setAdding(false);
         }}>
-          <input ref={addRef} className="input" aria-label={`New subtask for ${task.title}`} placeholder="Add a small step…" value={subtaskTitle} onChange={(event) => setSubtaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { setAdding(false); setSubtaskTitle(''); } }} />
-          <button type="submit" className="btn btn-primary btn-sm">Add</button>
-          <button type="button" className="icon-btn plain sm" aria-label="Cancel adding subtask" onClick={() => { setAdding(false); setSubtaskTitle(''); }}><Icon name="x" size={14} /></button>
+          <input ref={addRef} className="input" aria-label={copy("New subtask for {0}", task.title)} placeholder={copy("Add a small step…")} value={subtaskTitle} onChange={(event) => setSubtaskTitle(event.target.value)} onKeyDown={(event) => { if (event.key === 'Escape') { setAdding(false); setSubtaskTitle(''); } }} />
+          <button type="submit" className="btn btn-primary btn-sm">{copy("Add")}</button>
+          <button type="button" className="icon-btn plain sm" aria-label={copy("Cancel adding subtask")} onClick={() => { setAdding(false); setSubtaskTitle(''); }}><Icon name="x" size={14} /></button>
         </form>}
       </div>}
     </li>
@@ -415,12 +422,13 @@ function TaskRow({
 }
 
 function SubtaskRow({ subtask, onChange, onDelete }: { subtask: Subtask; onChange: (patch: Partial<Subtask>) => void; onDelete: () => void }) {
+  const copy = useCopy();
   const [title, setTitle] = useState(subtask.title);
   const cancelTitle = useRef(false);
   useEffect(() => setTitle(subtask.title), [subtask.title]);
   return <li className="subtask-row">
-    <input type="checkbox" checked={subtask.done} aria-label={`Complete subtask: ${subtask.title}`} onChange={(event) => onChange({ done: event.target.checked })} />
-    <input className={`inline-edit ${subtask.done ? 'done' : ''}`} aria-label={`Subtask title: ${subtask.title}`} value={title} onChange={(event) => setTitle(event.target.value)} onBlur={() => { if (cancelTitle.current) { cancelTitle.current = false; setTitle(subtask.title); return; } const value = title.trim(); if (!value) setTitle(subtask.title); else if (value !== subtask.title) onChange({ title: value }); }} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { cancelTitle.current = true; event.currentTarget.blur(); } }} />
-    <button type="button" className="icon-btn plain sm" aria-label={`Delete subtask: ${subtask.title}`} onClick={onDelete}><Icon name="trash" size={14} /></button>
+    <input type="checkbox" checked={subtask.done} aria-label={copy("Complete subtask: {0}", subtask.title)} onChange={(event) => onChange({ done: event.target.checked })} />
+    <input className={`inline-edit ${subtask.done ? 'done' : ''}`} aria-label={copy("Subtask title: {0}", subtask.title)} value={title} onChange={(event) => setTitle(event.target.value)} onBlur={() => { if (cancelTitle.current) { cancelTitle.current = false; setTitle(subtask.title); return; } const value = title.trim(); if (!value) setTitle(subtask.title); else if (value !== subtask.title) onChange({ title: value }); }} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); if (event.key === 'Escape') { cancelTitle.current = true; event.currentTarget.blur(); } }} />
+    <button type="button" className="icon-btn plain sm" aria-label={copy("Delete subtask: {0}", subtask.title)} onClick={onDelete}><Icon name="trash" size={14} /></button>
   </li>;
 }

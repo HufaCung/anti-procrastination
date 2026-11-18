@@ -1,3 +1,4 @@
+import { useCopy } from '../i18n/LanguageContext';
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../components/Icon';
 
@@ -16,6 +17,7 @@ interface ToastItem extends ToastInput {
 const Ctx = createContext<(t: ToastInput) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
+  const copy = useCopy();
   const [items, setItems] = useState<ToastItem[]>([]);
   const seq = useRef(0);
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
@@ -41,7 +43,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
-      <div className="toasts" role="region" aria-label="Notifications" aria-live="polite">
+      <div className="toasts" role="region" aria-label={copy("Notifications")} aria-live="polite">
         {items.map((t) => (
           <div key={t.id} className={`toast ${t.tone ?? 'info'}`} role={t.tone === 'danger' ? 'alert' : 'status'}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -60,7 +62,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
                 {t.action.label}
               </button>
             )}
-            <button type="button" aria-label="Dismiss notification" onClick={() => dismiss(t.id)}>
+            <button type="button" aria-label={copy("Dismiss notification")} onClick={() => dismiss(t.id)}>
               <Icon name="x" size={14} />
             </button>
           </div>
