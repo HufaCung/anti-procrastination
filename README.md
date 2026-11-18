@@ -1,18 +1,28 @@
 # TinyDo
 
-A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**.
+A productivity web app with three core features: **Deadline Manager**, **Task breakdown with Focus Mode** and **Progress Tracker**. Teams can share tasks, and users can switch between English and Vietnamese. Administrators have a read-only account directory.
 
 This repository is organized as a monorepo containing:
-- **`frontend/`**: React 18, TypeScript, Vite, Tailwind/tokens CSS.
-- **`backend/`**: Node.js, Express, TypeScript, SQLite (`better-sqlite3`), JWT authentication.
+- **`frontend/`**: React 18, TypeScript, Vite, and plain CSS with design tokens.
+- **`backend/`**: Node.js, Express, TypeScript, PostgreSQL (`pg`) or local SQLite (`better-sqlite3`), JWT authentication.
 
-## Quick Start
+## Free shared deployment
+
+Use **Render Free + Supabase PostgreSQL Free**: [deployment guide](docs/DEPLOY_SUPABASE.md). Set DATABASE_URL on the backend; all users then share durable PostgreSQL data. Without it, local development uses SQLite.
+
+## Quick start
+
+Use Node.js 22.12 or later in the Node 22 release line, or Node.js 24 and later.
 
 ```bash
 # 1. Install all dependencies (npm workspaces)
-npm install
+npm ci
 
-# 2. Run both Backend (http://localhost:3001) & Frontend (http://localhost:5173)
+# 2. Copy the example configuration into the backend workspace
+cp .env.example backend/.env
+# PowerShell: Copy-Item .env.example backend/.env
+
+# 3. Run both Backend (http://localhost:3001) & Frontend (http://localhost:5173)
 npm run dev
 ```
 
@@ -25,15 +35,46 @@ npm run dev:frontend
 npm run dev:backend
 ```
 
+## Environment variables
+
+Copy the root `.env.example` to `backend/.env` for local development. In a hosted deployment, set the variables in the service environment.
+
+| Variable | Purpose |
+|---|---|
+| `PORT` | API port, defaults to 3001 |
+| `NODE_ENV` | Set to `production` in production |
+| `JWT_SECRET` | Strong random secret required in production |
+| `DATABASE_URL` | PostgreSQL connection string. Leave empty to use local SQLite |
+| `REQUIRE_DATABASE_URL` | Set to `true` on hosted deployments that require PostgreSQL |
+| `DATABASE_CA_CERT` | Optional CA certificate for the database connection |
+| `BOOTSTRAP_ADMIN`, `ADMIN_USERNAME`, `ADMIN_PASSWORD` | Optional startup admin provisioning |
+
+Visit the frontend on [port 5173](http://localhost:5173). Vite proxies `/api` to the backend on port 3001.
+
+## Workspace screens
+
+The Dashboard shows upcoming work and focus goals. Projects and Calendar organize deadlines and planned work. Focus Mode times work sessions, Progress shows activity and forecasts, and Teams supports shared tasks. Profile contains account and workspace settings.
+
+Use the language switch to choose English or Vietnamese. The preference is stored in the browser. The chosen language applies to navigation, screen labels, dates, durations, scheduling and risk messages. Task titles, project names, team names and other user-entered content are preserved.
+
+## Work schedule and account deletion
+
+Set working hours and recurring weekly days off under **Profile & settings → Focus & planning**. New and replanned sessions use your device’s local time, stay inside the configured hours, and skip days off. The default is 09:00–22:00 every day. At least one day must remain enabled. Existing bookings stay in place, and automatic replanning uses the configured end time.
+
+Under **Profile & settings → Account**, use **Delete account** and confirm with your current password. Deletion removes your workspace, owned teams, team memberships, and shared tasks you created. It clears the current browser’s account cache and invalidates the account’s sessions. If startup admin provisioning is enabled, an admin configured there can be recreated on restart.
+
 ## Available Scripts
 
 | Command | Description |
 |---|---|
 | `npm run dev` | Runs both backend and frontend concurrently |
 | `npm run dev:frontend` | Runs the Vite development server (`http://localhost:5173`) |
-| `npm run dev:backend` | Runs the Express + SQLite backend with tsx watch (`http://localhost:3001`) |
+| `npm run dev:backend` | Runs the Express backend (PostgreSQL or local SQLite) with tsx watch (`http://localhost:3001`) |
 | `npm run build` | Compiles both backend and frontend |
 | `npm test` | Runs unit tests for both frontend and backend |
+| `npm run test:postgres` | Builds and tests a temporary real PostgreSQL database |
+| `npm run db:migrate` | Applies migrations to the configured database after building |
+| `npm run db:import:sqlite` | Imports a read-only SQLite source into an empty PostgreSQL database |
 
 ## Project Structure
 
@@ -50,9 +91,9 @@ tinydo/
 │   ├── tests/                    # Playwright e2e & fixtures
 │   └── package.json
 │
-├── backend/                      # Express + SQLite API server
+├── backend/                      # Express API server
 │   ├── src/
-│   │   ├── db/                   # SQLite database connection & schema (better-sqlite3)
+│   │   ├── db/                   # PostgreSQL/SQLite adapters and schema migrations
 │   │   ├── middleware/           # Auth & JWT verification middleware
 │   │   ├── routes/               # REST API endpoints (auth, projects, tasks, sessions, data)
 │   │   ├── server.ts             # Express app setup
@@ -65,14 +106,24 @@ tinydo/
 └── README.md
 ```
 
-## Backend API Endpoints (SQLite)
+## Backend API Endpoints
 
-- **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`, `/api/auth/account`
+- **Auth**: `/api/auth/signup`, `/api/auth/login`, `/api/auth/me`, `/api/auth/profile`, `/api/auth/change-password`. Invalid login credentials return HTTP 401. Login and signup each have a per-process, per-client-IP limit (30 and 20 attempts per minute respectively). Excess attempts return HTTP 429 with a Retry-After header. Behind a reverse proxy, Express uses the proxy address until trusted proxy settings are configured for the actual network topology. The password reset endpoint returns HTTP 503 while email reset is unavailable
+- **Account deletion**: `DELETE /api/auth/account` with a bearer token and JSON `{ "password": "current password" }`. Returns HTTP 204 on success.
 - **Data Sync**: `/api/data` (GET all user data, PUT sync/replace data)
 - **Projects**: `/api/projects` (GET, POST, DELETE `/:id`)
 - **Tasks**: `/api/tasks` (GET, POST, DELETE `/:id`)
 - **Sessions**: `/api/sessions` (GET, POST)
 - **Settings**: `/api/settings` (GET, PATCH)
+
+- **Teams**: `GET/POST /api/teams`, `POST /api/teams/:id/members`, `POST /api/teams/:id/tasks`, `PATCH /api/teams/:id/tasks/:taskId`, and `DELETE /api/teams/:id`
+- **Admin**: `GET /api/admin/users` (requires an admin account)
+
+## Database and migrations
+
+Local development uses `backend/data/tinydo.db` when `DATABASE_URL` is empty. For PostgreSQL, run `npm run build` and then `npm run db:migrate` with the intended connection configured. Keep migration SQL files in LF format so line-ending conversions do not change checksums. If local database configuration is ignored, verify that the file is at `backend/.env` and restart the backend. For Supabase connectivity, check the pooler URI and CA configuration in the [deployment guide](docs/DEPLOY_SUPABASE.md).
+
+The repository also provides a [Dockerfile](Dockerfile). Build with `docker build -t tinydo .` and pass production environment variables at runtime, for example with `docker run --env-file backend/.env -p 3001:3001 tinydo`. Configure PostgreSQL for durable hosted data.
 
 ## Automated feature checks
 
@@ -85,7 +136,7 @@ npm run test:features:headed
 ```
 
 The script runs frontend/backend unit tests, builds both workspaces, installs the
-Playwright Chromium browser if needed, and runs eight browser feature scenarios.
+Playwright Chromium browser if needed, and runs fourteen browser feature scenarios.
 The first browser installation needs internet access. Existing dependencies must
 already be installed with `npm install`.
 
@@ -112,19 +163,36 @@ replan/undo, and deadline alert batching and deadline changes.
 - Timer expiry and **Log session** record focus time without completing the task.
   **Mark done** explicitly completes the task; subtask checkboxes stay independent.
 - **Plan tasks** schedules from today onward, using the existing daily goal and
-  09:00–22:00 device-local window. It fills available gaps with five-minute buffers.
+  device-local working window, defaulting to 09:00–22:00, and skips configured days off. It fills available gaps with five-minute buffers. A task above the daily goal may occupy an otherwise empty day if it fits inside the working hours. Completed tasks release future scheduled capacity. Forecasts fall back to a share of the daily goal when a project has no focus activity in the past seven calendar days.
   Custom working hours and days off are not implemented.
 - Progress is completed task count, not effort-weighted completion. Forecasts use
   remaining task estimates and a seven-day average of logged focus time. Without
   focus history, daily goal is split across active projects.
 - Deadline reminders are delivered in batches; a changed deadline gets fresh
-  reminders. Auto-replan runs after 22:00 while the app is open, or when you return;
+  reminders. Auto-replan runs after the configured workday ends while the app is open, or when you return;
   it is not a server-side background job.
+
+## Create a full-feature local test account
+
+Start the app with `npm run dev` against your local test database. In a second terminal at the repository root, set a disposable password and run the seed command.
+
+```powershell
+$secret = Read-Host 'Choose a test password of at least 8 characters' -AsSecureString
+$env:TINYDO_SEED_PASSWORD = [System.Net.NetworkCredential]::new('', $secret).Password
+try { npm run seed:test }
+finally { Remove-Item Env:TINYDO_SEED_PASSWORD }
+```
+
+Open [TinyDo locally](http://localhost:5173) and sign in as `tinydo-test` with that password. The script loads 10 projects, 70 tasks with subtasks, and 20 focus sessions. It sets a 09:00–18:00 workday with weekends off and leaves auto-replan disabled initially so slipped tasks remain available for manual testing. It also creates two shared teams. The main account owns one team and joins the other. Use `tinydo-test-member` with the same disposable password to test the other side or go through onboarding.
+
+Use the workspace to test Dashboard, Projects, Calendar, Focus Mode, Progress, Teams, and profile settings. Toggle English and Vietnamese in Profile. Test account deletion after you finish with the data. For the separate read-only Admin screen, use the [admin account setup](#read-only-admin-users-screen). Password reset is currently unavailable.
+
+The script uses a local HTTP API on port 3001 by default. Set `TINYDO_SEED_URL` for a different local port or `TINYDO_SEED_USERNAME` for a fresh account pair. Sequential reruns with the same credentials restore missing fixtures and keep existing personal records and settings.
 
 ## Persistent demo data (100 records)
 
 Unlike browser test fixtures, this command keeps demo records in the running app's
-SQLite database so you can explore them manually. Start the app in one terminal:
+configured backend database (SQLite locally by default, PostgreSQL when DATABASE_URL is set) so you can explore them manually. Start the app in one terminal:
 
 ```powershell
 npm run dev
@@ -148,8 +216,7 @@ and upcoming projects, completed work, tasks scheduled today, slipped work,
 unscheduled work, and historical focus sessions.
 
 The script uses signup/login and revision-guarded `/api/data`, then reads records
-back to verify the persisted content. It accepts only local HTTP API origins,
-does not print passwords/tokens, and never overwrites existing project/task/session
+back to verify the persisted content. By default it accepts local HTTP API origins; deployed HTTPS seeding requires the explicit opt-in documented below. It does not print passwords/tokens, and never overwrites existing project/task/session
 IDs. Repeating the same command for the same account adds only missing records and
 preserves your edits and unrelated data. Keep the count unchanged for a stable
 fixture. A fresh account starts with auto-replan disabled so slipped tasks remain
@@ -216,3 +283,89 @@ npm run test:deploy
 This builds the app and runs an isolated production smoke test, including SPA deep
 links, static assets, API routing and SQLite/JWT persistence across a server restart.
 It does not create any hosting resources or deploy the app.
+
+## Authentication and sync contracts
+
+- The browser stores profile fields and the session token, never a password or
+  password hash. A local-storage migration removes old cached hashes while keeping
+  profiles, tasks and settings.
+- New signup/admin/password-change hashes use Node.js asynchronous scrypt with a
+  random 16-byte salt (`N=32768`, `r=8`, `p=3`, 64-byte key). The stored format is
+  `scrypt$32768$8$3$<salt-hex>$<key-hex>`.
+- Correct login upgrades legacy user-ID-salted SHA-256 hashes in place. Passwords
+  themselves do not change. Concurrent legacy logins are supported.
+- `POST /api/auth/change-password` accepts only `oldPassword` and `newPassword`
+  (new password: 8–1024 characters). `oldPasswordHash`/`newPasswordHash` are rejected
+  with HTTP 400. Successful responses include `{ user, token }`; all previous JWTs
+  become invalid immediately. The client preserves the chosen token storage mode.
+- Focus sessions may be free sessions or reference owned tasks/projects. Unknown,
+  cross-user and mismatched task/project references return HTTP 400 through both
+  granular writes and bulk sync. Bulk failures roll back atomically. Historical
+  duration is retained when related resources are deleted.
+- Network errors, timeouts, HTTP 408/429 and 5xx sync failures get at most three
+  automatic retries after 1, 2 and 4 seconds. Reconnecting or **Retry sync** starts
+  a new attempt cycle. Initial data fetches also retry without discarding local work.
+- HTTP 409 revision conflicts pause sync and preserve both local work and newer
+  server data. Other 4xx responses do not trigger automatic retries. The sidebar
+  displays sync status. A lost response after an accepted write can produce a 409
+  on retry; it remains paused rather than guessing which copy should win.
+
+Run `npm run test:features` for unit/API and browser regressions, `npm run test:seed`
+for persistent demo-data compatibility, and `npm run test:deploy` for production
+routing and database/JWT persistence across restarts.
+
+Scrypt parameters follow the [OWASP password storage guidance](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html#scrypt).
+
+## Admin creation on hosting without Shell
+
+Set `BOOTSTRAP_ADMIN=true`, `ADMIN_USERNAME=admin`, and a private `ADMIN_PASSWORD`
+(8–1024 characters) in the hosting environment, then redeploy the updated code.
+The backend creates the account before listening for traffic. Existing admins keep
+their passwords; existing regular users are never promoted automatically. With
+Render Free's temporary SQLite filesystem, keep the bootstrap configuration so a
+lost database can recreate the admin. Other lost users/data are not restored.
+See [the Render Free instructions](docs/DEPLOY_RENDER.md#render-free-create-admin-without-shell).
+
+## Dependency security maintenance
+
+Use Node 22.12+ (Node 22 is selected by .node-version on Render) and npm ci to
+install the reviewed lockfile. The security update uses React Router 7.18.5,
+Vite 7.3.7, React plugin 5.2.0 and Vitest 4.1.12; React stays on 18 and Express
+on 4. The lockfile includes body-parser 1.20.9. Router v6 future flags were removed
+because those behaviors are enabled in v7. Backend Vitest discovers only src
+TypeScript tests, avoiding duplicate execution of compiled dist tests.
+
+Run npm audit (including development dependencies) when reviewing updates, then
+npm run test:features, npm run test:postgres, npm run test:seed and npm run test:deploy.
+Audit findings depend on the current advisory database; a clean report does not
+replace tests or guarantee that future advisories will remain empty. Prefer
+reviewed targeted upgrades over npm audit fix --force.
+
+### Seed a deployed HTTPS server directly
+
+No local backend or Supabase connection URI is needed for this option. Start the
+Render app in a browser first and wait for it to wake, then run from the repo root:
+
+```powershell
+$env:TINYDO_SEED_URL = 'https://<your-app>.onrender.com'
+$env:TINYDO_SEED_ALLOW_REMOTE = 'true'
+$env:TINYDO_SEED_USERNAME = 'test100'
+$demoPassword = Read-Host 'Demo password (at least 8 characters)' -AsSecureString
+$env:TINYDO_SEED_PASSWORD = [System.Net.NetworkCredential]::new('', $demoPassword).Password
+try {
+    npm run seed:demo
+} finally {
+    Remove-Item Env:TINYDO_SEED_PASSWORD -ErrorAction SilentlyContinue
+    Remove-Item Env:TINYDO_SEED_ALLOW_REMOTE -ErrorAction SilentlyContinue
+    Remove-Item Env:TINYDO_SEED_URL -ErrorAction SilentlyContinue
+}
+```
+
+Remote writes require the explicit environment opt-in and HTTPS. The script uses
+the same signup/login and revision-guarded sync API as the app; no admin secret or
+database password is needed. It creates one account with 100 domain records by
+default, preserves existing edits on rerun, rejects embedded credentials and URL
+paths/queries/fragments, does not follow redirects, and waits up to 60 seconds for
+the remote health check. Keep the demo password private. Existing local-only usage
+continues to work without the opt-in. To set a custom count without npm/PowerShell
+argument forwarding issues: node scripts/seed-demo.mjs --count 100.

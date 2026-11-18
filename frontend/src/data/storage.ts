@@ -4,7 +4,7 @@
  */
 import type { AppData, FocusSession, Meta, Project, Settings, Task, User } from './types';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 const PREFIX = 'nt:v1:';
 export const KEYS = {
   version: `${PREFIX}version`,
@@ -58,18 +58,20 @@ function write<T>(c: Collection, items: T[]): void {
   writeJSON(KEYS[c], items);
 }
 
-/** Schema migrations. v1 is the first version, so this is a no-op hook for now. */
+/** Persist only profile fields, including when old clients cached credentials. */
+function profileOnly(user: User): User {
+  const { id, name, username, role, createdAt, avatar, passwordChangedAt } = user;
+  return { id, name, username, role, createdAt, avatar, passwordChangedAt };
+}
+
 export function migrate(): void {
-  const store = ls();
-  if (!store) return;
-  const users = read<(User & { email?: string })>('users');
-  if (users.some((user) => !user.username && user.email)) {
-    write('users', users.map(({ email, ...user }) => ({ ...user, username: user.username ?? email })));
+  if (!ls()) return;
+  const users = read<User & { email?: string; passwordHash?: string }>('users');
+  const version = readJSON<number>(KEYS.version, 0);
+  if (version < SCHEMA_VERSION || users.some(user => 'passwordHash' in user || 'email' in user)) {
+    write('users', users.map(user => profileOnly({ ...user, username: user.username ?? user.email ?? '' })));
+    writeJSON(KEYS.version, SCHEMA_VERSION);
   }
-  const v = readJSON<number>(KEYS.version, 0);
-  if (v === SCHEMA_VERSION) return;
-  // Future: if (v < 2) { ...transform collections... }
-  writeJSON(KEYS.version, SCHEMA_VERSION);
 }
 
 // ---------- Users ----------
@@ -79,7 +81,7 @@ export const usersRepo = {
   byId: (id: string) => read<User>('users').find((u) => u.id === id),
   save(user: User) {
     const all = read<User>('users').filter((u) => u.id !== user.id);
-    write('users', [...all, user]);
+    write('users', [...all, user].map(profileOnly));
   },
 
 };
@@ -90,6 +92,9 @@ export function defaultSettings(userId: string): Settings {
     userId,
     theme: (readJSON<string | null>(THEME_KEY, null) as 'light' | 'dark' | null) ?? currentTheme(),
     dailyGoalMin: 180,
+    workStartMin: 540,
+    workEndMin: 1320,
+    daysOffMask: 0,
     defaultTaskMin: 15,
     timeZone: 'Asia/Ho_Chi_Minh',
     weekStart: 'mon',
@@ -133,6 +138,14 @@ export function hasUserData(userId: string): boolean {
 function replaceFor<T extends { userId: string }>(c: Collection, userId: string, items: T[]) {
   const others = read<T>(c).filter((x) => x.userId !== userId);
   write(c, [...others, ...items]);
+}
+
+export function removeUserData(userId: string): void {
+  write('users', read<User>('users').filter((user) => user.id !== userId));
+  for (const collection of ['projects', 'tasks', 'sessions', 'settings', 'meta'] as const) {
+    replaceFor(collection, userId, []);
+  }
+  try { ls()?.removeItem(`nt:sync:${userId}`); } catch { /* storage unavailable */ }
 }
 
 export function saveUserData(userId: string, data: AppData): void {

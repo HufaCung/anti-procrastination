@@ -1,0 +1,14 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+**/node_modules
+**/dist
+**/coverage
+**/test-results
+**/playwright-report
+data
+*.sqlite
+*.sqlite3
+npm-debug.log*

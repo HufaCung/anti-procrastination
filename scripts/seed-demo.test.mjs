@@ -10,6 +10,8 @@ const username = `seed-test-${randomUUID()}`;
 const now = new Date(2026, 10, 1, 8);
 before(async () => {
   process.env.NODE_ENV = 'test';
+  process.env.DATABASE_URL = '';
+  process.env.REQUIRE_DATABASE_URL = 'false';
   process.env.DATABASE_PATH = ':memory:';
   const { app } = await import('../backend/dist/server.js');
   server = await new Promise(resolve => {
@@ -19,7 +21,7 @@ before(async () => {
 });
 after(async () => {
   if (server) await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
-  const { db } = await import('../backend/dist/db/database.js');
+  const { db } = await import('../backend/dist/db/sqlite.js');
   db.close();
 });
 
@@ -84,4 +86,74 @@ test('refuses remote origins and missing passwords before sending requests', asy
     await assert.rejects(seedDemo({ baseUrl, password }), /local API origin/);
   }
   await assert.rejects(seedDemo({ baseUrl }), /TINYDO_SEED_PASSWORD/);
+});
+
+test('explicit HTTPS seeding authenticates and persists 100 records without duplicates', async () => {
+  const originalFetch = globalThis.fetch;
+  const calls = [];
+  // Forward the simulated deployed origin to a real isolated Express API. No
+  // requests are sent to an external service and TLS verification stays default.
+  globalThis.fetch = (url, options) => {
+    assert.equal(new URL(url).origin, 'https://demo.example.test');
+    assert.equal(options.redirect, 'error');
+    calls.push(new URL(url).pathname);
+    return originalFetch(url.replace('https://demo.example.test', baseUrl), options);
+  };
+  try {
+    const options = { baseUrl: 'https://demo.example.test', allowRemote: true, username: `remote-${randomUUID()}`, password, now };
+    assert.deepEqual((await seedDemo(options)).added, { projects:10, tasks:70, sessions:20 });
+    assert.deepEqual((await seedDemo(options)).added, { projects:0, tasks:0, sessions:0 });
+    assert.ok(calls.includes('/api/auth/signup'));
+    assert.ok(calls.includes('/api/auth/login'));
+    assert.ok(calls.includes('/api/data'));
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('remote opt-in still refuses HTTP, credentials, paths, queries and fragments before network access', async () => {
+  for (const baseUrl of ['http://example.com','https://user:secret@example.com','https://example.com/api','https://example.com/?x=1','https://example.com/#x']) {
+    await assert.rejects(seedDemo({baseUrl,password,allowRemote:true}), /local API origin/);
+  }
+});
+
+test('full test seed loads work hours and both Teams roles without duplicating records', async () => {
+  const options = { baseUrl, username: 'tinydo-full-test', password, now, full: true };
+  const first = await seedDemo(options);
+  assert.equal(first.colleague, 'tinydo-full-test-member');
+  assert.deepEqual(first.totals, { projects: 10, tasks: 70, sessions: 20 });
+  assert.equal(first.teams.length, 2);
+
+  const request = async (route, { token, method = 'GET', body } = {}) => {
+    const response = await fetch(baseUrl + route, {
+      method,
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    assert.ok(response.ok, `${method} ${route}: ${response.status}`);
+    return response.json();
+  };
+  const login = name => request('/api/auth/login', { method: 'POST', body: { username: name, password } });
+  const main = await login(first.username);
+  const colleague = await login(first.colleague);
+  const { settings } = await request('/api/settings', main);
+  assert.equal(settings.workStartMin, 540);
+  assert.equal(settings.workEndMin, 1080);
+  assert.equal(settings.daysOffMask, 65);
+  const { teams } = await request('/api/teams', main);
+  assert.deepEqual(new Set(teams.map(team => team.ownerId)), new Set([main.user.id, colleague.user.id]));
+  for (const team of teams) {
+    assert.equal(team.members.length, 2);
+    assert.equal(team.tasks.length, 1);
+  }
+  const ownTeam = teams.find(team => team.ownerId === main.user.id);
+  await request(`/api/teams/${ownTeam.id}/tasks/${ownTeam.tasks[0].id}`, { ...colleague, method: 'PATCH', body: { done: true } });
+  const again = await seedDemo(options);
+  assert.deepEqual(again.added, { projects: 0, tasks: 0, sessions: 0 });
+  const after = await request('/api/teams', main);
+  assert.equal(after.teams.length, 2);
+  assert.equal(after.teams.find(team => team.id === ownTeam.id).tasks.length, 1);
+  assert.equal(after.teams.find(team => team.id === ownTeam.id).tasks[0].done, true);
+});
+
+test('full test seeding refuses remote origins even when remote demo seeding is enabled', async () => {
+  await assert.rejects(seedDemo({ baseUrl: 'https://example.test', password, full: true, allowRemote: true }), /local HTTP API origin/);
 });

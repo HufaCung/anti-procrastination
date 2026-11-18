@@ -3,12 +3,16 @@ import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { ProgressBar, Segmented } from './ui';
 import { useNow, useStore } from '../store/AppStore';
-import { fmt, fmtMinutes, parseDay } from '../logic/dates';
+import { parseDay } from '../logic/dates';
 import { streak } from '../logic/analytics';
 import * as T from '../logic/timer';
+import { useDateCopy, useCopy, LanguageToggle, useLanguage } from '../i18n/LanguageContext';
 
 export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
+  const copy = useCopy();
+  const { fmt, fmtMinutes } = useDateCopy();
   const s = useStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const loc = useLocation();
   const data = s.data!;
@@ -21,64 +25,73 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
   useEffect(() => setMore(false), [loc.pathname]);
 
   return (
-    <nav className={`sidebar ${more ? 'more-open' : ''}`} aria-label="Main">
+    <nav className={`sidebar ${more ? 'more-open' : ''}`} aria-label={t('main')}>
       <div className="brand">
         <div className="logo" aria-hidden="true">T</div>
         <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
           <span style={{ fontWeight: 600, fontSize: 14 }}>TinyDo</span>
-          <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{first}’s workspace</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{copy("{0}’s workspace", first)}</span>
         </div>
         <button type="button" className="btn btn-secondary btn-sm mobile-only" aria-expanded={more} aria-controls="side-more" onClick={() => setMore((m) => !m)}>
-          {more ? 'Less' : 'More'}
+          {more ? t('less') : t('more')}
           <Icon name={more ? 'up' : 'down'} size={14} />
         </button>
       </div>
 
       <div className="row">
         <SearchBox />
-        <button type="button" className="icon-btn" aria-label="New task" title="New task" data-tour="quick-task" onClick={onNewTask} style={{ background: 'var(--accent)', color: '#fff', borderColor: 'transparent' }}>
+        <button type="button" className="icon-btn" aria-label={t('newTask')} title={t('newTask')} data-tour="quick-task" onClick={onNewTask} style={{ background: 'var(--accent)', color: '#fff', borderColor: 'transparent' }}>
           <Icon name="plus" size={16} stroke={2.2} />
         </button>
+      </div>
+
+      <div className="col" style={{ gap: 4, padding: '4px 0', fontSize: 12, color: 'var(--muted)' }}>
+        <span role="status" data-testid="sync-status">{s.syncStatus === 'synced' ? t('allSynced') : s.syncStatus === 'syncing' ? t('syncing') : s.syncStatus === 'retrying' ? t('retrying') : s.syncStatus === 'conflict' ? t('syncConflict') : s.syncStatus === 'error' ? t('syncError') : t('loadingData')}</span>
+        {s.syncStatus === 'error' && <button type="button" className="btn btn-secondary btn-sm" onClick={s.retrySync}>{t('retrySync')}</button>}
       </div>
 
       <div className="col nav-list" style={{ gap: 2 }}>
         {s.user?.role === 'admin' && <NavLink to="/admin" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="chart" size={17} stroke={1.9} />
-          <span style={{ flex: 1 }}>Admin users</span>
+          <span style={{ flex: 1 }}>{t('adminUsers')}</span>
         </NavLink>}
         <NavLink to="/" end className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="dashboard" size={17} stroke={1.9} />
-          <span style={{ flex: 1 }}>Dashboard</span>
+          <span style={{ flex: 1 }}>{t('dashboard')}</span>
         </NavLink>
         <NavLink to="/projects" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="folder" size={17} stroke={1.9} />
-          <span style={{ flex: 1 }}>Projects</span>
+          <span style={{ flex: 1 }}>{t('projects')}</span>
           <span className="count">{s.activeProjects.length}</span>
         </NavLink>
         <NavLink to="/calendar" data-tour="calendar" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="calendar" size={17} stroke={1.9} />
-          <span style={{ flex: 1 }}>Calendar</span>
+          <span style={{ flex: 1 }}>{t('calendar')}</span>
         </NavLink>
         <NavLink to="/focus" data-tour="focus" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="focus" size={17} stroke={1.9} />
-          <span style={{ flex: 1 }}>Focus Mode</span>
+          <span style={{ flex: 1 }}>{t('focusMode')}</span>
           <TimerBadge />
         </NavLink>
         <NavLink to="/progress" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
           <Icon name="chart" size={17} stroke={1.9} />
-          <span style={{ flex: 1 }}>Progress</span>
+          <span style={{ flex: 1 }}>{t('progress')}</span>
+        </NavLink>
+        <NavLink to="/teams" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+          <Icon name="users" size={17} stroke={1.9} />
+          <span style={{ flex: 1 }}>{t('teams')}</span>
         </NavLink>
       </div>
 
       <div id="side-more" className="col mobile-extra" style={{ gap: 2 }}>
         <div className="side-head">
-          <span>PROJECTS</span>
-          <span>Due</span>
+          <span>{t('projectList')}</span>
+          <span>{t('due')}</span>
         </div>
         {s.activeProjects.length === 0 && (
           <button type="button" className="side-proj" style={{ border: 0, background: 'transparent', color: 'var(--muted)', textAlign: 'left' }} onClick={() => navigate('/projects?new=1')}>
             <Icon name="plus" size={14} />
-            <span className="name">Create your first project</span>
+            <span className="name">{t('createFirstProject')}</span>
           </button>
         )}
         {s.activeProjects.map((p) => {
@@ -89,7 +102,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
             <Link key={p.id} to={`/projects/${p.id}`} className={`side-proj ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined}>
               <span className="dot" style={{ background: p.color }} />
               <span className="name">{p.name}</span>
-              <span className={`due ${late ? 'late' : ''}`}>{late ? 'Overdue' : fmt.monthDay(parseDay(p.dueDate))}</span>
+              <span className={`due ${late ? 'late' : ''}`}>{late ? t('overdue') : fmt.monthDay(parseDay(p.dueDate))}</span>
             </Link>
           );
         })}
@@ -99,41 +112,42 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
 
       <div className="card mobile-extra" style={{ borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div className="row" style={{ justifyContent: 'space-between', fontSize: 12.5 }}>
-          <span style={{ fontWeight: 600 }}>Today’s focus</span>
+          <span style={{ fontWeight: 600 }}>{t('todayFocus')}</span>
           <span className="muted tnum" data-testid="sidebar-focus">{fmtMinutes(s.todayFocusMin)} / {fmtMinutes(goal)}</span>
         </div>
-        <ProgressBar pct={(s.todayFocusMin / goal) * 100} height={6} label="Today’s focus versus goal" />
+        <ProgressBar pct={(s.todayFocusMin / goal) * 100} height={6} label={t('focusGoal')} />
         <span style={{ fontSize: 12, color: 'var(--muted)' }}>
-          {days > 0 ? `${days}-day streak` : 'No streak yet'} · {todayDone} {todayDone === 1 ? 'task' : 'tasks'} done
+          {days > 0 ? `${days} ${t('dayStreak')}` : t('noStreak')} · {todayDone} {todayDone === 1 ? t('task') : t('tasks')} {t('done')}
         </span>
       </div>
 
       <div className="mobile-extra">
+      <div style={{ marginBottom: 8 }}><LanguageToggle /></div>
       <Segmented
-        label="Theme"
+        label={t('theme')}
         full
         value={s.theme}
         onChange={(t) => s.setTheme(t)}
         options={[
-          { value: 'light', label: <><Icon name="sun" size={15} />Light</> },
-          { value: 'dark', label: <><Icon name="moon" size={15} />Dark</> },
+          { value: 'light', label: <><Icon name="sun" size={15} />{t('light')}</> },
+          { value: 'dark', label: <><Icon name="moon" size={15} />{t('dark')}</> },
         ]}
       />
       </div>
 
       <div className="row mobile-extra" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
-        <NavLink to="/profile" aria-label="Profile and settings" className={({ isActive }) => `profile-link ${isActive ? 'active' : ''}`}>
+        <NavLink to="/profile" aria-label={t('profileSettings')} className={({ isActive }) => `profile-link ${isActive ? 'active' : ''}`}>
           <Avatar />
           <div className="col" style={{ gap: 1, minWidth: 0 }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-            <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Profile &amp; settings</span>
+            <span style={{ fontSize: 11.5, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{t('profileSettings')}</span>
           </div>
         </NavLink>
         <button
           type="button"
           className="icon-btn plain"
-          aria-label="Log out"
-          title="Log out"
+          aria-label={t('logout')}
+          title={t('logout')}
           style={{ width: 36, height: 36, color: 'var(--muted)' }}
           onClick={() => {
             s.logOut();
@@ -159,12 +173,13 @@ export function Avatar({ size }: { size?: 'xl' }) {
 }
 
 function TimerBadge() {
+  const copy = useCopy();
   const s = useStore();
   const now = useNow(1000);
   const t = s.data?.meta.timer;
   if (!t || (!t.running && T.isPristine(t))) return null;
   return (
-    <span className={`pill ${t.running ? 'in_progress' : 'todo'} tnum`} style={{ padding: '2px 7px', fontSize: 11 }} aria-label={t.running ? 'Focus timer running' : 'Focus timer paused'}>
+    <span className={`pill ${t.running ? 'in_progress' : 'todo'} tnum`} style={{ padding: '2px 7px', fontSize: 11 }} aria-label={t.running ? copy("Focus timer running") : copy("Focus timer paused")}>
       {T.clock(T.remainingMs(t, now.getTime()))}
     </span>
   );
@@ -180,7 +195,9 @@ interface Result {
 }
 
 function SearchBox() {
+  const { fmt } = useDateCopy();
   const s = useStore();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [q, setQ] = useState('');
   const [open, setOpen] = useState(false);
@@ -215,18 +232,18 @@ function SearchBox() {
     const projects = s.data.projects
       .filter((p) => p.name.toLowerCase().includes(term))
       .slice(0, 5)
-      .map((p) => ({ kind: 'project' as const, id: p.id, title: p.name, sub: p.completedAt ? 'Completed' : fmt.monthDay(parseDay(p.dueDate)), color: p.color, to: `/projects/${p.id}` }));
+      .map((p) => ({ kind: 'project' as const, id: p.id, title: p.name, sub: p.completedAt ? t('completed') : fmt.monthDay(parseDay(p.dueDate)), color: p.color, to: `/projects/${p.id}` }));
     const byId = new Map(s.data.projects.map((p) => [p.id, p]));
     const tasks = s.data.tasks
-      .filter((t) => t.title.toLowerCase().includes(term))
+      .filter((task) => task.title.toLowerCase().includes(term))
       .sort((a, b) => (a.status === 'done' ? 1 : 0) - (b.status === 'done' ? 1 : 0))
       .slice(0, 8)
-      .map((t) => {
-        const p = byId.get(t.projectId);
-        return { kind: 'task' as const, id: t.id, title: t.title, sub: `${p?.name ?? ''}${t.status === 'done' ? ' · done' : ''}`, color: p?.color ?? 'var(--control)', to: `/projects/${t.projectId}?task=${t.id}` };
+      .map((task) => {
+        const p = byId.get(task.projectId);
+        return { kind: 'task' as const, id: task.id, title: task.title, sub: `${p?.name ?? ''}${task.status === 'done' ? ` · ${t('done')}` : ''}`, color: p?.color ?? 'var(--control)', to: `/projects/${task.projectId}?task=${task.id}` };
       });
     return [...projects, ...tasks];
-  }, [q, s.data]);
+  }, [q, s.data, t]);
 
   useEffect(() => setSel(0), [q]);
 
@@ -245,8 +262,8 @@ function SearchBox() {
         <input
           ref={inputRef}
           type="search"
-          placeholder="Search"
-          aria-label="Search tasks and projects"
+          placeholder={t('search')}
+          aria-label={t('searchAria')}
           role="combobox"
           aria-expanded={open && q.trim().length > 0}
           aria-controls={listId}
@@ -278,13 +295,13 @@ function SearchBox() {
         <span className="kbd" aria-hidden="true">{isMac ? '⌘K' : 'Ctrl K'}</span>
       </label>
       {open && q.trim() && (
-        <div className="popover" id={listId} role="listbox" aria-label="Search results">
-          {results.length === 0 && <div className="empty-row empty" style={{ padding: 12, alignItems: 'flex-start' }}>No matches for “{q.trim()}”.</div>}
-          {results.some((r) => r.kind === 'project') && <div className="group" role="presentation">PROJECTS</div>}
+        <div className="popover" id={listId} role="listbox" aria-label={t('searchResults')}>
+          {results.length === 0 && <div className="empty-row empty" style={{ padding: 12, alignItems: 'flex-start' }}>{t('noMatches')} “{q.trim()}”.</div>}
+          {results.some((r) => r.kind === 'project') && <div className="group" role="presentation">{t('projectList')}</div>}
           {results.map((r, i) => (
             <div key={r.kind + r.id}>
-              {r.kind === 'task' && i > 0 && results[i - 1].kind === 'project' && <div className="group" role="presentation">TASKS</div>}
-              {r.kind === 'task' && i === 0 && <div className="group" role="presentation">TASKS</div>}
+              {r.kind === 'task' && i > 0 && results[i - 1].kind === 'project' && <div className="group" role="presentation">{t('taskList')}</div>}
+              {r.kind === 'task' && i === 0 && <div className="group" role="presentation">{t('taskList')}</div>}
               <button
                 type="button"
                 id={`sr-${r.id}`}

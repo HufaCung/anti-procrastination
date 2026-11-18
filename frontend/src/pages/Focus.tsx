@@ -5,11 +5,15 @@ import { EmptyState, ThemeIconButton, useDocumentTitle } from '../components/ui'
 import { useNow, useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
 import * as T from '../logic/timer';
-import { fmtMinutesPadded } from '../logic/dates';
+
+import { useDateCopy, useCopy, useLanguage } from '../i18n/LanguageContext';
 
 const CIRC = 2 * Math.PI * 130; // 816.8
 
 export function FocusPage() {
+  const { fmtMinutesPadded } = useDateCopy();
+  const copy = useCopy();
+  const { language } = useLanguage();
   const s = useStore();
   const toast = useToast();
   const navigate = useNavigate();
@@ -35,7 +39,7 @@ export function FocusPage() {
     const tid = params.get('task');
     if (tid && data.tasks.some((t) => t.id === tid)) {
       if (timer.taskId !== tid) {
-        if (timer.running || !T.isPristine(timer)) toast({ title: 'Finish or reset the current session first' });
+        if (timer.running || !T.isPristine(timer)) toast({ title: copy("Finish or reset the current session first") });
         else s.timerSelectTask(tid);
       }
       const next = new URLSearchParams(params);
@@ -62,9 +66,9 @@ export function FocusPage() {
   const frac = timer.lengthMs ? rem / timer.lengthMs : 0;
   const clock = T.clock(rem);
   const pristine = T.isPristine(timer);
-  useDocumentTitle(timer.running ? `${clock} · Focus` : 'Focus Mode');
+  useDocumentTitle(timer.running ? copy("{0} · Focus", clock) : copy("Focus Mode"));
 
-  const stateLabel = timer.running ? 'Focusing · stay with it' : pristine ? (current ? 'Ready when you are' : 'Free session · no task selected') : 'Paused';
+  const stateLabel = timer.running ? copy("Focusing · stay with it") : pristine ? (current ? copy("Ready when you are") : copy("Free session · no task selected")) : copy("Paused");
 
   const toggle = () => (timer.running ? s.timerPause() : s.timerStart());
 
@@ -88,31 +92,31 @@ export function FocusPage() {
       <header className="focus-head">
         <div className="row" style={{ gap: 10 }}>
           <span className={`live-dot ${timer.running ? 'running' : ''}`} aria-hidden="true" />
-          <span style={{ fontWeight: 600 }}>Focus Mode</span>
+          <span style={{ fontWeight: 600 }}>{copy("Focus Mode")}</span>
         </div>
         <div className="row wrap" style={{ gap: 12, color: 'var(--muted)', fontSize: 13 }}>
-          <span data-testid="focus-today">Today {fmtMinutesPadded(s.todayFocusMin)} · {s.todaySessions} {s.todaySessions === 1 ? 'session' : 'sessions'}</span>
+          <span data-testid="focus-today">{copy("Today")} {fmtMinutesPadded(s.todayFocusMin)} · {s.todaySessions} {copy(s.todaySessions === 1 ? 'session' : 'sessions')}</span>
           <ThemeIconButton theme={s.theme} onToggle={() => s.setTheme(s.theme === 'dark' ? 'light' : 'dark')} />
           <button type="button" className="btn btn-secondary btn-md" onClick={() => (window.history.length > 1 ? navigate(-1) : navigate('/'))}>
             <Icon name="x" size={14} />
-            Exit
+            {copy("Exit")}
           </button>
         </div>
       </header>
 
       <main id="main" className="focus-body page-enter">
-        <section aria-label="Timer" className="timer-col">
+        <section aria-label={copy("Timer")} className="timer-col">
           <div className="col" style={{ alignItems: 'center', gap: 8, textAlign: 'center', maxWidth: 560 }}>
             <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-              {current ? `${currentProject?.name ?? 'Task'}${position > 0 ? ` · task ${position} of ${queue.length}` : ''}` : 'No task selected'}
+              {current ? `${currentProject?.name ?? copy("Task")}${position > 0 ? " " + copy("· task {0} of {1}", position, queue.length) : ''}` : copy("No task selected")}
             </span>
             <h1 style={{ fontSize: 28, fontWeight: 650, letterSpacing: '-0.02em', lineHeight: 1.25, overflowWrap: 'anywhere' }}>
-              {current ? current.title : 'Pick a task from the queue, or just focus'}
+              {current ? current.title : copy("Pick a task from the queue, or just focus")}
             </h1>
           </div>
 
           <div className="ring">
-            <svg viewBox="0 0 300 300" width="100%" height="100%" role="img" aria-label={`${Math.floor(rem / 60000)} minutes ${Math.ceil((rem % 60000) / 1000) % 60} seconds remaining`}>
+            <svg viewBox="0 0 300 300" width="100%" height="100%" role="img" aria-label={copy("{0} minutes {1} seconds remaining", Math.floor(rem / 60000), Math.ceil((rem % 60000) / 1000) % 60)}>
               <circle cx="150" cy="150" r="130" fill="none" stroke="var(--track)" strokeWidth="10" />
               <circle
                 className="prog"
@@ -131,44 +135,44 @@ export function FocusPage() {
             </div>
           </div>
 
-          <div role="radiogroup" aria-label="Session length" className="seg tall" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 6 }}>
+          <div role="radiogroup" aria-label={copy("Session length")} className="seg tall" style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 4, gap: 6 }}>
             {T.PRESETS_MIN.map((p) => (
               <button key={p} type="button" role="radio" aria-checked={lengthMin === p} disabled={!pristine} onClick={() => s.timerSetLength(p)}>
-                {p} min
+                {p} {language === 'vi' ? 'phút' : 'min'}
               </button>
             ))}
           </div>
           <p style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', maxWidth: 420 }}>
-            {current ? 'Choose a session length before starting. When the timer ends, focus time is logged and this task stays open. Mark done only when the work is finished; subtasks keep their own status.' : 'Choose a session length before starting. This session won’t be linked to a task.'} {!pristine && 'Finish or reset the session to change its length or task.'}
+            {current ? copy("Choose a session length before starting. When the timer ends, focus time is logged and this task stays open. Mark done only when the work is finished; subtasks keep their own status.") : copy("Choose a session length before starting. This session won’t be linked to a task.")} {!pristine && copy("Finish or reset the session to change its length or task.")}
           </p>
 
           <div className="row wrap" style={{ gap: 10, justifyContent: 'center' }}>
-            <button type="button" className="icon-btn round-btn" aria-label="Reset timer" title="Reset" onClick={s.timerReset} disabled={pristine}>
+            <button type="button" className="icon-btn round-btn" aria-label={copy("Reset timer")} title={copy("Reset")} onClick={s.timerReset} disabled={pristine}>
               <Icon name="reset" size={18} />
             </button>
             <button ref={toggleRef} type="button" className="btn btn-dark pill-btn" style={{ minWidth: 148, fontSize: 15, fontWeight: 650 }} onClick={toggle}>
               <Icon name={timer.running ? 'pause' : 'play'} size={15} />
-              {timer.running ? 'Pause' : pristine ? 'Start' : 'Resume'}
+              {timer.running ? copy("Pause") : pristine ? copy("Start") : copy("Resume")}
             </button>
-            <button type="button" className="btn btn-secondary pill-btn" onClick={s.timerExtend}>+5 min</button>
-            {current && <button type="button" className="btn btn-secondary pill-btn" onClick={() => s.timerComplete(false, false)} disabled={pristine}>Log session</button>}
+            <button type="button" className="btn btn-secondary pill-btn" onClick={s.timerExtend}>{copy("+5 min")}</button>
+            {current && <button type="button" className="btn btn-secondary pill-btn" onClick={() => s.timerComplete(false, false)} disabled={pristine}>{copy("Log session")}</button>}
             <button type="button" className="btn btn-ok pill-btn" onClick={() => s.timerComplete(false)} disabled={!current && pristine}>
               <Icon name="check" size={15} stroke={2.4} />
-              {current ? 'Mark done' : 'Log session'}
+              {current ? copy("Mark done") : copy("Log session")}
             </button>
           </div>
-          <span style={{ fontSize: 12, color: 'var(--muted)' }}>Press Space to start or pause</span>
+          <span style={{ fontSize: 12, color: 'var(--muted)' }}>{copy("Press Space to start or pause")}</span>
         </section>
 
         <aside className="col" style={{ flex: '1 1 300px', minWidth: 0, maxWidth: 380, gap: 14 }}>
           <section aria-labelledby="q-h" className="card clip">
             <div className="row" style={{ justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--divider)' }}>
-              <h2 id="q-h" style={{ fontSize: 14, fontWeight: 600 }}>Up next</h2>
-              <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{leftMins} min left</span>
+              <h2 id="q-h" style={{ fontSize: 14, fontWeight: 600 }}>{copy("Up next")}</h2>
+              <span style={{ fontSize: 12.5, color: 'var(--muted)' }}>{leftMins} {copy("min left")}</span>
             </div>
             {queue.length === 0 ? (
-              <EmptyState icon="calendar" title="Nothing scheduled today" body="Plan your day on the dashboard, or start a free session.">
-                <Link to="/" className="btn btn-secondary btn-sm">Go to dashboard</Link>
+              <EmptyState icon="calendar" title={copy("Nothing scheduled today")} body={copy("Plan your day on the dashboard, or start a free session.")}>
+                <Link to="/" className="btn btn-secondary btn-sm">{copy("Go to dashboard")}</Link>
               </EmptyState>
             ) : (
               <ul className="task-list" style={{ padding: '6px 0' }}>
@@ -185,10 +189,10 @@ export function FocusPage() {
                           <button
                             type="button"
                             className="t"
-                            title="Focus on this task"
+                            title={copy("Focus on this task")}
                             onClick={() => {
                               if (!T.isPristine(timer)) {
-                                toast({ title: 'Finish or reset the current session first' });
+                                toast({ title: copy("Finish or reset the current session first") });
                                 return;
                               }
                               s.timerSelectTask(t.id);
@@ -208,7 +212,7 @@ export function FocusPage() {
           </section>
 
           <section className="card col" style={{ padding: '14px 16px', gap: 8 }}>
-            <label htmlFor="parking" style={{ fontSize: 13, fontWeight: 600 }}>Parking lot</label>
+            <label htmlFor="parking" style={{ fontSize: 13, fontWeight: 600 }}>{copy("Parking lot")}</label>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -217,7 +221,7 @@ export function FocusPage() {
               }}
               className="row"
             >
-              <input id="parking" className="input" style={{ height: 38, background: 'var(--subtle)', fontSize: 13 }} placeholder="Jot a distraction, deal with it later" value={note} onChange={(e) => setNote(e.target.value)} />
+              <input id="parking" className="input" style={{ height: 38, background: 'var(--subtle)', fontSize: 13 }} placeholder={copy("Jot a distraction, deal with it later")} value={note} onChange={(e) => setNote(e.target.value)} />
             </form>
             {data.meta.parking.length > 0 && (
               <ul className="parking-list">
@@ -225,7 +229,7 @@ export function FocusPage() {
                   <li key={n.id}>
                     <Icon name="note" size={13} style={{ color: 'var(--faint)', flex: 'none' }} />
                     <span>{n.text}</span>
-                    <button type="button" className="icon-btn plain sm" aria-label={`Remove note: ${n.text}`} onClick={() => s.removeParking(n.id)}>
+                    <button type="button" className="icon-btn plain sm" aria-label={copy("Remove note: {0}", n.text)} onClick={() => s.removeParking(n.id)}>
                       <Icon name="x" size={13} />
                     </button>
                   </li>

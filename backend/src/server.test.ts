@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { app } from './server.js';
-import { usersDb, projectsDb, tasksDb, sessionsDb, settingsDb, metaDb, getAppData, saveAppData, initDb, getDataRevision, syncAppData } from './db/database.js';
+import { usersDb, projectsDb, tasksDb, sessionsDb, settingsDb, metaDb, getAppData, saveAppData, initDb, getDataRevision, syncAppData } from './db/sqlite.js';
 import { sanitizeUser } from './routes/auth.js';
 import { signToken, getJwtSecret } from './middleware/auth.js';
 import type { AppData, Project, Task, User } from './types.js';
@@ -181,7 +181,7 @@ describe('API security and synchronization', () => {
   let base: string;
   const call = async (path: string, method: string, body?: unknown, token?: string) => {
     const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
-    return { status: response.status, body: await response.json() as any };
+    return { status: response.status, body: response.status === 204 ? undefined : await response.json() as any };
   };
   beforeAll(async () => {
     await new Promise<void>((resolve, reject) => { server = app.listen(0, '127.0.0.1', (err?: Error) => err ? reject(err) : resolve()); });
@@ -210,7 +210,53 @@ describe('API security and synchronization', () => {
     expect(created.body.user.username).toBe('newuser');
     expect((await call('/api/auth/signup', 'POST', { username: 'NEWUSER', password: 'password1' })).status).toBe(409);
     expect((await call('/api/auth/login', 'POST', { username: 'NEWUSER', password: 'password1' })).body.token).toBeTruthy();
-    expect((await call('/api/auth/login', 'POST', { username: 'newuser', password: 'wrong' })).body.token).toBeUndefined();
+    const wrong = await call('/api/auth/login', 'POST', { username: 'newuser', password: 'wrong' });
+    const unknown = await call('/api/auth/login', 'POST', { username: 'missing-user', password: 'wrong' });
+    expect(wrong.status).toBe(401);
+    expect(unknown).toEqual(wrong);
+    expect(wrong.body.token).toBeUndefined();
+  });
+
+  it('persists work schedule settings and rejects invalid settings without changing the revision', async () => {
+    const account = await signup('Planner', 'work-schedule-test');
+    const { token } = account.body;
+    const snapshot = await call('/api/data', 'GET', undefined, token);
+    expect(snapshot.body.data.settings).toMatchObject({ workStartMin: 540, workEndMin: 1320, daysOffMask: 0 });
+    const settings = { workStartMin: 600, workEndMin: 1020, daysOffMask: 65 };
+    expect((await call('/api/settings', 'PATCH', settings, token)).status).toBe(200);
+    const current = await call('/api/data', 'GET', undefined, token);
+    expect(current.body.data.settings).toMatchObject(settings);
+
+    expect((await call('/api/settings', 'PATCH', { workEndMin: 590 }, token)).status).toBe(400);
+    const invalid = structuredClone(current.body);
+    invalid.data.settings.daysOffMask = 127;
+    expect((await call('/api/data', 'PUT', invalid, token)).status).toBe(400);
+    invalid.data.settings.daysOffMask = 65;
+    invalid.data.settings.workStartMin = null;
+    expect((await call('/api/data', 'PUT', invalid, token)).status).toBe(400);
+    expect((await call('/api/data', 'GET', undefined, token)).body).toEqual(current.body);
+    const legacy = structuredClone(current.body);
+    delete legacy.data.settings.workStartMin;
+    delete legacy.data.settings.workEndMin;
+    delete legacy.data.settings.daysOffMask;
+    expect((await call('/api/data', 'PUT', legacy, token)).status).toBe(200);
+    expect((await call('/api/settings', 'GET', undefined, token)).body.settings).toMatchObject(settings);
+  });
+
+  it('deletes only the authenticated account and removes owned workspace and team records', async () => {
+    const owner = (await signup('Owner', 'deletion-test')).body;
+    const member = (await signup('Member', 'deletion-member-test')).body;
+    const created = await call('/api/teams', 'POST', { name: 'Owned team' }, owner.token);
+    const teamPath = `/api/teams/${created.body.team.id}`;
+    expect((await call(`${teamPath}/members`, 'POST', { username: member.user.username }, owner.token)).status).toBe(200);
+    expect((await call('/api/projects', 'POST', { name: 'Private project', dueDate: '2027-01-01' }, owner.token)).status).toBe(201);
+    expect((await call('/api/auth/account', 'DELETE', { password: 'wrong' }, owner.token)).status).toBe(403);
+    expect((await call('/api/auth/account', 'DELETE', { password: 'password1', userId: member.user.id }, owner.token)).status).toBe(204);
+    expect((await call('/api/auth/me', 'GET', undefined, owner.token)).status).toBe(401);
+    expect((await call('/api/auth/me', 'GET', undefined, member.token)).status).toBe(200);
+    expect((await call('/api/teams', 'GET', undefined, member.token)).body.teams).toEqual([]);
+    expect(projectsDb.getByUser(owner.user.id)).toEqual([]);
+    expect(getDataRevision(owner.user.id)).toBe(0);
   });
 
   it('keeps username fixed while allowing display name changes', async () => {

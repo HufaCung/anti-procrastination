@@ -1,16 +1,21 @@
+import { useDateCopy, useCopy, useLanguage } from '../i18n/LanguageContext';
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Page, useUI } from '../components/AppShell';
 import { Icon } from '../components/Icon';
 import { EmptyState, ProgressBar, RiskPill, Segmented, useDocumentTitle } from '../components/ui';
 import { useStore } from '../store/AppStore';
-import { fmt, fmtMinutes, parseDay, relDue } from '../logic/dates';
-import { PRIORITY_LABEL } from '../logic/progress';
+import { parseDay } from '../logic/dates';
+import { priorityLabel } from '../i18n/progress';
 
 type Filter = 'active' | 'completed' | 'all';
 
 export function ProjectsPage() {
-  useDocumentTitle('Projects');
+  const { fmtMinutes, fmt, relDue } = useDateCopy();
+  const copy = useCopy();
+  const { t } = useLanguage();
+  const { language } = useLanguage();
+  useDocumentTitle(copy("Projects"));
   const s = useStore();
   const ui = useUI();
   const [params, setParams] = useSearchParams();
@@ -40,33 +45,33 @@ export function ProjectsPage() {
   const completedCount = data.projects.filter((p) => p.completedAt).length;
 
   return (
-    <Page label="Projects">
+    <Page label={copy("Projects")}>
       <header className="page-head">
         <div className="col" style={{ gap: 4 }}>
-          <h1 className="page-title">Projects</h1>
-          <span className="meta">{s.activeProjects.length} active · {completedCount} completed</span>
+          <h1 className="page-title">{t('projects')}</h1>
+          <span className="meta">{s.activeProjects.length} {copy("active ·")} {completedCount} {copy("completed")}</span>
         </div>
         <button type="button" className="btn btn-primary" onClick={ui.openNewProject}>
           <Icon name="plus" size={16} stroke={2.2} />
-          New project
+          {copy("New project")}
         </button>
       </header>
 
       {data.projects.length > 0 && (
         <div className="filter-row">
-          <Segmented label="Show projects" value={filter} onChange={setFilter} options={[{ value: 'active', label: 'Active' }, { value: 'completed', label: 'Completed' }, { value: 'all', label: 'All' }]} />
+          <Segmented label={copy("Show projects")} value={filter} onChange={setFilter} options={[{ value: 'active', label: copy("Active") }, { value: 'completed', label: copy("Completed") }, { value: 'all', label: copy("All") }]} />
         </div>
       )}
 
       {data.projects.length === 0 ? (
         <section className="card">
-          <EmptyState icon="folder" title="No projects yet" body="Create a project with a deadline, then add the 10–15 minute tasks it takes to finish.">
-            <button type="button" className="btn btn-primary" onClick={ui.openNewProject}><Icon name="plus" size={16} />New project</button>
+          <EmptyState icon="folder" title={copy("No projects yet")} body={copy("Create a project with a deadline, then add the 10–15 minute tasks it takes to finish.")}>
+            <button type="button" className="btn btn-primary" onClick={ui.openNewProject}><Icon name="plus" size={16} />{copy("New project")}</button>
           </EmptyState>
         </section>
       ) : list.length === 0 ? (
         <section className="card">
-          <EmptyState icon={filter === 'completed' ? 'check' : 'folder'} title={filter === 'completed' ? 'Nothing completed yet' : 'No active projects'} body={filter === 'completed' ? 'Finish every task in a project and it lands here.' : 'Everything is done. Start something new?'} />
+          <EmptyState icon={filter === 'completed' ? 'check' : 'folder'} title={filter === 'completed' ? copy("Nothing completed yet") : copy("No active projects")} body={filter === 'completed' ? copy("Finish every task in a project and it lands here.") : copy("Everything is done. Start something new?")} />
         </section>
       ) : (
         <div className="proj-grid stagger" key={filter}>
@@ -80,15 +85,15 @@ export function ProjectsPage() {
                   <span className="n">{p.name}</span>
                   <RiskPill risk={st.risk} />
                 </div>
-                <span className="desc">{p.description || `${PRIORITY_LABEL[p.priority]} · ${st.total} tasks`}</span>
+                <span className="desc">{p.description || copy("{0} · {1} tasks", priorityLabel(p.priority, language), st.total)}</span>
                 <div className="row" style={{ gap: 10 }}>
-                  <ProgressBar pct={st.pct} color={p.color} height={6} label={`${p.name} progress`} />
+                  <ProgressBar pct={st.pct} color={p.color} height={6} label={copy("{0} progress", p.name)} />
                   <span className="tnum" style={{ fontSize: 12, color: 'var(--muted)', width: 34, textAlign: 'right' }}>{st.pct}%</span>
                 </div>
                 <div className="foot">
-                  <span className="tnum">{st.done}/{st.total} tasks{st.remainingMin ? ` · ${fmtMinutes(st.remainingMin)} left` : ''}</span>
+                  <span className="tnum">{st.done}/{st.total} {copy("tasks")}{st.remainingMin ? " " + copy("· {0} left", fmtMinutes(st.remainingMin)) : ''}</span>
                   <span style={late ? { color: 'var(--danger-text)', fontWeight: 600 } : undefined}>
-                    {p.completedAt ? `Done ${fmt.monthDay(new Date(p.completedAt))}` : late ? `Due ${fmt.monthDay(parseDay(p.dueDate))}` : relDue(p.dueDate, s.now)}
+                    {p.completedAt ? copy("Done {0}", fmt.monthDay(new Date(p.completedAt))) : late ? copy("Due {0}", fmt.monthDay(parseDay(p.dueDate))) : relDue(p.dueDate, s.now)}
                   </span>
                 </div>
               </Link>

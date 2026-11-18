@@ -1,11 +1,14 @@
+import { useDateCopy, useCopy } from '../i18n/LanguageContext';
 import { useEffect, useId, useRef, useState } from 'react';
-import { addDays, dayKey, fmt, parseDay } from '../logic/dates';
+import { addDays, dayKey, parseDay } from '../logic/dates';
 import { Icon } from './Icon';
 
 export function DatePicker({ id, label, value, onChange, min, error, optional = false }: {
   id: string; label: string; value: string; onChange: (value: string) => void;
   min?: string; error?: string; optional?: boolean;
 }) {
+  const { fmt } = useDateCopy();
+  const copy = useCopy();
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() => parseDay(value || dayKey(new Date())));
   const root = useRef<HTMLDivElement>(null);
@@ -41,16 +44,16 @@ export function DatePicker({ id, label, value, onChange, min, error, optional = 
         setOpen(!open);
       }}>
         <span className="date-trigger-icon"><Icon name="calendar" size={17} /></span>
-        <span className={value ? '' : 'date-placeholder'}>{value ? `${fmt.monthDay(parseDay(value))}, ${parseDay(value).getFullYear()}` : 'Choose a date'}</span>
+        <span className={value ? '' : 'date-placeholder'}>{value ? `${fmt.monthDay(parseDay(value))}, ${parseDay(value).getFullYear()}` : copy("Choose a date")}</span>
         <span className="date-trigger-arrow" aria-hidden="true">{open ? '⌃' : '⌄'}</span>
       </button>
       {error && <span role="alert" className="err-text">{error}</span>}
-      {open && <div id={panelId} className="date-calendar" role="group" aria-label={`${label} calendar`}>
+      {open && <div id={panelId} className="date-calendar" role="group" aria-label={copy("{0} calendar", label)}>
         <div className="date-calendar-head">
-          <div><span className="date-calendar-eyebrow">PICK A DATE</span><div className="date-calendar-month" aria-live="polite">{fmt.monthYear(month)}</div></div>
+          <div><span className="date-calendar-eyebrow">{copy("PICK A DATE")}</span><div className="date-calendar-month" aria-live="polite">{fmt.monthYear(month)}</div></div>
           <div className="date-calendar-nav">
-            <button type="button" aria-label="Previous month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>‹</button>
-            <button type="button" aria-label="Next month" onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>›</button>
+            <button type="button" aria-label={copy("Previous month")} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() - 1, 1))}>‹</button>
+            <button type="button" aria-label={copy("Next month")} onClick={() => setMonth(new Date(month.getFullYear(), month.getMonth() + 1, 1))}>›</button>
           </div>
         </div>
         <div className="date-calendar-grid">
@@ -61,8 +64,8 @@ export function DatePicker({ id, label, value, onChange, min, error, optional = 
           })}
         </div>
         <div className="date-calendar-footer">
-          <button type="button" onClick={() => select(today)} disabled={!!min && today < min}>Today</button>
-          {optional && value && <button type="button" onClick={() => select('')}>Clear date</button>}
+          <button type="button" onClick={() => select(today)} disabled={!!min && today < min}>{copy("Today")}</button>
+          {optional && value && <button type="button" onClick={() => select('')}>{copy("Clear date")}</button>}
         </div>
       </div>}
     </div>

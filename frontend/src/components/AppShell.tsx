@@ -1,3 +1,4 @@
+import { useCopy } from '../i18n/LanguageContext';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
@@ -32,6 +33,7 @@ export function UIProvider({ children }: { children: ReactNode }) {
 }
 
 export function AppShell() {
+  const copy = useCopy();
   const ui = useUI();
   const loc = useLocation();
   useEffect(() => {
@@ -39,7 +41,7 @@ export function AppShell() {
   }, [loc.pathname]);
   return (
     <div className="shell">
-      <a href="#main" className="skip-link">Skip to content</a>
+      <a href="#main" className="skip-link">{copy("Skip to content")}</a>
       <div className="shell-side">
         <Sidebar onNewTask={() => ui.openQuickTask(loc.pathname.startsWith('/projects/') ? loc.pathname.split('/')[2] : undefined)} />
       </div>
@@ -50,10 +52,10 @@ export function AppShell() {
 }
 
 /** Main content wrapper with page enter animation keyed by route. */
-export function Page({ children, narrow, label }: { children: ReactNode; narrow?: boolean; label?: string }) {
+export function Page({ children, narrow, label, className = '' }: { children: ReactNode; narrow?: boolean; label?: string; className?: string }) {
   const loc = useLocation();
   return (
-    <main id="main" tabIndex={-1} aria-label={label} key={loc.pathname} className={`shell-main page-enter ${narrow ? 'narrow' : ''}`}>
+    <main id="main" tabIndex={-1} aria-label={label} key={loc.pathname} className={`shell-main page-enter ${narrow ? 'narrow' : ''} ${className}`.trim()}>
       {children}
     </main>
   );

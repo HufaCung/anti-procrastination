@@ -1,3 +1,5 @@
+import { isDataValidationError } from '../db/errors.js';
+import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
 import { tasksDb } from '../db/database.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
@@ -8,14 +10,14 @@ export const tasksRouter = Router();
 tasksRouter.use(authMiddleware);
 
 // GET /api/tasks
-tasksRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
+tasksRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const tasks = tasksDb.getByUser(user.id);
+  const tasks = await tasksDb.getByUser(user.id);
   res.json({ tasks });
-});
+}));
 
 // POST /api/tasks
-tasksRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
+tasksRouter.post('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   const { id, projectId, section, title, estimateMin, status, order, scheduledFor, completedAt, createdAt, replannedFrom, subtasks, dueDate } = req.body;
 
@@ -42,22 +44,23 @@ tasksRouter.post('/', (req: AuthenticatedRequest, res: Response) => {
   };
 
   try {
-    tasksDb.save(task);
-  } catch {
+    await tasksDb.save(task);
+  } catch (error) {
+    if (!isDataValidationError(error)) throw error;
     res.status(400).json({ error: 'Invalid task or project' });
     return;
   }
   res.status(201).json({ task });
-});
+}));
 
 // DELETE /api/tasks/:id
-tasksRouter.delete('/:id', (req: AuthenticatedRequest, res: Response) => {
+tasksRouter.delete('/:id', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const deleted = tasksDb.delete(id, user.id);
+  const deleted = await tasksDb.delete(id, user.id);
   if (!deleted) {
     res.status(404).json({ error: 'Task not found' });
     return;
   }
   res.json({ success: true });
-});
+}));

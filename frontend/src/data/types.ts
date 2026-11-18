@@ -9,13 +9,16 @@ export interface User {
   name: string;
   username: string;
   role?: 'user' | 'admin';
-  passwordHash?: string; // mock auth: SHA-256 via SubtleCrypto
   createdAt: string;
   avatar?: string; // data URL
   passwordChangedAt?: string;
 }
 
 export interface Settings {
+  workStartMin?: number;
+  workEndMin?: number;
+  /** Bit 0 is Sunday, bit 6 is Saturday. */
+  daysOffMask?: number;
   userId: ID;
   theme: Theme;
   dailyGoalMin: number; // default 180
@@ -113,3 +116,7 @@ export interface AppData {
   settings: Settings;
   meta: Meta;
 }
+
+export interface TeamMember { userId: ID; name: string; username: string; role: 'owner' | 'member'; joinedAt: string; }
+export interface TeamTask { id: ID; teamId: ID; title: string; done: boolean; assigneeId?: ID; createdBy: ID; createdAt: string; }
+export interface Team { id: ID; name: string; color: string; ownerId: ID; createdAt: string; members: TeamMember[]; tasks: TeamTask[]; }

@@ -1,3 +1,4 @@
+import { useCopy, useDateCopy, useLanguage } from '../i18n/LanguageContext';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Page, useUI } from '../components/AppShell';
@@ -5,22 +6,25 @@ import { Icon } from '../components/Icon';
 import { CheckButton, EmptyState, ProgressBar, RiskPill, StatusButton, useDocumentTitle } from '../components/ui';
 import { useStore } from '../store/AppStore';
 import { useToast } from '../store/toast';
-import { addDays, dayKey, daysBetween, fmt, fmtMinutes, greeting, parseDay, relDay, relDue, startOfWeek } from '../logic/dates';
+import { addDays, dayKey, daysBetween, parseDay, startOfWeek } from '../logic/dates';
 import { focusByDay } from '../logic/analytics';
 
-function joinDays(dates: Date[], now: Date): string {
-  const keys = Array.from(new Set(dates.map((d) => dayKey(d)))).sort();
-  const labels = keys.slice(0, 3).map((k) => {
-    const d = parseDay(k);
-    const r = relDay(d, now);
-    return r === 'Today' || r === 'Tomorrow' ? r.toLowerCase() : fmt.dowMonthDay(d);
-  });
-  if (keys.length > 3) labels.push(`${keys.length - 3} more ${keys.length - 3 === 1 ? 'day' : 'days'}`);
-  return labels.length <= 1 ? labels.join('') : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
-}
-
 export function DashboardPage() {
-  useDocumentTitle('Dashboard');
+  const copy = useCopy();
+  const { language } = useLanguage();
+  const { fmt, fmtMinutes, greeting, relDay, relDue } = useDateCopy();
+  function joinDays(dates: Date[], now: Date): string {
+    const keys = Array.from(new Set(dates.map((d) => dayKey(d)))).sort();
+    const labels = keys.slice(0, 3).map((k) => {
+      const d = parseDay(k);
+      const r = relDay(d, now);
+      return [0, 1].includes(daysBetween(now, d)) ? r.toLowerCase() : fmt.dowMonthDay(d);
+    });
+    if (keys.length > 3) labels.push(copy('{0} more {1}', keys.length - 3, copy(keys.length - 3 === 1 ? 'day' : 'days')));
+    return new Intl.ListFormat(language === 'vi' ? 'vi-VN' : 'en-US').format(labels);
+  }
+
+  useDocumentTitle(copy("Dashboard"));
   const s = useStore();
   const ui = useUI();
   const toast = useToast();
@@ -60,16 +64,16 @@ export function DashboardPage() {
     const r = s.replanProjectToToday(projectId);
     toast({
       tone: r.unplaced ? 'warn' : 'ok',
-      title: r.placed ? `Moved ${r.placed} ${name} ${r.placed === 1 ? 'task' : 'tasks'} into today` : 'No free slots left today',
-      body: r.unplaced ? `${r.unplaced} didn’t fit in today’s focus goal. Raise the goal or trim scope.` : 'Check the Calendar for the new slots.',
-      action: r.placed ? { label: 'Undo', onClick: () => s.undoReplan() } : undefined,
+      title: r.placed ? copy("Moved {0} {1} {2} into today", r.placed, name, r.placed === 1 ? copy("task") : copy("tasks")) : copy("No free slots left today"),
+      body: r.unplaced ? copy("{0} didn’t fit in today’s focus goal. Raise the goal or trim scope.", r.unplaced) : copy("Check the Calendar for the new slots."),
+      action: r.placed ? { label: copy("Undo"), onClick: () => s.undoReplan() } : undefined,
     });
   };
 
   const isEmpty = data.projects.length === 0;
 
   return (
-    <Page label="Dashboard">
+    <Page label={copy("Dashboard")} className="dashboard-page">
       <header className="page-head">
         <div className="col" style={{ gap: 4 }}>
           <span className="meta">{fmt.longDate(now)}</span>
@@ -84,18 +88,18 @@ export function DashboardPage() {
               const r = s.planMyDay();
               toast({
                 tone: r.placed ? 'ok' : 'info',
-                title: r.placed ? `Planned ${r.placed} ${r.placed === 1 ? 'task' : 'tasks'}` : r.unplaced ? 'No tasks fit before their deadlines' : 'Everything is already scheduled',
-                body: r.unplaced ? `${r.unplaced} didn’t fit before their deadlines.` : r.placed ? 'Scheduled from today onward within your daily goal (09:00–22:00, local time).' : 'Add tasks or raise your daily goal to plan more.',
-                action: r.placed ? { label: 'Undo', onClick: () => s.undoReplan() } : undefined,
+                title: r.placed ? copy("Planned {0} {1}", r.placed, r.placed === 1 ? copy("task") : copy("tasks")) : r.unplaced ? copy("No tasks fit before their deadlines") : copy("Everything is already scheduled"),
+                body: r.unplaced ? copy("{0} didn’t fit before their deadlines.", r.unplaced) : r.placed ? copy("Scheduled from today onward using your working hours and days off.") : copy("Add tasks or raise your daily goal to plan more."),
+                action: r.placed ? { label: copy("Undo"), onClick: () => s.undoReplan() } : undefined,
               });
             }}
           >
             <Icon name="calendar" size={16} style={{ color: 'var(--accent-text)' }} />
-            Plan tasks
+            {copy("Plan tasks")}
           </button>
           <button type="button" className="btn btn-primary" onClick={ui.openNewProject} data-tour="new-project">
             <Icon name="plus" size={16} stroke={2.2} />
-            New project
+            {copy("New project")}
           </button>
         </div>
       </header>
@@ -105,59 +109,59 @@ export function DashboardPage() {
           <div className="ico"><Icon name="alert" size={18} /></div>
           <div className="col" style={{ flex: '1 1 280px', gap: 2 }}>
             <span className="t">
-              {banner.name} is {Math.max(1, -daysBetween(now, parseDay(banner.dueDate)))} {Math.max(1, -daysBetween(now, parseDay(banner.dueDate))) === 1 ? 'day' : 'days'} overdue
+              {banner.name} {copy("is")} {Math.max(1, -daysBetween(now, parseDay(banner.dueDate)))} {Math.max(1, -daysBetween(now, parseDay(banner.dueDate))) === 1 ? 'day' : 'days'} {copy("overdue")}
             </span>
             <span className="b">
-              {bannerStats.total - bannerStats.done} {bannerStats.total - bannerStats.done === 1 ? 'task' : 'tasks'} left · about {fmtMinutes(bannerStats.remainingMin)}. Replanning moves them into today’s first free slots.
+              {bannerStats.total - bannerStats.done} {copy(bannerStats.total - bannerStats.done === 1 ? 'task' : 'tasks')} {copy("left · about")} {fmtMinutes(bannerStats.remainingMin)}{copy(". Replanning moves them into today’s first free slots.")}
             </span>
           </div>
           <div className="row">
-            <button type="button" className="btn btn-secondary btn-md" onClick={() => { s.snoozeAlert(banner.id); toast({ title: 'Snoozed until tomorrow' }); }}>Snooze</button>
-            <button type="button" className="btn btn-danger btn-md" onClick={() => replanToday(banner.id, banner.name)}>Replan to today</button>
+            <button type="button" className="btn btn-secondary btn-md" onClick={() => { s.snoozeAlert(banner.id); toast({ title: copy("Snoozed until tomorrow") }); }}>{copy("Snooze")}</button>
+            <button type="button" className="btn btn-danger btn-md" onClick={() => replanToday(banner.id, banner.name)}>{copy("Replan to today")}</button>
           </div>
         </div>
       )}
 
       {isEmpty ? (
         <section className="card">
-          <EmptyState icon="folder" title="Start with one project" body="Add something with a deadline, split it into 10–15 minute tasks, and Plan my day places them in your week.">
-            <button type="button" className="btn btn-primary" onClick={ui.openNewProject}><Icon name="plus" size={16} />New project</button>
+          <EmptyState icon="folder" title={copy("Start with one project")} body={copy("Add something with a deadline, split it into 10–15 minute tasks, and Plan my day places them in your week.")}>
+            <button type="button" className="btn btn-primary" onClick={ui.openNewProject}><Icon name="plus" size={16} />{copy("New project")}</button>
           </EmptyState>
         </section>
       ) : (
         <>
-          <section aria-label="Key numbers" className="grid-kpi stagger">
+          <section aria-label={copy("Key numbers")} className="grid-kpi stagger">
             <div className="card kpi">
-              <span className="label">Due this week</span>
+              <span className="label">{copy("Due this week")}</span>
               <span className="value">{dueThisWeek.length}</span>
-              <span className="sub">{dueThisWeek.length ? (highDue ? `${highDue} high priority` : `Next: ${dueThisWeek[0].name}`) : 'Nothing due in the next 7 days'}</span>
+              <span className="sub">{dueThisWeek.length ? (highDue ? copy("{0} high priority", highDue) : copy("Next: {0}", dueThisWeek[0].name)) : copy("Nothing due in the next 7 days")}</span>
             </div>
             <div className="card kpi">
-              <span className="label">Overdue</span>
+              <span className="label">{copy("Overdue")}</span>
               <span className="value" style={{ color: overdue.length ? 'var(--danger-text)' : undefined }}>{overdue.length}</span>
-              <span className="sub" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{overdue.length ? overdue.map((p) => p.name).join(', ') : 'All deadlines on time'}</span>
+              <span className="sub" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{overdue.length ? overdue.map((p) => p.name).join(', ') : copy("All deadlines on time")}</span>
             </div>
             <div className="card kpi">
-              <span className="label">Focus today</span>
+              <span className="label">{copy("Focus today")}</span>
               <span className="value" data-testid="kpi-focus">{fmtMinutes(s.todayFocusMin)}</span>
-              <ProgressBar pct={(s.todayFocusMin / goal) * 100} label="Focus today versus daily goal" />
+              <ProgressBar pct={(s.todayFocusMin / goal) * 100} label={copy("Focus today versus daily goal")} />
             </div>
             <div className="card kpi">
-              <span className="label">Today’s plan</span>
-              <span className="value" data-testid="kpi-plan">{doneToday}<small> / {today.length} done</small></span>
-              <ProgressBar pct={today.length ? (doneToday / today.length) * 100 : 0} color="var(--ok-strong)" label="Today’s tasks done" />
+              <span className="label">{copy("Today’s plan")}</span>
+              <span className="value" data-testid="kpi-plan">{doneToday}<small> / {today.length} {copy("done")}</small></span>
+              <ProgressBar pct={today.length ? (doneToday / today.length) * 100 : 0} color="var(--ok-strong)" label={copy("Today’s tasks done")} />
             </div>
           </section>
 
           <div className="grid-2">
             <section aria-labelledby="today-h" className="card clip">
               <div className="card-head">
-                <h2 id="today-h" className="section-title">Today · 10–15 min tasks</h2>
-                <Link to="/focus" className="link">Start focus →</Link>
+                <h2 id="today-h" className="section-title">{copy("Today · 10–15 min tasks")}</h2>
+                <Link to="/focus" className="link">{copy("Start focus →")}</Link>
               </div>
               {today.length === 0 ? (
-                <EmptyState icon="calendar" title="Nothing scheduled today" body="Plan my day fills today’s free slots from your projects, earliest deadline first.">
-                  <button type="button" className="btn btn-secondary btn-md" onClick={() => { const r = s.planMyDay(); toast({ tone: r.placed ? 'ok' : 'info', title: r.placed ? `Planned ${r.placed} tasks` : 'Nothing left to schedule' }); }}>Plan my day</button>
+                <EmptyState icon="calendar" title={copy("Nothing scheduled today")} body={copy("Plan my day fills today’s free slots from your projects, earliest deadline first.")}>
+                  <button type="button" className="btn btn-secondary btn-md" onClick={() => { const r = s.planMyDay(); toast({ tone: r.placed ? 'ok' : 'info', title: r.placed ? copy("Planned {0} tasks", r.placed) : copy("Nothing left to schedule") }); }}>{copy("Plan my day")}</button>
                 </EmptyState>
               ) : (
                 <ul className="task-list">
@@ -169,7 +173,7 @@ export function DashboardPage() {
                         <CheckButton done={done} title={t.title} onClick={() => s.toggleTaskDone(t.id)} />
                         <div className="grow">
                           <Link to={`/projects/${t.projectId}?task=${t.id}`} className={`title ${done ? 'done' : ''}`} style={{ textDecoration: done ? 'line-through' : 'none', color: done ? 'var(--muted)' : 'var(--text)' }}>{t.title}</Link>
-                          <span className="meta">{p?.name} · {fmt.time(new Date(t.scheduledFor!))}{t.replannedFrom ? ' · replanned' : ''}</span>
+                          <span className="meta">{p?.name} · {fmt.time(new Date(t.scheduledFor!))}{t.replannedFrom ? ` · ${copy('replanned')}` : ''}</span>
                         </div>
                         <span className="est">{t.estimateMin}m</span>
                         <StatusButton status={t.status} title={t.title} onClick={() => s.cycleStatus(t.id)} />
@@ -182,11 +186,11 @@ export function DashboardPage() {
 
             <section aria-labelledby="dl-h" className="card clip">
               <div className="card-head">
-                <h2 id="dl-h" className="section-title">Upcoming deadlines</h2>
-                <Link to="/calendar" className="link">Calendar →</Link>
+                <h2 id="dl-h" className="section-title">{copy("Upcoming deadlines")}</h2>
+                <Link to="/calendar" className="link">{copy("Calendar →")}</Link>
               </div>
               {s.activeProjects.length === 0 ? (
-                <EmptyState icon="flag" title="No active projects" body="Completed projects live on the Projects page." />
+                <EmptyState icon="flag" title={copy("No active projects")} body={copy("Completed projects live on the Projects page.")} />
               ) : (
                 <div className="col">
                   {s.activeProjects.slice(0, 6).map((p) => {
@@ -200,7 +204,7 @@ export function DashboardPage() {
                           <RiskPill risk={st.risk} />
                         </div>
                         <div className="row" style={{ gap: 10, paddingLeft: 18 }}>
-                          <ProgressBar pct={st.pct} color={p.color} label={`${p.name} progress`} />
+                          <ProgressBar pct={st.pct} color={p.color} label={copy("{0} progress", p.name)} />
                           <span className="pct">{st.pct}%</span>
                           <span className={`due ${late ? 'late' : ''}`}>{late ? fmt.monthDay(parseDay(p.dueDate)) : relDue(p.dueDate, now)}</span>
                         </div>
@@ -215,10 +219,10 @@ export function DashboardPage() {
           <div className="grid-2 stretch">
             <section aria-labelledby="wk-h" className="card pad col" style={{ gap: 14 }}>
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <h2 id="wk-h" className="section-title">Focus this week</h2>
-                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{fmtMinutes(weekTotal)} · goal {fmtMinutes(goal * 7)}</span>
+                <h2 id="wk-h" className="section-title">{copy("Focus this week")}</h2>
+                <span style={{ fontSize: 13, color: 'var(--muted)' }}>{fmtMinutes(weekTotal)} {copy("· goal")} {fmtMinutes(goal * 7)}</span>
               </div>
-              <div className="week-bars" role="img" aria-label={`Focus minutes per day: ${week.map((m, i) => `${fmt.dow(addDays(weekStart, i))} ${m}`).join(', ')}`}>
+              <div className="week-bars" role="img" aria-label={copy("Focus minutes per day: {0}", week.map((m, i) => `${fmt.dow(addDays(weekStart, i))} ${m}`).join(', '))}>
                 {week.map((m, i) => {
                   const d = addDays(weekStart, i);
                   const isToday = dayKey(d) === dayKey(now);
@@ -236,7 +240,7 @@ export function DashboardPage() {
 
             <section aria-labelledby="rp-h" className="card pad col" style={{ gap: 12 }}>
               <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <h2 id="rp-h" className="section-title">Auto-replan</h2>
+                <h2 id="rp-h" className="section-title">{copy("Auto-replan")}</h2>
                 {(slipped.length > 0 || behind.length > 0) && (
                   <span className="pill accent">{(slipped.length ? 1 : 0) + behind.length} {(slipped.length ? 1 : 0) + behind.length === 1 ? 'suggestion' : 'suggestions'}</span>
                 )}
@@ -245,8 +249,8 @@ export function DashboardPage() {
                 <div className="suggestion">
                   <Icon name="check" size={18} style={{ flex: 'none', marginTop: 1, color: 'var(--ok-strong)' }} />
                   <div className="col" style={{ gap: 4 }}>
-                    <span className="t">You’re caught up</span>
-                    <span className="b">No unfinished tasks from earlier days, and every project’s pace covers its deadline.</span>
+                    <span className="t">{copy("You’re caught up")}</span>
+                    <span className="b">{copy("No unfinished tasks from earlier days, and every project’s pace covers its deadline.")}</span>
                   </div>
                 </div>
               ) : (
@@ -256,14 +260,14 @@ export function DashboardPage() {
                       <Icon name="refresh" size={18} style={{ flex: 'none', marginTop: 1, color: 'var(--accent-text)' }} />
                       <div className="col" style={{ gap: 4 }}>
                         <span className="t">
-                          Move {slipped.length} unfinished {slippedProjects.length === 1 ? projectById.get(slippedProjects[0]!)?.name.split(' ')[0] + ' ' : ''}
-                          {slipped.length === 1 ? 'task' : 'tasks'} from earlier days
+                          {copy("Move")} {slipped.length} {copy("unfinished")} {slippedProjects.length === 1 ? projectById.get(slippedProjects[0]!)?.name.split(' ')[0] + ' ' : ''}
+                          {slipped.length === 1 ? 'task' : 'tasks'} {copy("from earlier days")}
                         </span>
                         <span className="b">
                           {movable.length
-                            ? `Spread across ${joinDays(movable.map((m) => new Date(m.to!)), now)} within your daily goal.`
-                            : 'No free slots before their deadlines. Raise your daily goal or trim scope.'}
-                          {movable.length < slipped.length && movable.length > 0 ? ` ${slipped.length - movable.length} won’t fit before the deadline.` : ''}
+                            ? copy("Spread across {0} within your daily goal.", joinDays(movable.map((m) => new Date(m.to!)), now))
+                            : copy("No free slots before their deadlines. Raise your daily goal or trim scope.")}
+                          {movable.length < slipped.length && movable.length > 0 ? " " + copy("{0} won’t fit before the deadline.", slipped.length - movable.length) : ''}
                         </span>
                       </div>
                     </div>
@@ -272,11 +276,11 @@ export function DashboardPage() {
                     <div key={p.id} className="suggestion">
                       <Icon name="clock" size={18} style={{ flex: 'none', marginTop: 1, color: p.color }} />
                       <div className="col" style={{ gap: 4 }}>
-                        <span className="t">{p.name} needs {fmtMinutes(st.neededPerDay)} per day</span>
+                        <span className="t">{p.name} {copy("needs")} {fmtMinutes(st.neededPerDay)} {copy("per day")}</span>
                         <span className="b">
                           {st.daysLate > 0
-                            ? `At your current pace (${fmtMinutes(st.pace)}/day) it finishes ${fmt.monthDay(st.projectedFinish)}, ${st.daysLate} ${st.daysLate === 1 ? 'day' : 'days'} late. Trim scope or add sessions.`
-                            : `Your recent pace is ${fmtMinutes(st.pace)}/day. Add a session or two to keep a buffer.`}
+                            ? copy("At your current pace ({0}/day) it finishes {1}, {2} {3} late. Trim scope or add sessions.", fmtMinutes(st.pace), fmt.monthDay(st.projectedFinish), st.daysLate, st.daysLate === 1 ? copy("day") : copy("days"))
+                            : copy("Your recent pace is {0}/day. Add a session or two to keep a buffer.", fmtMinutes(st.pace))}
                         </span>
                       </div>
                     </div>
@@ -288,13 +292,13 @@ export function DashboardPage() {
                         className="btn btn-dark btn-md"
                         onClick={() => {
                           const n = s.applyReplan();
-                          toast({ tone: 'ok', title: `Moved ${n} ${n === 1 ? 'task' : 'tasks'}`, action: { label: 'Undo', onClick: () => s.undoReplan() } });
+                          toast({ tone: 'ok', title: copy("Moved {0} {1}", n, n === 1 ? copy("task") : copy("tasks")), action: { label: copy("Undo"), onClick: () => s.undoReplan() } });
                         }}
                       >
-                        Apply replan
+                        {copy("Apply replan")}
                       </button>
                     )}
-                    <Link to="/progress" className="btn btn-secondary btn-md">Review</Link>
+                    <Link to="/progress" className="btn btn-secondary btn-md">{copy("Review")}</Link>
                   </div>
                 </>
               )}

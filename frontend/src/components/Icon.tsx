@@ -37,6 +37,7 @@ const PATHS: Record<string, string[]> = {
   upload: ['M12 21V9', 'm7 14 5-5 5 5', 'M5 3h14'],
   note: ['M14 3v5h5', 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'],
   more: ['M12 5h.01M12 12h.01M12 19h.01'],
+  users: ['M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2','M19 8a4 4 0 0 1 0 8M22 21v-2a4 4 0 0 0-3-3.87'],
 };
 
 export type IconName = keyof typeof PATHS | 'play' | 'pause' | 'priority';
@@ -63,6 +64,7 @@ export function Icon({ name, size = 16, stroke = 2, style, className }: { name: 
       {name === 'search' && <circle cx="11" cy="11" r="7" />}
       {name === 'sun' && <circle cx="12" cy="12" r="4" />}
       {name === 'clock' && <circle cx="12" cy="12" r="9" />}
+      {name === 'users' && <circle cx="9" cy="7" r="4" />}
       {name === 'eye' && <circle cx="12" cy="12" r="3" />}
       {name === 'lock' && <rect x="4" y="11" width="16" height="10" rx="2" />}
       {name === 'target' && (

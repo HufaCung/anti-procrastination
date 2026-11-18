@@ -1,5 +1,13 @@
 import type { FocusSession, Project, Risk, Task } from '../data/types';
-import { addDays, dayKey, daysBetween, dueEnd, fmt, parseDay, startOfDay } from './dates';
+import { addDays, dayKey, daysBetween, dueEnd, parseDay, startOfDay } from './dates';
+
+export type RiskReason =
+  | { kind: 'overdue'; due: Date; count: number }
+  | { kind: 'slipped'; count: number; dates: Date[] }
+  | { kind: 'pace'; actual: number; needed: number }
+  | { kind: 'late'; finish: Date; days: number }
+  | { kind: 'unplaced'; count: number }
+  | { kind: 'empty'; dates: Date[] };
 
 export interface ProjectStats {
   total: number;
@@ -15,7 +23,7 @@ export interface ProjectStats {
   daysLate: number; // projected finish vs due date (positive = late)
   slipped: Task[]; // unfinished tasks scheduled before today
   risk: Risk;
-  reasons: string[];
+  reasons: RiskReason[];
 }
 
 export interface StatsInput {
@@ -39,23 +47,14 @@ export function progressOf(tasks: Task[]): { total: number; done: number; pct: n
 
 /** Average focus minutes per day on the project over the last 7 days (today included, zero days count). */
 export function paceOf(projectId: string, sessions: FocusSession[], now: Date): { pace: number; hasHistory: boolean } {
-  const own = sessions.filter((s) => s.projectId === projectId);
-  if (own.length === 0) return { pace: 0, hasHistory: false };
   const from = startOfDay(addDays(now, -6)).getTime();
   const to = now.getTime();
-  const mins = own
-    .filter((s) => {
-      const t = new Date(s.startedAt).getTime();
-      return t >= from && t <= to;
-    })
-    .reduce((sum, s) => sum + s.minutes, 0);
-  return { pace: mins / 7, hasHistory: true };
-}
-
-function joinHuman(items: string[]): string {
-  if (items.length <= 1) return items.join('');
-  if (items.length === 2) return `${items[0]} and ${items[1]}`;
-  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+  const recent = sessions.filter((s) => {
+    const started = new Date(s.startedAt).getTime();
+    return s.projectId === projectId && started >= from && started <= to;
+  });
+  const minutes = recent.reduce((sum, s) => sum + s.minutes, 0);
+  return { pace: minutes / 7, hasHistory: recent.length > 0 };
 }
 
 export function projectStats(input: StatsInput): ProjectStats {
@@ -80,15 +79,14 @@ export function projectStats(input: StatsInput): ProjectStats {
 
   const allDone = total > 0 && done === total;
   let risk: Risk;
-  const reasons: string[] = [];
+  const reasons: RiskReason[] = [];
 
   if (allDone) {
     risk = 'done';
   } else if (now.getTime() > due.getTime()) {
     risk = 'overdue';
-    const open = total - done;
-    reasons.push(`The deadline was ${fmt.dowMonthDay(parseDay(project.dueDate))}; ${open} ${open === 1 ? 'task is' : 'tasks are'} still open.`);
-    if (slipped.length) reasons.push(`${slipped.length} ${slipped.length === 1 ? 'task' : 'tasks'} slipped from earlier days.`);
+    reasons.push({ kind: 'overdue', due: parseDay(project.dueDate), count: total - done });
+    if (slipped.length) reasons.push({ kind: 'slipped', count: slipped.length, dates: [] });
   } else {
     const lateFinish = projectedFinish.getTime() > due.getTime();
     const tooSlow = neededPerDay > 1.2 * pace;
@@ -98,19 +96,11 @@ export function projectStats(input: StatsInput): ProjectStats {
 
     if (hasSlipped) {
       const days = Array.from(new Set(slipped.map((t) => dayKey(new Date(t.scheduledFor!))))).sort();
-      const label = days.length <= 3 ? joinHuman(days.map((k) => fmt.dow(parseDay(k)))) : 'earlier days';
-      reasons.push(`${slipped.length} ${slipped.length === 1 ? 'task' : 'tasks'} slipped from ${label}.`);
+      reasons.push({ kind: 'slipped', count: slipped.length, dates: days.length <= 3 ? days.map(parseDay) : [] });
     }
-    if (tooSlow) {
-      reasons.push(`Your pace (${Math.round(pace)} min/day) is below the ${Math.round(neededPerDay)} min/day needed.`);
-    }
-    if (lateFinish) {
-      reasons.push(`At this pace it finishes ${fmt.monthDay(projectedFinish)}, ${daysLate} ${daysLate === 1 ? 'day' : 'days'} after the deadline.`);
-    }
-    if (shortfall) {
-      const n = input.unplacedCount!;
-      reasons.push(`${n} ${n === 1 ? 'task doesn’t' : 'tasks don’t'} fit in your daily focus goal before the deadline.`);
-    }
+    if (tooSlow) reasons.push({ kind: 'pace', actual: Math.round(pace), needed: Math.round(neededPerDay) });
+    if (lateFinish) reasons.push({ kind: 'late', finish: projectedFinish, days: daysLate });
+    if (input.unplacedCount) reasons.push({ kind: 'unplaced', count: input.unplacedCount });
     if (risk === 'at_risk') {
       // Supplementary: upcoming days with nothing scheduled for this project.
       const scheduledDays = new Set(
@@ -121,9 +111,7 @@ export function projectStats(input: StatsInput): ProjectStats {
         const d = addDays(today, i);
         if (!scheduledDays.has(dayKey(d))) empty.push(d);
       }
-      if (empty.length === 1) reasons.push(`No sessions scheduled on ${fmt.dowMonthDay(empty[0])}.`);
-      else if (empty.length === 2) reasons.push(`No sessions scheduled on ${fmt.dowMonthDay(empty[0])} or ${fmt.dowMonthDay(empty[1])}.`);
-      else if (empty.length >= 3) reasons.push(`Several days before the deadline have no sessions scheduled, starting ${fmt.dowMonthDay(empty[0])}.`);
+      if (empty.length) reasons.push({ kind: 'empty', dates: empty });
     }
   }
 
@@ -135,12 +123,4 @@ export function projectStats(input: StatsInput): ProjectStats {
   };
 }
 
-export const RISK_LABEL: Record<Risk, string> = {
-  on_track: 'On track',
-  at_risk: 'At risk',
-  overdue: 'Overdue',
-  done: 'Done',
-};
-
-export const PRIORITY_LABEL = { low: 'Low priority', medium: 'Medium priority', high: 'High priority' } as const;
 export const PRIORITY_RANK = { high: 0, medium: 1, low: 2 } as const;

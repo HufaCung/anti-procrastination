@@ -23,20 +23,6 @@ export const AUTH_ERRORS = {
   invalid: 'Username or password is incorrect.',
 } as const;
 
-export async function sha256(text: string): Promise<string> {
-  const subtle = globalThis.crypto?.subtle;
-  if (subtle) {
-    const buf = await subtle.digest('SHA-256', new TextEncoder().encode(text));
-    return Array.from(new Uint8Array(buf))
-      .map((b) => b.toString(16).padStart(2, '0'))
-      .join('');
-  }
-  // Fallback for non-secure contexts (e.g. http on a LAN IP). Not cryptographic; mock auth only.
-  let h1 = 0x811c9dc5;
-  for (let i = 0; i < text.length; i++) h1 = Math.imul(h1 ^ text.charCodeAt(i), 16777619) >>> 0;
-  return `fnv-${h1.toString(16)}-${text.length}`;
-}
-
 /** Password strength 0–4: +1 each for length ≥ 8, upper+lower, digit, symbol or length ≥ 14. */
 export function passwordScore(pw: string): number {
   let s = 0;
@@ -45,11 +31,6 @@ export function passwordScore(pw: string): number {
   if (/\d/.test(pw)) s++;
   if (/[^A-Za-z0-9]/.test(pw) || pw.length >= 14) s++;
   return s;
-}
-
-/** Salted with the immutable user id. */
-function hashFor(userId: string, password: string) {
-  return sha256(`nt:${userId}:${password}`);
 }
 
 function setSession(userId: string, remember: boolean) {
@@ -105,7 +86,7 @@ export async function signUp(input: { username: string; password: string; confir
   if (Object.keys(errors).length) return { ok: false, errors };
   const result = await api.signUp({ username: input.username.trim(), password: input.password });
   if (!result?.token || !result.user) return { ok: false, errors: { form: 'Could not create account. The username may already be in use, or the server may be unavailable.' } };
-  const user = { ...result.user, passwordHash: await hashFor(result.user.id, input.password) };
+  const user = result.user;
   usersRepo.save(user);
   setSession(user.id, true);
   return { ok: true, user };
@@ -118,7 +99,7 @@ export async function logIn(input: { username: string; password: string; remembe
   if (Object.keys(errors).length) return { ok: false, errors };
   const res = await api.logIn({ username: input.username, password: input.password, remember: input.remember });
   if (!res?.user || !res.token) return { ok: false, errors: { form: AUTH_ERRORS.invalid } };
-  const user = { ...res.user, passwordHash: await hashFor(res.user.id, input.password) };
+  const user = res.user;
   usersRepo.save(user);
   setSession(user.id, input.remember);
   return { ok: true, user };
@@ -137,12 +118,10 @@ export function logOut(): void {
 export async function changePassword(userId: string, current: string, next: string): Promise<{ ok: boolean; error?: string }> {
   const user = usersRepo.byId(userId);
   if (!user) return { ok: false, error: 'Account not found.' };
-  if (user.passwordHash !== (await hashFor(user.id, current))) return { ok: false, error: 'Current password is incorrect.' };
-  if (next.length < 8) return { ok: false, error: AUTH_ERRORS.password };
-  const newHash = await hashFor(user.id, next);
+  if (next.length < 8 || next.length > 1024) return { ok: false, error: AUTH_ERRORS.password };
   const result = await api.changePassword({ oldPassword: current, newPassword: next });
-  if (!result?.user) return { ok: false, error: 'Could not update password. Please try again.' };
-  usersRepo.save({ ...user, passwordHash: newHash, passwordChangedAt: new Date().toISOString() });
+  if (!result?.user || !result.token) return { ok: false, error: result?.error ?? 'Could not update password. Please try again.' };
+  usersRepo.save(result.user);
   return { ok: true };
 }
 
@@ -161,6 +140,6 @@ export async function updateProfile(
   else if (patch.avatar) next.avatar = patch.avatar;
   const result = await api.updateProfile({ name: next.name, ...(patch.avatar !== undefined ? { avatar: patch.avatar } : {}) });
   if (!result?.user) return { ok: false, errors: { form: 'Could not save profile. Please try again.' } };
-  usersRepo.save({ ...next, ...result.user, passwordHash: user.passwordHash });
+  usersRepo.save(result.user);
   return { ok: true, user: next };
 }

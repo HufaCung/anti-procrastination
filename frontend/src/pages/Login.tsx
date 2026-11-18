@@ -4,9 +4,13 @@ import { AuthFooter, AuthHeader } from './AuthLayout';
 import { PasswordField, TextField, useDocumentTitle } from '../components/ui';
 import { useStore } from '../store/AppStore';
 import { Icon } from '../components/Icon';
+import { translateCopy } from '../i18n/copy';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export function LoginPage() {
-  useDocumentTitle('Log in');
+  const { t, language } = useLanguage();
+  const errorText = (value: string | undefined) => value && translateCopy(language, value);
+  useDocumentTitle(t('loginTitle'));
   const s = useStore();
   const [username, setUsername] = useState('');
   const [pw, setPw] = useState('');
@@ -37,38 +41,38 @@ export function LoginPage() {
         <div className="auth-center">
           <div className="auth-form page-enter">
             <div className="col" style={{ gap: 6 }}>
-              <h1>Welcome back</h1>
-              <p className="lead">Log in to pick up where you left off.</p>
+              <h1>{t('welcomeBack')}</h1>
+              <p className="lead">{t('loginLead')}</p>
             </div>
             <form onSubmit={submit} noValidate className="col" style={{ gap: 16 }}>
-              {errors.form && <div role="alert" className="status-bad">{errors.form}</div>}
+              {errors.form && <div role="alert" className="status-bad">{errorText(errors.form)}</div>}
               <TextField
-                label="Username" autoComplete="username" placeholder="Your username" value={username} inputRef={usernameRef}
+                label={t('username')} autoComplete="username" placeholder={t('yourUsername')} value={username} inputRef={usernameRef}
                 onChange={(v) => { setUsername(v); setErrors(({ username: _e, form: _f, ...rest }) => rest); }}
-                error={errors.username}
+                error={errorText(errors.username)}
               />
               <PasswordField
-                label="Password" autoComplete="current-password" value={pw} inputRef={pwRef}
+                label={t('password')} autoComplete="current-password" value={pw} inputRef={pwRef}
                 onChange={(v) => { setPw(v); setErrors(({ password: _p, form: _f, ...rest }) => rest); }}
-                error={errors.password}
+                error={errorText(errors.password)}
               />
               <button type="submit" className={`btn btn-primary btn-lg btn-block ${loading ? 'loading' : ''}`} disabled={loading}>
                 {loading && <span className="spinner" aria-hidden="true" />}
-                {loading ? 'Logging in…' : 'Log in'}
+                {loading ? t('loggingIn') : t('login')}
               </button>
             </form>
-            <div className="divider-label">NEW HERE?</div>
-            <Link to="/signup" className="btn btn-secondary btn-lg btn-block">Create an account</Link>
+            <div className="divider-label">{t('newHere')}</div>
+            <Link to="/signup" className="btn btn-secondary btn-lg btn-block">{t('createAccount')}</Link>
           </div>
         </div>
         <AuthFooter />
       </main>
       <aside className="auth-aside" aria-hidden="true">
         <div className="inner" style={{ gap: 22, maxWidth: 440 }}>
-          <p className="quote">Big deadlines, broken into 15-minute steps you can actually start.</p>
-          <Feature icon="calendar" title="See what’s due" body="Deadlines, risk and a calendar of your planned sessions in one place." />
-          <Feature icon="chart" title="Start small" body="Split each project into 10–15 minute tasks and watch progress add up." />
-          <Feature icon="focus" title="Stay with it" body="Focus Mode times each task and logs your progress." />
+          <p className="quote">{t('loginQuote')}</p>
+          <Feature icon="calendar" title={t('seeDue')} body={t('seeDueBody')} />
+          <Feature icon="chart" title={t('startSmall')} body={t('startSmallBody')} />
+          <Feature icon="focus" title={t('stayWithIt')} body={t('stayWithItBody')} />
         </div>
       </aside>
     </div>

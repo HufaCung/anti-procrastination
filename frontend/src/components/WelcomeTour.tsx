@@ -1,9 +1,12 @@
+import { useCopy } from '../i18n/LanguageContext';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useStore } from '../store/AppStore';
 
-type Step = { target: string; eyebrow: string; title: string; body: string };
+import type { CopyKey } from '../i18n/copy';
+
+type Step = { target: string; eyebrow: CopyKey; title: CopyKey; body: CopyKey };
 type Tour = { userId: string; kind: 'project' | 'dashboard' };
 const KEY = 'tinydo:welcome-tour';
 
@@ -28,6 +31,7 @@ function readTour(userId: string): Tour | null {
 }
 
 export function WelcomeTour() {
+  const copy = useCopy();
   const { user } = useStore();
   const location = useLocation();
   const [tour, setTour] = useState<Tour | null>(() => user ? readTour(user.id) : null);
@@ -106,14 +110,14 @@ export function WelcomeTour() {
         <div className={`tour-pointer ${below ? 'above' : 'below'}`} style={{ left: rect ? Math.max(16, Math.min(width - 44, rect.left + rect.width / 2 - left - 14)) : 24 }} aria-hidden="true">
           <svg width="28" height="32" viewBox="0 0 28 32" fill="none"><path d="M4 2 22 19l-8 .4-3.5 8L4 2Z" fill="#5e5ce6" stroke="white" strokeWidth="2" strokeLinejoin="round" /></svg>
         </div>
-        <div className="tour-topline"><span>{step.eyebrow}</span><span>{index + 1} / {steps.length}</span></div>
-        <h2 id="tour-title" aria-live="polite">{step.title}</h2>
-        <p id="tour-description">{step.body}</p>
+        <div className="tour-topline"><span>{copy(step.eyebrow)}</span><span>{index + 1} / {steps.length}</span></div>
+        <h2 id="tour-title" aria-live="polite">{copy(step.title)}</h2>
+        <p id="tour-description">{copy(step.body)}</p>
         <div className="tour-actions">
-          <button type="button" className="tour-skip" onClick={close}>Skip tour</button>
+          <button type="button" className="tour-skip" onClick={close}>{copy("Skip tour")}</button>
           <div className="tour-navigation">
-            {index > 0 && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIndex(index - 1)}>Back</button>}
-            <button type="button" className="btn btn-primary btn-sm" onClick={() => index === steps.length - 1 ? close() : setIndex(index + 1)}>{index === steps.length - 1 ? 'Done' : 'Next'}</button>
+            {index > 0 && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setIndex(index - 1)}>{copy("Back")}</button>}
+            <button type="button" className="btn btn-primary btn-sm" onClick={() => index === steps.length - 1 ? close() : setIndex(index + 1)}>{index === steps.length - 1 ? copy("Done") : copy("Next")}</button>
           </div>
         </div>
       </div>

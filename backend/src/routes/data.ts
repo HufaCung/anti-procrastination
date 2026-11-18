@@ -1,5 +1,7 @@
+import { isDataValidationError } from '../db/errors.js';
+import { asyncHandler } from '../middleware/async-handler.js';
 import { Router, type Response } from 'express';
-import { getAppData, getDataRevision, syncAppData } from '../db/database.js';
+import { getAppDataSnapshot, syncAppData } from '../db/database.js';
 import { authMiddleware, type AuthenticatedRequest } from '../middleware/auth.js';
 import type { AppData } from '../types.js';
 
@@ -8,14 +10,13 @@ export const dataRouter = Router();
 dataRouter.use(authMiddleware);
 
 // GET /api/data - Retrieve all user data
-dataRouter.get('/', (req: AuthenticatedRequest, res: Response) => {
+dataRouter.get('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
-  const data = getAppData(user.id);
-  res.json({ data, revision: getDataRevision(user.id) });
-});
+  res.json(await getAppDataSnapshot(user.id));
+}));
 
 // PUT /api/data - Full sync user data
-dataRouter.put('/', (req: AuthenticatedRequest, res: Response) => {
+dataRouter.put('/', asyncHandler(async (req: AuthenticatedRequest, res: Response) => {
   const user = req.user!;
   const data = req.body.data as AppData;
 
@@ -25,13 +26,14 @@ dataRouter.put('/', (req: AuthenticatedRequest, res: Response) => {
   }
 
   try {
-    const revision = syncAppData(user.id, data, req.body.revision);
+    const revision = await syncAppData(user.id, data, req.body.revision);
     if (revision === null) {
       res.status(409).json({ error: 'Data changed on another device' });
       return;
     }
     res.json({ success: true, revision });
-  } catch {
+  } catch (error) {
+    if (!isDataValidationError(error)) throw error;
     res.status(400).json({ error: 'Invalid data or record ownership' });
   }
-});
+}));
