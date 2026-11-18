@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
-import { ProgressBar, Segmented } from './ui';
+import { Modal, ProgressBar, Segmented } from './ui';
 import { useNow, useStore } from '../store/AppStore';
 import { parseDay } from '../logic/dates';
 import { streak } from '../logic/analytics';
@@ -21,6 +21,20 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
   const days = useMemo(() => streak(data.tasks, s.now), [data.tasks, s.now]);
   const name = s.user?.name ?? '';
   const first = name.split(' ')[0] || name;
+  const [resolveOpen, setResolveOpen] = useState(false);
+  const [resolving, setResolving] = useState(false);
+  const [resolveFailed, setResolveFailed] = useState(false);
+
+  async function resolveConflict() {
+    if (resolving) return;
+    setResolving(true);
+    setResolveFailed(false);
+    const success = await s.useServerCopy();
+    setResolving(false);
+    if (success) setResolveOpen(false);
+    else setResolveFailed(true);
+  }
+
   const [more, setMore] = useState(false);
   useEffect(() => setMore(false), [loc.pathname]);
 
@@ -47,6 +61,23 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
 
       <div className="col" style={{ gap: 4, padding: '4px 0', fontSize: 12, color: 'var(--muted)' }}>
         <span role="status" data-testid="sync-status">{s.syncStatus === 'synced' ? t('allSynced') : s.syncStatus === 'syncing' ? t('syncing') : s.syncStatus === 'retrying' ? t('retrying') : s.syncStatus === 'conflict' ? t('syncConflict') : s.syncStatus === 'error' ? t('syncError') : t('loadingData')}</span>
+        {s.syncStatus === 'conflict' && (
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setResolveFailed(false); setResolveOpen(true); }}>
+            {t('resolveSync')}
+          </button>
+        )}
+        <Modal open={resolveOpen} title={t('resolveSync')} onClose={() => { if (!resolving) setResolveOpen(false); }}>
+          <div className="modal-body">
+            <p>{t('resolveSyncBody')}</p>
+            {resolveFailed && <p role="alert">{t('resolveSyncFailed')}</p>}
+          </div>
+          <div className="modal-foot">
+            <button type="button" className="btn btn-secondary" disabled={resolving} onClick={() => setResolveOpen(false)}>{copy('Cancel')}</button>
+            <button type="button" className="btn btn-primary" disabled={resolving} onClick={() => void resolveConflict()}>
+              {resolving ? t('loadingData') : t('useServerCopy')}
+            </button>
+          </div>
+        </Modal>
         {s.syncStatus === 'error' && <button type="button" className="btn btn-secondary btn-sm" onClick={s.retrySync}>{t('retrySync')}</button>}
       </div>
 

@@ -79,6 +79,7 @@ export interface AppStore {
   ready: boolean;
   syncStatus: 'loading' | 'synced' | 'syncing' | 'retrying' | 'error' | 'conflict';
   retrySync: () => void;
+  useServerCopy: () => Promise<boolean>;
   user: User | null;
   data: AppData | null;
   now: Date;
@@ -189,6 +190,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const syncRef = useRef<{ userId: string; revision: number; synced: string; running: boolean; blocked: 'conflict' | 'rejected' | null; attempts: number; exhausted: boolean; timer?: number } | null>(null);
   const [syncStatus, setSyncStatus] = useState<AppStore['syncStatus']>('loading');
   const [syncTick, setSyncTick] = useState(0);
+  const useServerCopy = useCallback(async (): Promise<boolean> => {
+    const sync = syncRef.current;
+    if (!sync || sync.blocked !== 'conflict' || sync.running) return false;
+    sync.running = true;
+    try {
+      const remote = await api.fetchAppData();
+      const local = dataRef.current;
+      if (!remote || remote === 'rejected' || !local || syncRef.current !== sync || userRef.current?.id !== sync.userId) return false;
+
+      const backup = new Blob([JSON.stringify(local, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(backup);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `tinydo-local-backup-${Date.now()}.json`;
+      try {
+        document.body.append(link);
+        link.click();
+      } finally {
+        link.remove();
+        window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      }
+
+      const nextSnapshot = snapshotText(remote.data);
+      localStorage.setItem(`nt:sync-backup:${sync.userId}`, JSON.stringify(local));
+      localStorage.setItem(`nt:sync:${sync.userId}`, JSON.stringify({ revision: remote.revision, synced: nextSnapshot }));
+      saveUserData(sync.userId, remote.data);
+      sync.synced = nextSnapshot;
+      sync.revision = remote.revision;
+      sync.blocked = null;
+      sync.attempts = 0;
+      sync.exhausted = false;
+      dataRef.current = remote.data;
+      dispatch({ type: 'load', data: remote.data });
+      setSyncStatus('synced');
+      return true;
+    } catch {
+      return false;
+    } finally {
+      sync.running = false;
+    }
+  }, []);
   const initialRetryRef = useRef<() => void>(() => {});
   const retrySync = useCallback(() => {
     const sync = syncRef.current;
@@ -253,7 +295,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         if (previous?.synced) previous.synced = snapshotText(JSON.parse(previous.synced) as AppData);
       } catch { previous = null; }
       const localText = snapshotText(local);
-      const dirty = previous ? localText !== previous.synced : hasUserData(user.id);
+      const dirty = localText !== snapshotText(remote.data) && (previous ? localText !== previous.synced : hasUserData(user.id));
       const conflict = dirty && (previous ? previous.revision !== remote.revision : remote.revision !== 0);
       const selected = dirty ? local : remote.data;
       const synced = dirty ? (previous?.synced ?? '') : snapshotText(remote.data);
@@ -809,7 +851,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const store: AppStore = {
     ready: !user || loadedFor === user.id,
-    syncStatus, retrySync,
+    syncStatus, retrySync, useServerCopy,
     user, data, now, theme,
     activeProjects: derived.activeProjects,
     stats: derived.stats,

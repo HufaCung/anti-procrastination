@@ -284,6 +284,10 @@ This builds the app and runs an isolated production smoke test, including SPA de
 links, static assets, API routing and SQLite/JWT persistence across a server restart.
 It does not create any hosting resources or deploy the app.
 
+## Resolving a sync conflict
+
+In the sidebar, open **Resolve sync conflict** and choose **Back up and use server data**. This downloads a JSON backup of the current workspace and opens the latest server version. The backup is also kept in this browser for the account. Use the downloaded file to recover individual edits manually.
+
 ## Authentication and sync contracts
 
 - The browser stores profile fields and the session token, never a password or

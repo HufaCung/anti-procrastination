@@ -145,7 +145,10 @@ export function removeUserData(userId: string): void {
   for (const collection of ['projects', 'tasks', 'sessions', 'settings', 'meta'] as const) {
     replaceFor(collection, userId, []);
   }
-  try { ls()?.removeItem(`nt:sync:${userId}`); } catch { /* storage unavailable */ }
+  try {
+    ls()?.removeItem(`nt:sync:${userId}`);
+    ls()?.removeItem(`nt:sync-backup:${userId}`);
+  } catch { /* storage unavailable */ }
 }
 
 export function saveUserData(userId: string, data: AppData): void {
