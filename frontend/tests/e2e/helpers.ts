@@ -1,14 +1,23 @@
-import { expect, type Page, test as base } from '@playwright/test';
+import { expect, type Page, type Response, test as base } from '@playwright/test';
 import { buildSeed } from '../fixtures/seed';
 import { randomUUID } from 'node:crypto';
 
-/** Fails the test on any console error or uncaught exception; stubs Google Fonts so offline runs stay clean. */
-export const test = base.extend<{ errors: string[] }>({
-  errors: async ({ page }, use) => {
+type ExpectedHttpError = { path: string; status: number };
+
+/** Captures unexpected browser errors and stubs Google Fonts for offline runs. */
+export const test = base.extend<{ errors: string[]; expectedHttpErrors: ExpectedHttpError[] }>({
+  expectedHttpErrors: async ({}, use) => { await use([]); },
+  errors: async ({ page, expectedHttpErrors }, use) => {
     const errors: string[] = [];
     await page.route(/fonts\.(googleapis|gstatic)\.com/, (route) => route.fulfill({ status: 200, contentType: 'text/css', body: '' }));
     page.on('console', (m) => {
-      if (m.type() === 'error') errors.push(m.text());
+      if (m.type() !== 'error') return;
+      const url = m.location().url;
+      const index = expectedHttpErrors.findIndex(({ path, status }) =>
+        url === new URL(path, page.url()).href &&
+        m.text().startsWith(`Failed to load resource: the server responded with a status of ${status} (`));
+      if (index >= 0) expectedHttpErrors.splice(index, 1);
+      else errors.push(m.text());
     });
     page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
     await use(errors);
@@ -16,6 +25,10 @@ export const test = base.extend<{ errors: string[] }>({
   },
 });
 export { expect };
+
+export function isPostResponse(response: Response, path: string) {
+  return new URL(response.url()).pathname === path && response.request().method() === 'POST';
+}
 
 export function uniqueEmail() {
   return `user-${randomUUID()}@example.com`;

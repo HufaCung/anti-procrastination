@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 import { Modal, ProgressBar, Segmented } from './ui';
@@ -8,7 +8,11 @@ import { streak } from '../logic/analytics';
 import * as T from '../logic/timer';
 import { useDateCopy, useCopy, LanguageToggle, useLanguage } from '../i18n/LanguageContext';
 
-export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
+export function Sidebar({ onNewTask, closeControl, modalContainer }: {
+  onNewTask: () => void;
+  closeControl?: ReactNode;
+  modalContainer?: RefObject<HTMLElement>;
+}) {
   const copy = useCopy();
   const { fmt, fmtMinutes } = useDateCopy();
   const s = useStore();
@@ -35,21 +39,15 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
     else setResolveFailed(true);
   }
 
-  const [more, setMore] = useState(false);
-  useEffect(() => setMore(false), [loc.pathname]);
-
   return (
-    <nav className={`sidebar ${more ? 'more-open' : ''}`} aria-label={t('main')}>
+    <nav className="sidebar" aria-label={t('main')}>
       <div className="brand">
         <div className="logo" aria-hidden="true">T</div>
         <div className="col" style={{ gap: 1, flex: 1, minWidth: 0 }}>
           <span style={{ fontWeight: 600, fontSize: 14 }}>TinyDo</span>
           <span style={{ fontSize: 12, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{copy("{0}’s workspace", first)}</span>
         </div>
-        <button type="button" className="btn btn-secondary btn-sm mobile-only" aria-expanded={more} aria-controls="side-more" onClick={() => setMore((m) => !m)}>
-          {more ? t('less') : t('more')}
-          <Icon name={more ? 'up' : 'down'} size={14} />
-        </button>
+        {closeControl}
       </div>
 
       <div className="row">
@@ -66,7 +64,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
             {t('resolveSync')}
           </button>
         )}
-        <Modal open={resolveOpen} title={t('resolveSync')} onClose={() => { if (!resolving) setResolveOpen(false); }}>
+        <Modal container={modalContainer?.current} open={resolveOpen} title={t('resolveSync')} onClose={() => { if (!resolving) setResolveOpen(false); }}>
           <div className="modal-body">
             <p>{t('resolveSyncBody')}</p>
             {resolveFailed && <p role="alert">{t('resolveSyncFailed')}</p>}
@@ -114,7 +112,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
         </NavLink>
       </div>
 
-      <div id="side-more" className="col mobile-extra" style={{ gap: 2 }}>
+      <div className="col" style={{ gap: 2 }}>
         <div className="side-head">
           <span>{t('projectList')}</span>
           <span>{t('due')}</span>
@@ -141,7 +139,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
 
       <div className="spacer" style={{ flex: 1 }} />
 
-      <div className="card mobile-extra" style={{ borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div className="card" style={{ borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
         <div className="row" style={{ justifyContent: 'space-between', fontSize: 12.5 }}>
           <span style={{ fontWeight: 600 }}>{t('todayFocus')}</span>
           <span className="muted tnum" data-testid="sidebar-focus">{fmtMinutes(s.todayFocusMin)} / {fmtMinutes(goal)}</span>
@@ -152,7 +150,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
         </span>
       </div>
 
-      <div className="mobile-extra">
+      <div>
       <div style={{ marginBottom: 8 }}><LanguageToggle /></div>
       <Segmented
         label={t('theme')}
@@ -166,7 +164,7 @@ export function Sidebar({ onNewTask }: { onNewTask: () => void }) {
       />
       </div>
 
-      <div className="row mobile-extra" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+      <div className="row" style={{ gap: 4, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
         <NavLink to="/profile" aria-label={t('profileSettings')} className={({ isActive }) => `profile-link ${isActive ? 'active' : ''}`}>
           <Avatar />
           <div className="col" style={{ gap: 1, minWidth: 0 }}>
@@ -240,8 +238,10 @@ function SearchBox() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        const input = inputRef.current;
+        if (!input || !input.getClientRects().length) return;
         e.preventDefault();
-        inputRef.current?.focus();
+        input.focus();
         inputRef.current?.select();
         setOpen(true);
       }
@@ -316,7 +316,8 @@ function SearchBox() {
             } else if (e.key === 'Enter' && results[sel]) {
               e.preventDefault();
               go(results[sel]);
-            } else if (e.key === 'Escape') {
+            } else if (e.key === 'Escape' && open && q.trim()) {
+              e.preventDefault();
               setOpen(false);
               setQ('');
               inputRef.current?.blur();

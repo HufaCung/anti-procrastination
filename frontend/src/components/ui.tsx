@@ -209,7 +209,7 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 
 /** Accessible modal: focus trap, Esc to close, restores focus, animated in and out. */
 export function Modal({
-  open, onClose, title, children, footer, labelledBy, width = 460, initialFocus,
+  open, onClose, title, children, footer, labelledBy, width = 460, initialFocus, container,
 }: {
   open: boolean;
   onClose: () => void;
@@ -219,6 +219,7 @@ export function Modal({
   labelledBy?: string;
   width?: number;
   initialFocus?: React.RefObject<HTMLElement>;
+  container?: HTMLElement | null;
 }) {
   const copy = useCopy();
   const [mounted, setMounted] = useState(open);
@@ -254,6 +255,7 @@ export function Modal({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         if ((e.target as HTMLElement).closest('[data-calendar-open="true"]')) return;
+        e.preventDefault();
         e.stopPropagation();
         onCloseRef.current();
         return;
@@ -298,7 +300,7 @@ export function Modal({
         {footer && <div className="modal-foot">{footer}</div>}
       </div>
     </div>,
-    document.body,
+    container ?? document.body,
   );
 }
 

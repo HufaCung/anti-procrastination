@@ -52,7 +52,7 @@ export function WelcomeTour() {
   useLayoutEffect(() => {
     if (!tour || !step) return;
     const target = document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`);
-    if (!target) { setRect(null); return; }
+    if (!target?.getClientRects().length) { setRect(null); return; }
     target.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
     const update = () => setRect(target.getBoundingClientRect());
     update();
