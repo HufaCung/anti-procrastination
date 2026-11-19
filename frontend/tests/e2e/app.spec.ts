@@ -1,4 +1,4 @@
-import { test, expect, signUp, signUpAndOnboard, sidebar } from './helpers';
+import { test, expect, signUp, signUpAndOnboard, sidebar, isPostResponse } from './helpers';
 
 test.describe('1–2 · auth and onboarding', () => {
   test('sign up → 2-step onboarding → project page, and the dashboard shows the new project', async ({ page, errors }) => {
@@ -45,7 +45,7 @@ test.describe('1–2 · auth and onboarding', () => {
     await expect(page.getByText('No projects yet')).toBeVisible();
   });
 
-  test('validation errors on sign up and log in', async ({ page, errors }) => {
+  test('validation errors on sign up and log in', async ({ page, errors, expectedHttpErrors }) => {
     void errors;
     await page.goto('/signup');
     await page.getByRole('button', { name: 'Create account' }).click();
@@ -63,11 +63,17 @@ test.describe('1–2 · auth and onboarding', () => {
     await page.getByRole('link', { name: 'Log in' }).first().click();
     await page.getByLabel('Username').fill('nobody@example.com');
     await page.getByLabel('Password', { exact: true }).fill('wrongpass1');
-    await page.getByRole('button', { name: 'Log in' }).click();
+    const loginPath = '/api/auth/login';
+    expectedHttpErrors.push({ path: loginPath, status: 401 });
+    const [rejected] = await Promise.all([
+      page.waitForResponse(response => isPostResponse(response, loginPath)),
+      page.getByRole('button', { name: 'Log in' }).click(),
+    ]);
+    expect(rejected.status()).toBe(401);
     await expect(page.getByText('Username or password is incorrect.')).toBeVisible();
   });
 
-  test('duplicate username is rejected', async ({ page, errors }) => {
+  test('duplicate username is rejected', async ({ page, errors, expectedHttpErrors }) => {
     void errors;
     const { email } = await signUpAndOnboard(page);
     await sidebar(page).getByRole('button', { name: 'Log out' }).click();
@@ -75,7 +81,13 @@ test.describe('1–2 · auth and onboarding', () => {
     await page.getByLabel('Username').fill(email);
     await page.getByLabel('Password', { exact: true }).fill('Another123');
     await page.getByLabel('Confirm password').fill('Another123');
-    await page.getByRole('button', { name: 'Create account' }).click();
+    const signupPath = '/api/auth/signup';
+    expectedHttpErrors.push({ path: signupPath, status: 409 });
+    const [rejected] = await Promise.all([
+      page.waitForResponse(response => isPostResponse(response, signupPath)),
+      page.getByRole('button', { name: 'Create account' }).click(),
+    ]);
+    expect(rejected.status()).toBe(409);
     await expect(page.getByText('Could not create account. The username may already be in use, or the server may be unavailable.')).toBeVisible();
   });
 
@@ -129,7 +141,9 @@ test.describe('1–2 · auth and onboarding', () => {
   test('forgot password explains reset is unavailable', async ({ page, errors }) => {
     void errors;
     await page.goto('/forgot-password');
-    await expect(page.getByText(/Password reset by email is not available yet/)).toBeVisible();
+    await expect(page.getByText(/Email password reset is currently unavailable/)).toBeVisible();
+    await page.getByRole('link', { name: 'Back to log in' }).click();
+    await expect(page).toHaveURL(/\/login$/);
   });
 });
 
@@ -381,7 +395,7 @@ test.describe('3–4 · projects and tasks', () => {
   test('task menu remains inside a small viewport and supports keyboard navigation', async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 500 });
     await signUpAndOnboard(page, { project: 'Menu project' });
-    await sidebar(page).getByRole('button', { name: 'More' }).click();
+    await page.getByRole('button', { name: 'Open menu' }).click();
     await sidebar(page).getByRole('link', { name: /Menu project/ }).click();
     await page.getByLabel('New task title').fill('Menu task');
     await page.getByRole('button', { name: 'Add', exact: true }).click();
@@ -584,10 +598,11 @@ test.describe('7–9 · overdue, replan, calendar, progress', () => {
     expect(after).toEqual(before);
 
     // auto-replan switch persists
-    const sw = page.getByRole('switch', { name: 'Auto-replan after 22:00 or when you return' });
+    const sw = page.getByRole('switch', { name: 'Auto-replan after your workday or when you return' });
     await expect(sw).toHaveAttribute('aria-checked', 'true');
     await sw.click();
     await expect(sw).toHaveAttribute('aria-checked', 'false');
+    await expect(page.getByTestId('sync-status')).toHaveText('All changes synced');
     await page.goto('/profile');
     await expect(page.getByRole('switch', { name: 'Auto-replan unfinished tasks' })).toHaveAttribute('aria-checked', 'false');
   });
@@ -605,14 +620,19 @@ test.describe('10 · theme', () => {
     await page.getByRole('radiogroup', { name: 'Appearance' }).getByRole('radio', { name: 'Light' }).click();
     await expect(html).toHaveAttribute('data-theme', 'light');
 
-    // Focus Mode follows the global theme (light-neutral in light mode).
+    // Focus Mode uses the same background as the rest of the app in both themes.
     await page.goto('/focus');
-    const bg = await page.locator('.focus-page').evaluate((el) => getComputedStyle(el).backgroundColor);
-    expect(bg).toBe('rgb(251, 251, 250)');
+    const focusPage = page.locator('.focus-page');
+    const bodyBackground = () => page.locator('body').evaluate(el => getComputedStyle(el).backgroundColor);
+    const lightBackground = await bodyBackground();
+    await expect(focusPage).toHaveCSS('background-color', lightBackground);
     await page.getByRole('button', { name: 'Switch to dark mode' }).click();
     await expect(html).toHaveAttribute('data-theme', 'dark');
-    await page.waitForTimeout(300);
-    expect(await page.locator('.focus-page').evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgb(17, 17, 19)');
+    await expect(html).not.toHaveClass(/theme-anim/);
+    const darkColor = await bodyBackground();
+    expect(darkColor).not.toBe(lightBackground);
+
+    await expect(focusPage).toHaveCSS('background-color', darkColor);
 
     // No flash: the attribute is set before any app script runs.
     await page.addInitScript(() => {
@@ -628,7 +648,7 @@ test.describe('10 · theme', () => {
 
 test.describe('11 · responsive', () => {
   test.use({ viewport: { width: 375, height: 780 } });
-  test('no horizontal page scroll at 375px; sidebar stacks; calendar scrolls inside its card', async ({ page, errors }) => {
+  test('no horizontal page scroll at 375px; calendar scrolls inside its card', async ({ page, errors }) => {
     void errors;
     await signUpAndOnboard(page, { sample: true });
     const paths = ['/', '/projects', '/calendar', '/progress', '/profile', '/focus'];
@@ -642,17 +662,55 @@ test.describe('11 · responsive', () => {
     await page.goto(projectHref!);
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
 
-    await page.goto('/');
-    const nav = await sidebar(page).boundingBox();
-    const main = await page.locator('main').boundingBox();
-    expect(main!.y).toBeGreaterThan(nav!.y + 100); // stacked
     await page.goto('/calendar');
     const cal = page.locator('.cal-wrap');
     const scrollable = await cal.evaluate((el) => el.scrollWidth > el.clientWidth && getComputedStyle(el).overflowX === 'auto');
     expect(scrollable).toBe(true);
-    // mobile "More" reveals projects and theme
-    await sidebar(page).getByRole('button', { name: 'More' }).click();
-    await expect(sidebar(page).getByRole('radio', { name: 'Dark' })).toBeVisible();
+  });
+
+  test('mobile menu opens, restores focus, and closes after navigation', async ({ page }) => {
+    await signUpAndOnboard(page, { project: 'Mobile project' });
+    await page.goto('/');
+    const menu = page.getByRole('button', { name: 'Open menu', includeHidden: true });
+    const drawer = page.getByRole('dialog', { name: 'Navigation menu' });
+    const close = drawer.getByRole('button', { name: 'Close menu' });
+
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await expect(sidebar(page)).toBeHidden();
+    await menu.click();
+    await expect(close).toBeFocused();
+    await expect(menu).toHaveAttribute('aria-expanded', 'true');
+    await expect(drawer.getByRole('link', { name: /Mobile project/ })).toBeVisible();
+    await expect(drawer.getByRole('radio', { name: 'Dark' })).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(drawer).toBeHidden();
+    await expect(menu).toBeFocused();
+
+    await menu.click();
+    await page.mouse.click(370, 180);
+    await expect(drawer).toBeHidden();
+    await menu.click();
+    await drawer.getByRole('link', { name: 'Calendar' }).click();
+    await expect(page).toHaveURL(/\/calendar$/);
+    await expect(drawer).toBeHidden();
+
+    await menu.click();
+    await drawer.getByRole('button', { name: 'New task' }).click();
+    const quickTask = page.getByRole('dialog', { name: 'New task' });
+    await expect(quickTask).toBeVisible();
+    await expect(drawer).toBeHidden();
+    await page.keyboard.press('Escape');
+
+    await menu.click();
+    await close.click();
+    await expect(drawer).toBeHidden();
+    await menu.click();
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await expect(menu).toBeHidden();
+    await expect(sidebar(page)).toBeVisible();
+    await page.setViewportSize({ width: 375, height: 780 });
+    await expect(menu).toHaveAttribute('aria-expanded', 'false');
+    await expect(sidebar(page)).toBeHidden();
   });
 });
 
@@ -695,7 +753,7 @@ test.describe('12 · keyboard and modals', () => {
     await sidebar(page).getByRole('button', { name: 'New task' }).click();
     const dialog = page.getByRole('dialog', { name: 'New task' });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByLabel('Task')).toBeFocused();
+    await expect(dialog.getByLabel('Task', { exact: true })).toBeFocused();
     for (let i = 0; i < 15; i++) {
       await page.keyboard.press('Tab');
       expect(await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]'))).toBe(true);
@@ -705,7 +763,7 @@ test.describe('12 · keyboard and modals', () => {
 
     // add a task through the modal
     await sidebar(page).getByRole('button', { name: 'New task' }).click();
-    await page.getByRole('dialog', { name: 'New task' }).getByLabel('Task').fill('Email the TA');
+    await page.getByRole('dialog', { name: 'New task' }).getByLabel('Task', { exact: true }).fill('Email the TA');
     await page.getByRole('dialog', { name: 'New task' }).getByRole('radio', { name: 'Today' }).click();
     await page.getByRole('button', { name: 'Add task' }).click();
     await expect(page.getByLabel('Task title: Email the TA')).toBeVisible();
@@ -721,7 +779,12 @@ test.describe('12 · keyboard and modals', () => {
     await expect(page.getByRole('status').filter({ hasText: 'Saved' })).toBeVisible();
     await expect(sidebar(page)).toContainText('Hoang Tran');
     await expect(page.getByRole('button', { name: 'Export' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Delete account' })).toHaveCount(0);
+    await page.getByRole('button', { name: 'Delete account', exact: true }).click();
+    const deletion = page.getByRole('dialog', { name: 'Delete account' });
+    await expect(deletion.getByLabel('Current password', { exact: true })).toBeVisible();
+    await expect(deletion.getByRole('button', { name: 'Delete account', exact: true })).toBeDisabled();
+    await deletion.getByRole('button', { name: 'Cancel' }).click();
+    await expect(deletion).toBeHidden();
     await page.getByRole('button', { name: 'Log out', exact: true }).last().click();
     await page.waitForURL('**/login');
   });

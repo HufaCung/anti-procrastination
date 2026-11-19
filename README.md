@@ -183,11 +183,23 @@ try { npm run seed:test }
 finally { Remove-Item Env:TINYDO_SEED_PASSWORD }
 ```
 
-Open [TinyDo locally](http://localhost:5173) and sign in as `tinydo-test` with that password. The script loads 10 projects, 70 tasks with subtasks, and 20 focus sessions. It sets a 09:00–18:00 workday with weekends off and leaves auto-replan disabled initially so slipped tasks remain available for manual testing. It also creates two shared teams. The main account owns one team and joins the other. Use `tinydo-test-member` with the same disposable password to test the other side or go through onboarding.
+Open [TinyDo locally](http://localhost:5173). The three accounts use the disposable password you entered.
 
-Use the workspace to test Dashboard, Projects, Calendar, Focus Mode, Progress, Teams, and profile settings. Toggle English and Vietnamese in Profile. Test account deletion after you finish with the data. For the separate read-only Admin screen, use the [admin account setup](#read-only-admin-users-screen). Password reset is currently unavailable.
+| Account | What to test |
+| --- | --- |
+| `tinydo-test` | Main workspace with 13 projects, 76 tasks, and 22 focus sessions by default. Use Dashboard to review risk and reminders, Projects to edit and filter projects, Calendar to check the agenda, and Progress to apply and undo a replan. |
+| `tinydo-test-member` | Opens an empty personal workspace. In Teams, this account owns Study group and belongs to Launch crew. The main account has the opposite roles. Use two browser profiles to add and complete shared tasks, reload to check persistence, and verify that only the team owner sees the invite form. |
+| `tinydo-test-fresh` | Starts at onboarding. Finish or skip setup, change the profile or password, and test account deletion here. Create disposable data first if you want to check what deletion removes. |
 
-The script uses a local HTTP API on port 3001 by default. Set `TINYDO_SEED_URL` for a different local port or `TINYDO_SEED_USERNAME` for a fresh account pair. Sequential reruns with the same credentials restore missing fixtures and keep existing personal records and settings.
+Use the global search box to look for `[QA]` to find the manual test cases:
+
+- **Overdue and replan** has a task that slipped from yesterday and an unscheduled overdue task. Try snoozing a reminder and applying and undoing a replan.
+- **Calendar and Focus** has a scheduled task with a different deadline, a deadline-only task, a slipped in-progress task with mixed subtasks and room to replan, and a task completed by a focus session. Try starting, pausing and ending a timer, then check Progress and the prefilled parking note.
+- **Empty project for editing** is available for adding, moving, editing and deleting tasks. Use the Completed filter with the completed sample project.
+
+The main account starts with a 09:00–18:00 workday, weekends off, and auto-replan disabled so slipped tasks remain available. Try updating the work schedule, enabling auto-replan, switching between English and Vietnamese, and toggling the theme in Profile. Use the [admin account setup](#read-only-admin-users-screen) to check the separate Admin screen. The forgot-password page explains current reset availability.
+
+The script uses the local HTTP API on port 3001 by default. Set `TINYDO_SEED_URL` for another local port. Set `TINYDO_SEED_USERNAME` to create a fresh trio. Sequential reruns add missing fixtures and preserve existing personal records, settings and team task statuses. Use a new username to get fresh relative dates or to repeat first-run onboarding. `npm run seed:test -- --count 200` changes the number of bulk records before the 11 named QA records are added.
 
 ## Persistent demo data (100 records)
 

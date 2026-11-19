@@ -115,11 +115,12 @@ test('remote opt-in still refuses HTTP, credentials, paths, queries and fragment
   }
 });
 
-test('full test seed loads work hours and both Teams roles without duplicating records', async () => {
+test('full test seed creates reusable QA scenarios, a collaborator and an untouched onboarding account', async () => {
   const options = { baseUrl, username: 'tinydo-full-test', password, now, full: true };
   const first = await seedDemo(options);
   assert.equal(first.colleague, 'tinydo-full-test-member');
-  assert.deepEqual(first.totals, { projects: 10, tasks: 70, sessions: 20 });
+  assert.equal(first.fresh, 'tinydo-full-test-fresh');
+  assert.deepEqual(first.totals, { projects: 13, tasks: 76, sessions: 22 });
   assert.equal(first.teams.length, 2);
 
   const request = async (route, { token, method = 'GET', body } = {}) => {
@@ -134,6 +135,35 @@ test('full test seed loads work hours and both Teams roles without duplicating r
   const login = name => request('/api/auth/login', { method: 'POST', body: { username: name, password } });
   const main = await login(first.username);
   const colleague = await login(first.colleague);
+  const fresh = await login(first.fresh);
+  const { data: memberData } = await request('/api/data', colleague);
+  assert.equal(memberData.meta.onboarded, true);
+  assert.deepEqual(memberData.projects, []);
+  const freshSnapshot = await request('/api/data', fresh);
+  assert.equal(freshSnapshot.revision, 0);
+  assert.equal(freshSnapshot.data.meta.onboarded, false);
+  assert.deepEqual(freshSnapshot.data.projects, []);
+
+  const snapshot = await request('/api/data', main);
+  const { data } = snapshot;
+  const empty = data.projects.find(project => project.name === '[QA] Empty project for editing');
+  assert.ok(empty);
+  assert.ok(!data.tasks.some(task => task.projectId === empty.id));
+  const slipped = data.tasks.find(task => task.title === 'Slipped task from yesterday');
+  assert.ok(new Date(slipped.scheduledFor) < now);
+  const deadlineOnly = data.tasks.find(task => task.title === 'Deadline today without a scheduled slot');
+  assert.ok(deadlineOnly.dueDate);
+  assert.equal(deadlineOnly.scheduledFor, undefined);
+  const mixed = data.tasks.find(task => task.title === 'In progress with mixed subtasks');
+  assert.equal(mixed.status, 'in_progress');
+  assert.deepEqual(mixed.subtasks.map(subtask => subtask.done), [true, false]);
+  const session = data.sessions.find(session => session.completedTask);
+  assert.equal(data.tasks.find(task => task.id === session.taskId).completedAt, session.endedAt);
+  assert.ok(data.sessions.some(session => !session.taskId && !session.projectId));
+  assert.equal(data.meta.parking.length, 1);
+  data.meta.parking[0].text = 'Keep my edited parking note';
+  await request('/api/data', { ...main, method: 'PUT', body: snapshot });
+
   const { settings } = await request('/api/settings', main);
   assert.equal(settings.workStartMin, 540);
   assert.equal(settings.workEndMin, 1080);
@@ -142,16 +172,22 @@ test('full test seed loads work hours and both Teams roles without duplicating r
   assert.deepEqual(new Set(teams.map(team => team.ownerId)), new Set([main.user.id, colleague.user.id]));
   for (const team of teams) {
     assert.equal(team.members.length, 2);
-    assert.equal(team.tasks.length, 1);
+    assert.equal(team.tasks.length, 2);
+    assert.ok(team.tasks.some(task => !task.assigneeId));
+    assert.ok(team.tasks.some(task => task.assigneeId && task.assigneeId !== team.ownerId));
   }
   const ownTeam = teams.find(team => team.ownerId === main.user.id);
-  await request(`/api/teams/${ownTeam.id}/tasks/${ownTeam.tasks[0].id}`, { ...colleague, method: 'PATCH', body: { done: true } });
+  const assigned = ownTeam.tasks.find(task => task.assigneeId === colleague.user.id);
+  await request(`/api/teams/${ownTeam.id}/tasks/${assigned.id}`, { ...colleague, method: 'PATCH', body: { done: true } });
   const again = await seedDemo(options);
   assert.deepEqual(again.added, { projects: 0, tasks: 0, sessions: 0 });
   const after = await request('/api/teams', main);
   assert.equal(after.teams.length, 2);
-  assert.equal(after.teams.find(team => team.id === ownTeam.id).tasks.length, 1);
-  assert.equal(after.teams.find(team => team.id === ownTeam.id).tasks[0].done, true);
+  const ownTeamAfter = after.teams.find(team => team.id === ownTeam.id);
+  assert.equal(ownTeamAfter.tasks.length, 2);
+  assert.equal(ownTeamAfter.tasks.find(task => task.id === assigned.id).done, true);
+  assert.equal((await request('/api/data', main)).data.meta.parking[0].text, 'Keep my edited parking note');
+  assert.deepEqual(await request('/api/data', fresh), freshSnapshot);
 });
 
 test('full test seeding refuses remote origins even when remote demo seeding is enabled', async () => {
